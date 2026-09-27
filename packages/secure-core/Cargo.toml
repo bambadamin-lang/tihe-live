@@ -1,0 +1,58 @@
+[package]
+name = "secure-core"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+description = "Content protection core for TIHE Live: licences, key handling, .tihex container, loopback HLS"
+license = "UNLICENSED"
+publish = false
+
+[lib]
+name = "secure_core"
+# cdylib for the Flutter FFI bridge; rlib so the CLI and tests can link it.
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "tihex"
+path = "src/bin/tihex.rs"
+
+[dependencies]
+# Crypto. All chosen for being pure-Rust and audited-ish; no OpenSSL dependency, because
+# cross-compiling it to Android and Windows is a recurring source of pain.
+aes = "0.8"
+ctr = "0.9"
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+x25519-dalek = { version = "2.0", features = ["static_secrets"] }
+chacha20poly1305 = "0.10"
+sha2 = "0.10"
+hkdf = "0.12"
+rand = "0.8"
+rand_core = { version = "0.6", features = ["getrandom"] }
+subtle = "2.6"
+# Zeroes key material on drop. The whole point of keeping keys out of Dart is undone if they
+# linger in freed Rust memory.
+zeroize = { version = "1.8", features = ["derive"] }
+
+# Serialisation. CBOR for the signed container header: canonical, compact, and unambiguous —
+# JSON's whitespace and key-order freedom make it a poor thing to sign.
+serde = { version = "1.0", features = ["derive"] }
+serde_cbor = "0.11"
+serde_json = "1.0"
+base64 = "0.22"
+hex = "0.4"
+
+thiserror = "2.0"
+time = { version = "0.3", features = ["formatting", "parsing", "macros", "serde"] }
+
+[dev-dependencies]
+tempfile = "3.14"
+serde_json = "1.0"
+
+[profile.release]
+# Hardening: no unwinding tables to walk, symbols stripped, LTO. Raises the cost of reverse
+# engineering the key handling. See docs/03-content-protection.md layer 8.
+panic = "abort"
+strip = "symbols"
+lto = true
+codegen-units = 1
+opt-level = 3

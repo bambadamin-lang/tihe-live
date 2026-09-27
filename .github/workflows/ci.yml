@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'claude/**', 'feat/**', 'fix/**']
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  node:
+    name: Node (lint · typecheck · test)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tihe
+          POSTGRES_PASSWORD: tihe
+          POSTGRES_DB: tihe_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+      minio:
+        image: minio/minio:edge-cicd
+        env:
+          MINIO_ROOT_USER: tihe_minio
+          MINIO_ROOT_PASSWORD: tihe_minio_dev_password
+        ports: ['9000:9000']
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgresql://tihe:tihe@localhost:5432/tihe_test
+      REDIS_URL: redis://localhost:6379
+      S3_ENDPOINT: http://localhost:9000
+      S3_ACCESS_KEY: tihe_minio
+      S3_SECRET_KEY: tihe_minio_dev_password
+      S3_BUCKET_RAW: tihe-raw
+      S3_BUCKET_VOD: tihe-vod
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Create storage buckets
+        run: |
+          curl -sSL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
+          chmod +x /usr/local/bin/mc
+          mc alias set ci http://localhost:9000 tihe_minio tihe_minio_dev_password
+          mc mb --ignore-existing ci/tihe-raw ci/tihe-vod
+
+      - name: Generate Prisma client
+        run: pnpm --filter @tihe/db generate
+
+      - name: Apply migrations
+        # The packager tests write real rows, so the schema has to exist before they run.
+        run: pnpm --filter @tihe/db migrate
+
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  rust:
+    name: Rust (secure-core)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/secure-core
+
+      - name: Format
+        run: cargo fmt --manifest-path packages/secure-core/Cargo.toml --check
+
+      - name: Clippy
+        run: cargo clippy --manifest-path packages/secure-core/Cargo.toml --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --manifest-path packages/secure-core/Cargo.toml
+
+  flutter:
+    name: Flutter (analyze)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.7'
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        working-directory: apps/player
+        # Also runs gen-l10n, which produces lib/l10n/app_localizations*.dart from the ARB files.
+        # Those are generated, not committed, so this step is required before analyze.
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: apps/player
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        working-directory: apps/player
+        run: flutter test
