@@ -150,7 +150,11 @@ export const textItemSchema = z.object({
   kind: z.literal('text'),
   /** Font size in page units (the page is 9000 high). */
   size: z.number().int().min(80).max(2000),
-  /** The top corner on the text's start side — top-right for Persian. Lines break on `\n`. */
+  /**
+   * The text's top-right corner. Text runs in its own direction (a formula left to right, Persian
+   * right to left, decided by its first strong character) and is right-aligned at this point.
+   * Lines break on `\n`.
+   */
   at: pointSchema,
   text: z.string().min(1).max(MAX_TEXT_LENGTH),
 });

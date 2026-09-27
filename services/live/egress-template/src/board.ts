@@ -159,8 +159,10 @@ function drawItem(ctx: CanvasRenderingContext2D, item: BoardItem): void {
       ctx.save();
       ctx.fillStyle = item.color;
       ctx.font = `${item.size}px ${FONT_STACK}`;
-      ctx.direction = 'rtl';
-      ctx.textAlign = 'start';
+      // Its own direction (a formula reads left to right), right-aligned at `at` — the same
+      // rule as the Flutter painter's textDirectionOf.
+      ctx.direction = textDirectionOf(item.text);
+      ctx.textAlign = 'right';
       ctx.textBaseline = 'top';
       item.text
         .split('\n')
@@ -169,6 +171,18 @@ function drawItem(ctx: CanvasRenderingContext2D, item: BoardItem): void {
       return;
     }
   }
+}
+
+const RTL_CHAR = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
+const LTR_CHAR = /[A-Za-z\u00C0-\u024F]/;
+
+/** The direction of a piece of text from its first strong character (RTL when there is none). */
+export function textDirectionOf(text: string): 'rtl' | 'ltr' {
+  for (const ch of text) {
+    if (RTL_CHAR.test(ch)) return 'rtl';
+    if (LTR_CHAR.test(ch)) return 'ltr';
+  }
+  return 'rtl';
 }
 
 function drawLaser(ctx: CanvasRenderingContext2D, preview: Preview, now: number): void {

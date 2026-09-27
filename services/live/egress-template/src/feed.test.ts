@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { serverMessageSchema, type ServerMessage } from '@tihe/contracts';
 import { describe, expect, it } from 'vitest';
-import { strokeOutline } from './board.js';
+import { strokeOutline, textDirectionOf } from './board.js';
 import { ClassroomFeed } from './feed.js';
 
 const messages = (
@@ -105,5 +105,14 @@ describe('strokeOutline', () => {
     const ys = outline.map((p) => p[1]!);
     expect(Math.min(...ys)).toBeLessThan(0);
     expect(Math.max(...ys)).toBeGreaterThan(500);
+  });
+});
+
+describe('textDirectionOf', () => {
+  it('reads Persian right to left and a formula left to right', () => {
+    expect(textDirectionOf('مشتق توابع مرکب')).toBe('rtl');
+    expect(textDirectionOf('(f(g(x)))′ = f′(g(x))')).toBe('ltr');
+    expect(textDirectionOf('مثال: y = sin(x²)')).toBe('rtl');
+    expect(textDirectionOf('= 42')).toBe('rtl');
   });
 });
