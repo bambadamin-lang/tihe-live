@@ -11,8 +11,9 @@
     - a Windows DLL: in System32 and not one of the redistributables that only appear there
       once another product installs them (Visual C++, DirectX SDK, Vulkan, OpenCL...).
   Delay-loaded DLLs open on first use, not at start-up, so a missing one is a warning: it only
-  breaks the feature that calls it. The jni package delay-loads jvm.dll for Android-only
-  code, for example.
+  breaks the feature that calls it. So is a missing import of a DLL listed in
+  $unusedOnWindows, which Flutter bundles but no Windows code opens. The script fails instead
+  if anything in the bundle imports such a DLL, because then it does load at start-up.
 
   With -BundleVcRuntime, Visual C++ runtime DLLs the bundle needs are first copied in from
   System32 (app-local deployment, which Microsoft permits), until nothing more is needed.
@@ -31,6 +32,12 @@ $ErrorActionPreference = 'Stop'
 # In System32 on a developer PC or CI runner, but not on a fresh Windows.
 $redistributable = '^(msvcp\d+.*|vcruntime\d+.*|vcomp\d+.*|concrt\d+|vccorlib\d+|mfc\d+.*|msvcr\d+.*|ucrtbased|d3dx.*|xinput1_[0-3]|xaudio2_[0-7]|vulkan-1|opencl|nvcuda|libegl|libglesv2|jvm)\.dll$'
 $vcRuntime = '^(msvcp140(_\d|_atomic_wait|_codecvt_ids)?|vcruntime140(_1)?|concrt140|vccorlib140)\.dll$'
+
+# FFI plugin DLLs that Flutter bundles because their package lists Windows, but that nothing
+# on Windows opens. Each entry says why.
+$unusedOnWindows = @{
+  'dartjni.dll' = 'package:jni, used only by path_provider_android. Its CMake means to delay-load jvm.dll but sets the flag on an undefined target, so a build machine with a JDK links jvm.dll directly.'
+}
 
 if (-not $Dumpbin) {
   $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -91,27 +98,37 @@ do {
 } while ($copied)
 
 $errors = @(); $warnings = @(); $windows = @()
+foreach ($dll in $unusedOnWindows.Keys) {
+  if ($needs.ContainsKey($dll)) {
+    $errors += "$dll is imported by $(($needs[$dll].By | Sort-Object -Unique) -join ', '), so it loads at start-up: remove it from `$unusedOnWindows and bundle what it needs"
+  }
+}
 foreach ($dll in $needs.Keys | Sort-Object) {
   $need = $needs[$dll]
-  $line = "$dll  <- $(($need.By | Sort-Object -Unique) -join ', ')"
+  $importers = @($need.By | Sort-Object -Unique)
+  $line = "$dll  <- $($importers -join ', ')"
   if ((Test-Bundled $dll) -or $dll -match '^(api|ext)-ms-win-') { continue }
+  $onlyUnused = -not ($importers | Where-Object { -not $unusedOnWindows.ContainsKey($_.ToLowerInvariant()) })
   if ($dll -notmatch $redistributable -and (Test-Path (Join-Path $system32 $dll))) {
     $windows += $line
+  } elseif ($onlyUnused) {
+    $why = ($importers | ForEach-Object { $unusedOnWindows[$_.ToLowerInvariant()] }) -join ' '
+    $warnings += "$line (never opened on Windows: $why)"
   } elseif ($need.Delay) {
-    $warnings += $line
+    $warnings += "$line (delay-loaded: only the feature using it would fail)"
   } else {
-    $errors += $line
+    $errors += "Loaded at start-up but neither bundled nor part of Windows: $line"
   }
 }
 
 Write-Host "Windows DLLs the app relies on ($($windows.Count)):"
 $windows | ForEach-Object { Write-Host "  $_" }
 foreach ($w in $warnings) {
-  Write-Host "::warning::Delay-loaded and not bundled (only the feature using it would fail): $w"
+  Write-Host "::warning::Not bundled, but never loaded at start-up: $w"
 }
 if ($errors) {
   foreach ($e in $errors) {
-    Write-Host "::error::Loaded at start-up but neither bundled nor part of Windows: $e"
+    Write-Host "::error::$e"
   }
   exit 1
 }
