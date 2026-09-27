@@ -20,3 +20,5 @@ export * from './endpoints/catalog.js';
 export * from './endpoints/progress.js';
 export * from './endpoints/playback.js';
 export * from './endpoints/webhooks.js';
+
+export * from './live/index.js';

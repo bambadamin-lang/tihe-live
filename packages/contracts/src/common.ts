@@ -21,6 +21,14 @@ export const ID_PREFIXES = {
   attachment: 'att',
   quiz: 'qz',
   note: 'nt',
+  // Live classroom — see docs/11-live-classroom.md
+  liveClass: 'cls',
+  liveSession: 'ses',
+  layout: 'lay',
+  chatMessage: 'chm',
+  boardItem: 'wbi',
+  boardPage: 'wbp',
+  liveAudit: 'lae',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIXES;
@@ -46,10 +54,9 @@ export const phoneSchema = z
   .trim()
   .transform((raw) => {
     // Fold Persian and Arabic-Indic digits to ASCII — users paste these constantly.
-    const ascii = raw.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0)).replace(
-      /[٠-٩]/g,
-      (d) => String(d.charCodeAt(0) - 0x0660),
-    );
+    const ascii = raw
+      .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+      .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
     const digits = ascii.replace(/[^\d+]/g, '');
     if (digits.startsWith('+98')) return digits;
     if (digits.startsWith('0098')) return `+${digits.slice(2)}`;
@@ -115,6 +122,14 @@ export const ERROR_CODES = [
   'CAPTURE_ENVIRONMENT_BLOCKED',
   'RATE_LIMITED',
   'INTERNAL',
+  // Live classroom
+  'CLASS_NOT_LIVE',
+  'CLASS_ENDED',
+  'CLASS_LOCKED',
+  'CLASS_FULL',
+  'CAPABILITY_MISSING',
+  'REMOVED_FROM_CLASS',
+  'JOINED_ELSEWHERE',
 ] as const;
 
 export const errorCodeSchema = z.enum(ERROR_CODES);

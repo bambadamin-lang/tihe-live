@@ -141,7 +141,8 @@ media pod, with the other pods behind a tab bar.
 **Recording layout**: Egress renders the same layout **minus** the chat, participant and
 hands pods, so no student names end up in the library video. The largest remaining media pod
 takes the main area and the rest stack in a side column
-(`deriveRecordingLayout` in `services/live/src/core/layouts.ts`).
+(`deriveRecordingLayout` in `packages/contracts/src/live/layout.ts`, shared by the service and
+the Egress template).
 
 ## 6. Whiteboard
 
@@ -150,8 +151,8 @@ takes the main area and the rest stack in a side column
   the same at any window size.
 - **Tools**: pen (خودکار), marker (ماژیک), highlighter (ماژیک فسفری, translucent), eraser
   (پاک‌کن — removes whole items), line, arrow, rectangle, ellipse, text, and laser pointer
-  (لیزر — ephemeral, fades, never stored). Eight palette colours plus custom; width 1–64;
-  optional fill for shapes.
+  (لیزر — ephemeral, fades, never stored). Eight palette colours plus custom; widths in page
+  units (1–640); optional fill for shapes.
 - **Sync**: while drawing, the client sends `wb.progress` batches about every 40 ms. They are
   relayed to others as a live preview, never stored, and may be dropped under backpressure.
   On pen-up it sends `wb.add` with the finished item, which the server sequences and

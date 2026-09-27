@@ -42,12 +42,7 @@ export const courseSummarySchema = z.object({
 });
 export type CourseSummary = z.infer<typeof courseSummarySchema>;
 
-export const videoStatusSchema = z.enum([
-  'processing',
-  'pending_review',
-  'ready',
-  'failed',
-]);
+export const videoStatusSchema = z.enum(['processing', 'pending_review', 'ready', 'failed']);
 export type VideoStatus = z.infer<typeof videoStatusSchema>;
 
 export const renditionSchema = z.object({
