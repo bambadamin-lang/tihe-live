@@ -19,7 +19,7 @@
 A virtual classroom and protected video library for an educational institute.
 
 Classes run live, are recorded automatically, and appear minutes later as encrypted videos in
-each student's library — watchable online or fully offline, on Windows and Android (iOS later).
+each student's library — watchable online or fully offline, on Windows, macOS, Android and iOS.
 
 Reference points: **Adobe Connect** for the live classroom, **[SpotPlayer](https://spotplayer.ir)**
 for the protected video library.
@@ -70,11 +70,13 @@ cd apps/player && flutter pub get && flutter run -d windows   # or -d android
 ## Layout
 
 ```
-apps/player/            Flutter client (Windows, Android, iOS later)
+apps/player/            Flutter app shell (Windows, macOS, Android, iOS)
 services/api/           NestJS: auth, catalog, progress, licensing, webhooks
 services/media-worker/  ffmpeg: transcode, encrypt, package HLS
 services/ingest-worker/ live recording → VOD library
-services/live/          LiveKit orchestration (live classroom)
+services/live/          live classroom: classes, LiveKit, classroom gateway, recording template
+packages/tihe_classroom/ Flutter: the live classroom UI (Persian, skeuomorphic)
+packages/capture_guard/ Flutter plugin: block and detect screen capture
 packages/contracts/     shared zod schemas + OpenAPI — the API contract
 packages/secure-core/   Rust: licences, crypto, .tihex container, loopback HLS server
 infra/                  Docker Compose, nginx, helper scripts
@@ -97,6 +99,7 @@ Start with [`docs/00-vision.md`](docs/00-vision.md), then:
 | [08-threat-model.md](docs/08-threat-model.md) | **What the protection actually stops, and what it does not** |
 | [09-team-workflow.md](docs/09-team-workflow.md) | Branches, ownership, definition of done |
 | [10-open-questions.md](docs/10-open-questions.md) | Deferred decisions, with deadlines |
+| [11-live-classroom.md](docs/11-live-classroom.md) | The live classroom: roles, hands, layouts, whiteboard, capture censoring, watermark |
 | [adr/](docs/adr/) | Decision records |
 
 ## Status

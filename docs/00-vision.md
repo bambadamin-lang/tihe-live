@@ -51,7 +51,7 @@ These are the capabilities that make SpotPlayer worth copying, and our equivalen
 | Simultaneous download and playback | Progressive segment download, play while fetching |
 | Statistics: license state, watch times and counts | `watch_events` append-only log → analytics views |
 | JSON API to issue and modify licenses | `POST /licenses/issue`, `/licenses/:id/revoke` |
-| Windows, Android (and Mac/iOS) | Flutter: Windows + Android now, iOS in M7 |
+| Windows, Android (and Mac/iOS) | Flutter: Windows, macOS, Android and iOS ([ADR-0009](adr/0009-four-platforms-classroom-desktop-first.md)) |
 
 ## What we deliberately do not build
 

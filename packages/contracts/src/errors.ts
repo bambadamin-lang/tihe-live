@@ -126,4 +126,39 @@ export const ERROR_CATALOG: Record<
     messageFa: 'خطای غیرمنتظره‌ای رخ داد. اگر تکرار شد با پشتیبانی تماس بگیرید.',
     action: 'contact_support',
   },
+  CLASS_NOT_LIVE: {
+    http: 409,
+    messageFa: 'این کلاس هنوز شروع نشده است.',
+    action: 'wait_and_retry',
+  },
+  CLASS_ENDED: {
+    http: 410,
+    messageFa: 'این کلاس به پایان رسیده است.',
+    action: 'none',
+  },
+  CLASS_LOCKED: {
+    http: 423,
+    messageFa: 'میزبان ورود به کلاس را قفل کرده است.',
+    action: 'wait_and_retry',
+  },
+  CLASS_FULL: {
+    http: 409,
+    messageFa: 'ظرفیت کلاس تکمیل است.',
+    action: 'wait_and_retry',
+  },
+  CAPABILITY_MISSING: {
+    http: 403,
+    messageFa: 'در این کلاس اجازهٔ انجام این کار را ندارید.',
+    action: 'none',
+  },
+  REMOVED_FROM_CLASS: {
+    http: 403,
+    messageFa: 'میزبان شما را از کلاس خارج کرده است.',
+    action: 'none',
+  },
+  JOINED_ELSEWHERE: {
+    http: 409,
+    messageFa: 'با همین حساب از دستگاه دیگری وارد کلاس شده‌اید.',
+    action: 'none',
+  },
 };

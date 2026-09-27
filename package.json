@@ -40,7 +40,9 @@
       "esbuild",
       "@prisma/client",
       "prisma",
-      "argon2"
+      "argon2",
+      "@prisma/engines",
+      "@swc/core"
     ]
   }
 }

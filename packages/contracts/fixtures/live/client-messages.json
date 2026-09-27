@@ -1,0 +1,289 @@
+[
+  {
+    "t": "hello",
+    "ticket": "eyJhbGciOiJIUzI1NiJ9.fixture.ticket",
+    "lastSeq": null
+  },
+  {
+    "t": "hello",
+    "ticket": "eyJhbGciOiJIUzI1NiJ9.fixture.ticket",
+    "lastSeq": 42
+  },
+  {
+    "t": "cmd",
+    "id": "c1",
+    "cmd": {
+      "type": "hand.raise"
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c2",
+    "cmd": {
+      "type": "hand.lower"
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c3",
+    "cmd": {
+      "type": "hand.lower",
+      "userId": "usr_01J8ZB00000000000000000003"
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c4",
+    "cmd": {
+      "type": "hand.lowerAll"
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c5",
+    "cmd": {
+      "type": "floor.give",
+      "userId": "usr_01J8ZB00000000000000000003",
+      "video": false
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c6",
+    "cmd": {
+      "type": "floor.take",
+      "userId": "usr_01J8ZB00000000000000000003"
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c7",
+    "cmd": {
+      "type": "caps.grant",
+      "userId": "usr_01J8ZB00000000000000000003",
+      "caps": ["whiteboard.draw"]
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c8",
+    "cmd": {
+      "type": "caps.revoke",
+      "userId": "usr_01J8ZB00000000000000000003",
+      "caps": ["chat.send"]
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c9",
+    "cmd": {
+      "type": "caps.reset",
+      "userId": "usr_01J8ZB00000000000000000003"
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c10",
+    "cmd": {
+      "type": "role.set",
+      "userId": "usr_01J8ZB00000000000000000003",
+      "role": "presenter"
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c11",
+    "cmd": {
+      "type": "policy.update",
+      "patch": {
+        "participantsCanChat": false,
+        "locked": true
+      }
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c12",
+    "cmd": {
+      "type": "participant.mute",
+      "userId": "usr_01J8ZB00000000000000000004",
+      "source": "audio"
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c13",
+    "cmd": {
+      "type": "participant.muteAll"
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c14",
+    "cmd": {
+      "type": "participant.remove",
+      "userId": "usr_01J8ZB00000000000000000004",
+      "reason": "بی‌نظمی"
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c15",
+    "cmd": {
+      "type": "layout.apply",
+      "layout": {
+        "id": "presentation",
+        "name": "ارائه",
+        "preset": "presentation",
+        "pods": [
+          {
+            "id": "screen",
+            "kind": "screen",
+            "x": 0,
+            "y": 0,
+            "w": 9,
+            "h": 12
+          },
+          {
+            "id": "speaker",
+            "kind": "speaker",
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 4
+          },
+          {
+            "id": "chat",
+            "kind": "chat",
+            "x": 9,
+            "y": 4,
+            "w": 3,
+            "h": 8
+          }
+        ]
+      }
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c16",
+    "cmd": {
+      "type": "chat.send",
+      "text": "سوال دارم"
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c17",
+    "cmd": {
+      "type": "chat.delete",
+      "messageId": "chm_01J8ZF00000000000000000001"
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c18",
+    "cmd": {
+      "type": "wb.add",
+      "item": {
+        "kind": "stroke",
+        "id": "wbi_01J8ZE00000000000000000001",
+        "pageId": "wbp_01J8ZD00000000000000000001",
+        "color": "#1F4FD8",
+        "tool": "pen",
+        "width": 30,
+        "points": [1000, 1000, 1200, 1100, 1500, 1150, 2000, 1300]
+      }
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c19",
+    "cmd": {
+      "type": "wb.remove",
+      "itemIds": ["wbi_01J8ZE00000000000000000001"]
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c20",
+    "cmd": {
+      "type": "wb.restore",
+      "items": [
+        {
+          "kind": "shape",
+          "id": "wbi_01J8ZE00000000000000000003",
+          "pageId": "wbp_01J8ZD00000000000000000001",
+          "color": "#D32F2F",
+          "shape": "arrow",
+          "width": 40,
+          "fill": null,
+          "from": [8000, 4000],
+          "to": [11000, 6000]
+        }
+      ]
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c21",
+    "cmd": {
+      "type": "wb.clear",
+      "pageId": "wbp_01J8ZD00000000000000000001"
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c22",
+    "cmd": {
+      "type": "wb.page.add",
+      "page": {
+        "id": "wbp_01J8ZD00000000000000000003",
+        "background": "lines"
+      },
+      "select": true
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c23",
+    "cmd": {
+      "type": "wb.page.select",
+      "pageId": "wbp_01J8ZD00000000000000000002"
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c24",
+    "cmd": {
+      "type": "wb.page.remove",
+      "pageId": "wbp_01J8ZD00000000000000000002"
+    }
+  },
+  {
+    "t": "cmd",
+    "id": "c25",
+    "cmd": {
+      "type": "capture.report",
+      "capturing": true,
+      "signals": ["recorder_process"],
+      "detail": "obs64.exe"
+    }
+  },
+  {
+    "t": "eph",
+    "eph": {
+      "type": "wb.progress",
+      "strokeId": "wbi_01J8ZE00000000000000000009",
+      "pageId": "wbp_01J8ZD00000000000000000001",
+      "tool": "laser",
+      "color": "#D32F2F",
+      "width": 60,
+      "points": [5000, 5000, 5100, 5050],
+      "done": false
+    }
+  },
+  {
+    "t": "ping"
+  }
+]

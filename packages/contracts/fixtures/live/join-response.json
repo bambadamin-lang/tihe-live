@@ -1,0 +1,81 @@
+{
+  "session": {
+    "id": "ses_01J8ZC00000000000000000001",
+    "classId": "cls_01J8ZA00000000000000000001",
+    "status": "live",
+    "startedAt": "2026-09-27T06:30:00.000Z",
+    "endedAt": null,
+    "recording": {
+      "active": true,
+      "startedAt": "2026-09-27T06:30:00.000Z"
+    }
+  },
+  "classTitle": "ریاضی ۱",
+  "you": {
+    "userId": "usr_01J8ZB00000000000000000003",
+    "name": "علی کریمی",
+    "role": "participant"
+  },
+  "livekit": {
+    "url": "ws://localhost:7880",
+    "token": "eyJhbGciOiJIUzI1NiJ9.fixture.livekit"
+  },
+  "gateway": {
+    "url": "ws://localhost:3100/v1/live/ws",
+    "ticket": "eyJhbGciOiJIUzI1NiJ9.fixture.ticket",
+    "ticketExpiresAt": "2026-09-27T06:32:00.000Z"
+  },
+  "watermark": {
+    "text": "0912•••6789 · #13794",
+    "opacity": 0.32,
+    "fontSize": 13,
+    "movement": "corners",
+    "periodSeconds": 37,
+    "seed": 918273
+  },
+  "capturePolicy": {
+    "block": true,
+    "windowsAffinity": "monitor",
+    "censorAudio": true,
+    "reportToHost": true,
+    "recorderProcesses": {
+      "windows": [
+        "obs64.exe",
+        "obs32.exe",
+        "obs.exe",
+        "streamlabs obs.exe",
+        "bdcam.exe",
+        "camtasiastudio.exe",
+        "camrecorder.exe",
+        "sharex.exe",
+        "snagit32.exe",
+        "snagiteditor.exe",
+        "fraps.exe",
+        "action.exe",
+        "dxtory.exe",
+        "apowerrec.exe",
+        "screenrec.exe",
+        "fbrecorder.exe",
+        "loom.exe",
+        "xsplit.core.exe",
+        "icecreamscreenrecorder.exe",
+        "ffmpeg.exe"
+      ],
+      "macos": [
+        "obs",
+        "screencaptureui",
+        "loom",
+        "cleanshot x",
+        "camtasia",
+        "screenflow",
+        "kap",
+        "snagit",
+        "capto",
+        "screen studio",
+        "ffmpeg"
+      ]
+    },
+    "iosSecureLayer": true,
+    "scanIntervalMs": 3000
+  }
+}

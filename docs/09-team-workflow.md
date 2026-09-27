@@ -1,6 +1,7 @@
 # Team Workflow
 
-Two developers, one repo. These rules exist to keep you out of each other's way.
+Several Claude Code sessions, one repo, each owning an area. These rules exist to keep them
+out of each other's way.
 
 ## Branches
 
@@ -18,14 +19,16 @@ The area prefix makes it obvious at a glance whose work a branch is.
 
 | Path | Owner | Rule |
 |---|---|---|
-| `services/api`, `services/media-worker`, `services/ingest-worker` | you | push freely on your own branches |
-| `apps/player`, `packages/secure-core` | you | as above |
-| `services/live` | friend | as above |
+| `services/api`, `services/media-worker`, `services/ingest-worker` | video session | push freely on your own branches |
+| `apps/player`, `packages/secure-core` | video session | as above |
+| `services/live`, `packages/tihe_classroom`, `packages/capture_guard` | live-classroom session | as above |
 | `packages/contracts` | **shared** | **PR + the other person's review, always** |
 | `infra/`, `docs/`, root config | **shared** | PR, review appreciated but not blocking |
 
-The reason `contracts` is special: it is the only place where one of you can break the
-other's build. Treat a change there as a small API design conversation.
+The reason `contracts` is special: it is the only place where one session can break another's
+build. Treat a change there as a small API design conversation. Live-classroom schemas live in
+`packages/contracts/src/live/`; `pnpm-lock.yaml` conflicts are resolved by re-running
+`pnpm install`, never by hand.
 
 ## Commits
 

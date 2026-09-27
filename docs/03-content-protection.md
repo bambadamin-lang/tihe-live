@@ -182,8 +182,13 @@ on watermarked renditions, so it is applied to high-value courses only.
 | Platform | Mechanism |
 |---|---|
 | Android | `WindowManager.LayoutParams.FLAG_SECURE` on the player activity — blocks screenshots and screen recording at the OS level, and blanks the window in the recents list. |
-| Windows | `SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)` — the window is excluded from capture APIs, so OBS/Teams/Snipping Tool record a blank region. |
-| Both | Refuse playback on virtual/mirrored displays, in emulators/VMs (M3+), and on rooted/jailbroken devices; detect known screen-recorder processes on Windows. |
+| Windows | `SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)` — the window is excluded from capture APIs, so OBS/Teams/Snipping Tool record a blank region. (The live classroom uses `WDA_MONITOR` for students so the censorship is visible — ADR-0011.) |
+| macOS | `NSWindow.sharingType = .none` — effective up to macOS 14; **ScreenCaptureKit on macOS 15+ ignores it**, so detection is the only barrier there. |
+| iOS | `sceneCaptureState` detection + secure-layer rendering; no OS-level block exists. |
+| All | Refuse playback on virtual/mirrored displays, in emulators/VMs (M3+), and on rooted/jailbroken devices; detect known screen-recorder processes on Windows and macOS. |
+
+The blocking and detection code is shared: `packages/capture_guard` (Flutter plugin, all four
+platforms), built for the live classroom and available to the player.
 
 Every one of these is defeatable by a sufficiently determined attacker. They are included
 because they stop the *casual* copier, who is the overwhelming majority.
@@ -205,12 +210,24 @@ tools, `courses.allow_capture` can disable it per course.
 ## Live class protection
 
 The same identity and capture rules apply to the live classroom, because a live class is
-unreleased content too:
+unreleased content too. Full design in [11-live-classroom.md](11-live-classroom.md) §8–9 and
+[ADR-0011](adr/0011-live-capture-guard-censor-and-attribute.md):
 
-- LiveKit join tokens are short-lived, minted per user per room after an enrollment check,
-  and carry the user identity that appears in the watermark.
-- The classroom view sets `FLAG_SECURE` / `WDA_EXCLUDEFROMCAPTURE` exactly as the player does.
-- The same moving identity watermark overlays the classroom video.
+- LiveKit join tokens are short-lived, minted per user per room after an enrollment check.
+  The user id is the LiveKit identity, so one account is one seat — a second device joining
+  replaces the first. The phone number never enters LiveKit metadata, which every participant
+  can read.
+- **Capture is blocked, detected and censored**, via `packages/capture_guard`:
+  - Windows students get `WDA_MONITOR`, so captures show a black box; presenters get
+    `WDA_EXCLUDEFROMCAPTURE`.
+  - Android uses `FLAG_SECURE`.
+  - macOS uses `sharingType = .none` plus recorder detection. On macOS 15+ this is detection
+    only.
+  - iOS uses capture-state detection plus a secure layer.
+  - On detection the student's classroom is replaced by a censor screen, remote audio is muted,
+    and the host is alerted.
+- An identity watermark (masked phone · short id · time) hops between the corners of the
+  stage.
 - **There is no client-side recording path at all.** Recording happens only server-side via
   Egress. The app ships without the capability.
 

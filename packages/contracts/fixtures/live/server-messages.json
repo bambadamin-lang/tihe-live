@@ -1,0 +1,592 @@
+[
+  {
+    "t": "welcome",
+    "you": {
+      "userId": "usr_01J8ZB00000000000000000003",
+      "role": "participant"
+    },
+    "seq": 19,
+    "snapshot": {
+      "sessionId": "ses_01J8ZC00000000000000000001",
+      "classId": "cls_01J8ZA00000000000000000001",
+      "title": "ریاضی ۱ — جلسه ۴",
+      "startedAt": "2026-09-27T06:30:00.000Z",
+      "policy": {
+        "participantsCanUnmute": false,
+        "participantsCanStartVideo": false,
+        "participantsCanShareScreen": false,
+        "participantsCanDraw": false,
+        "participantsCanChat": true,
+        "handRaiseEnabled": true,
+        "locked": false
+      },
+      "layout": {
+        "id": "whiteboard",
+        "name": "تخته سفید",
+        "preset": "whiteboard",
+        "pods": [
+          {
+            "id": "whiteboard",
+            "kind": "whiteboard",
+            "x": 0,
+            "y": 0,
+            "w": 9,
+            "h": 12
+          },
+          {
+            "id": "speaker",
+            "kind": "speaker",
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 4
+          },
+          {
+            "id": "chat",
+            "kind": "chat",
+            "x": 9,
+            "y": 4,
+            "w": 3,
+            "h": 8
+          }
+        ]
+      },
+      "participants": [
+        {
+          "userId": "usr_01J8ZB00000000000000000001",
+          "name": "دکتر رضایی",
+          "role": "host",
+          "caps": [
+            "publish.audio",
+            "publish.video",
+            "publish.screen",
+            "whiteboard.draw",
+            "whiteboard.manage",
+            "chat.send",
+            "participants.manage",
+            "roles.assign",
+            "layout.change",
+            "recording.control",
+            "class.end"
+          ],
+          "grants": [],
+          "revokes": [],
+          "hand": null,
+          "floor": false,
+          "online": true,
+          "capturing": false,
+          "joinedAt": "2026-09-27T06:30:00.000Z"
+        },
+        {
+          "userId": "usr_01J8ZB00000000000000000002",
+          "name": "مریم احمدی",
+          "role": "cohost",
+          "caps": [
+            "publish.audio",
+            "publish.video",
+            "publish.screen",
+            "whiteboard.draw",
+            "whiteboard.manage",
+            "chat.send",
+            "participants.manage",
+            "layout.change"
+          ],
+          "grants": [],
+          "revokes": [],
+          "hand": null,
+          "floor": false,
+          "online": true,
+          "capturing": false,
+          "joinedAt": "2026-09-27T06:30:00.000Z"
+        },
+        {
+          "userId": "usr_01J8ZB00000000000000000003",
+          "name": "علی کریمی",
+          "role": "participant",
+          "caps": ["chat.send", "hand.raise"],
+          "grants": [],
+          "revokes": [],
+          "hand": {
+            "raisedSeq": 17,
+            "raisedAt": "2026-09-27T06:39:00.000Z"
+          },
+          "floor": false,
+          "online": true,
+          "capturing": false,
+          "joinedAt": "2026-09-27T06:30:00.000Z"
+        },
+        {
+          "userId": "usr_01J8ZB00000000000000000004",
+          "name": "سارا محمدی",
+          "role": "participant",
+          "caps": ["chat.send", "hand.raise", "publish.audio"],
+          "grants": ["publish.audio"],
+          "revokes": [],
+          "hand": null,
+          "floor": true,
+          "online": true,
+          "capturing": false,
+          "joinedAt": "2026-09-27T06:30:00.000Z"
+        }
+      ],
+      "chat": [
+        {
+          "id": "chm_01J8ZF00000000000000000001",
+          "userId": "usr_01J8ZB00000000000000000003",
+          "name": "علی کریمی",
+          "role": "participant",
+          "text": "سلام استاد",
+          "at": "2026-09-27T06:31:00.000Z"
+        },
+        {
+          "id": "chm_01J8ZF00000000000000000002",
+          "userId": "usr_01J8ZB00000000000000000001",
+          "name": "دکتر رضایی",
+          "role": "host",
+          "text": "سلام، شروع می‌کنیم.",
+          "at": "2026-09-27T06:32:00.000Z"
+        }
+      ],
+      "board": {
+        "pages": [
+          {
+            "id": "wbp_01J8ZD00000000000000000001",
+            "background": "grid"
+          },
+          {
+            "id": "wbp_01J8ZD00000000000000000002",
+            "background": "plain"
+          }
+        ],
+        "activePageId": "wbp_01J8ZD00000000000000000001",
+        "items": [
+          {
+            "kind": "stroke",
+            "id": "wbi_01J8ZE00000000000000000001",
+            "pageId": "wbp_01J8ZD00000000000000000001",
+            "color": "#1F4FD8",
+            "tool": "pen",
+            "width": 30,
+            "points": [1000, 1000, 1200, 1100, 1500, 1150, 2000, 1300],
+            "by": "usr_01J8ZB00000000000000000001",
+            "seq": 11
+          },
+          {
+            "kind": "stroke",
+            "id": "wbi_01J8ZE00000000000000000002",
+            "pageId": "wbp_01J8ZD00000000000000000001",
+            "color": "#FFD600",
+            "tool": "highlighter",
+            "width": 240,
+            "points": [3000, 2000, 6000, 2000],
+            "by": "usr_01J8ZB00000000000000000001",
+            "seq": 12
+          },
+          {
+            "kind": "shape",
+            "id": "wbi_01J8ZE00000000000000000003",
+            "pageId": "wbp_01J8ZD00000000000000000001",
+            "color": "#D32F2F",
+            "shape": "arrow",
+            "width": 40,
+            "fill": null,
+            "from": [8000, 4000],
+            "to": [11000, 6000],
+            "by": "usr_01J8ZB00000000000000000002",
+            "seq": 13
+          },
+          {
+            "kind": "shape",
+            "id": "wbi_01J8ZE00000000000000000004",
+            "pageId": "wbp_01J8ZD00000000000000000001",
+            "color": "#2E7D32",
+            "shape": "rect",
+            "width": 30,
+            "fill": "#FFFFFF",
+            "from": [9000, 1000],
+            "to": [14000, 3500],
+            "by": "usr_01J8ZB00000000000000000001",
+            "seq": 14
+          },
+          {
+            "kind": "text",
+            "id": "wbi_01J8ZE00000000000000000005",
+            "pageId": "wbp_01J8ZD00000000000000000001",
+            "color": "#1B1B1F",
+            "size": 420,
+            "at": [9400, 1700],
+            "text": "مشتق توابع مرکب",
+            "by": "usr_01J8ZB00000000000000000001",
+            "seq": 15
+          }
+        ]
+      },
+      "recording": {
+        "active": true,
+        "startedAt": "2026-09-27T06:30:00.000Z"
+      }
+    },
+    "replay": null
+  },
+  {
+    "t": "welcome",
+    "you": {
+      "userId": "usr_01J8ZB00000000000000000003",
+      "role": "participant"
+    },
+    "seq": 21,
+    "snapshot": null,
+    "replay": [
+      {
+        "t": "evt",
+        "seq": 20,
+        "at": "2026-09-27T06:40:00.000Z",
+        "evt": {
+          "type": "participant.joined",
+          "participant": {
+            "userId": "usr_01J8ZB00000000000000000003",
+            "name": "علی کریمی",
+            "role": "participant",
+            "caps": ["chat.send", "hand.raise"],
+            "grants": [],
+            "revokes": [],
+            "hand": {
+              "raisedSeq": 17,
+              "raisedAt": "2026-09-27T06:39:00.000Z"
+            },
+            "floor": false,
+            "online": true,
+            "capturing": false,
+            "joinedAt": "2026-09-27T06:30:00.000Z"
+          }
+        }
+      },
+      {
+        "t": "evt",
+        "seq": 21,
+        "at": "2026-09-27T06:41:00.000Z",
+        "evt": {
+          "type": "participant.updated",
+          "participant": {
+            "userId": "usr_01J8ZB00000000000000000004",
+            "name": "سارا محمدی",
+            "role": "participant",
+            "caps": ["chat.send", "hand.raise", "publish.audio"],
+            "grants": ["publish.audio"],
+            "revokes": [],
+            "hand": null,
+            "floor": true,
+            "online": true,
+            "capturing": false,
+            "joinedAt": "2026-09-27T06:30:00.000Z"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "t": "evt",
+    "seq": 20,
+    "at": "2026-09-27T06:40:00.000Z",
+    "evt": {
+      "type": "participant.joined",
+      "participant": {
+        "userId": "usr_01J8ZB00000000000000000003",
+        "name": "علی کریمی",
+        "role": "participant",
+        "caps": ["chat.send", "hand.raise"],
+        "grants": [],
+        "revokes": [],
+        "hand": {
+          "raisedSeq": 17,
+          "raisedAt": "2026-09-27T06:39:00.000Z"
+        },
+        "floor": false,
+        "online": true,
+        "capturing": false,
+        "joinedAt": "2026-09-27T06:30:00.000Z"
+      }
+    }
+  },
+  {
+    "t": "evt",
+    "seq": 21,
+    "at": "2026-09-27T06:41:00.000Z",
+    "evt": {
+      "type": "participant.updated",
+      "participant": {
+        "userId": "usr_01J8ZB00000000000000000004",
+        "name": "سارا محمدی",
+        "role": "participant",
+        "caps": ["chat.send", "hand.raise", "publish.audio"],
+        "grants": ["publish.audio"],
+        "revokes": [],
+        "hand": null,
+        "floor": true,
+        "online": true,
+        "capturing": false,
+        "joinedAt": "2026-09-27T06:30:00.000Z"
+      }
+    }
+  },
+  {
+    "t": "evt",
+    "seq": 22,
+    "at": "2026-09-27T06:42:00.000Z",
+    "evt": {
+      "type": "participant.removed",
+      "userId": "usr_01J8ZB00000000000000000004",
+      "reason": null
+    }
+  },
+  {
+    "t": "evt",
+    "seq": 23,
+    "at": "2026-09-27T06:43:00.000Z",
+    "evt": {
+      "type": "policy.updated",
+      "policy": {
+        "participantsCanUnmute": false,
+        "participantsCanStartVideo": false,
+        "participantsCanShareScreen": false,
+        "participantsCanDraw": false,
+        "participantsCanChat": true,
+        "handRaiseEnabled": true,
+        "locked": true
+      }
+    }
+  },
+  {
+    "t": "evt",
+    "seq": 24,
+    "at": "2026-09-27T06:44:00.000Z",
+    "evt": {
+      "type": "layout.applied",
+      "layout": {
+        "id": "split",
+        "name": "ترکیبی",
+        "preset": "split",
+        "pods": [
+          {
+            "id": "screen",
+            "kind": "screen",
+            "x": 0,
+            "y": 0,
+            "w": 6,
+            "h": 8
+          },
+          {
+            "id": "whiteboard",
+            "kind": "whiteboard",
+            "x": 6,
+            "y": 0,
+            "w": 6,
+            "h": 8
+          },
+          {
+            "id": "speaker",
+            "kind": "speaker",
+            "x": 0,
+            "y": 8,
+            "w": 3,
+            "h": 4
+          },
+          {
+            "id": "gallery",
+            "kind": "gallery",
+            "x": 3,
+            "y": 8,
+            "w": 6,
+            "h": 4
+          },
+          {
+            "id": "chat",
+            "kind": "chat",
+            "x": 9,
+            "y": 8,
+            "w": 3,
+            "h": 4
+          }
+        ]
+      },
+      "by": "usr_01J8ZB00000000000000000001"
+    }
+  },
+  {
+    "t": "evt",
+    "seq": 25,
+    "at": "2026-09-27T06:45:00.000Z",
+    "evt": {
+      "type": "chat.message",
+      "message": {
+        "id": "chm_01J8ZF00000000000000000001",
+        "userId": "usr_01J8ZB00000000000000000003",
+        "name": "علی کریمی",
+        "role": "participant",
+        "text": "سلام استاد",
+        "at": "2026-09-27T06:31:00.000Z"
+      }
+    }
+  },
+  {
+    "t": "evt",
+    "seq": 26,
+    "at": "2026-09-27T06:46:00.000Z",
+    "evt": {
+      "type": "chat.deleted",
+      "messageId": "chm_01J8ZF00000000000000000001"
+    }
+  },
+  {
+    "t": "evt",
+    "seq": 27,
+    "at": "2026-09-27T06:47:00.000Z",
+    "evt": {
+      "type": "wb.added",
+      "items": [
+        {
+          "kind": "stroke",
+          "id": "wbi_01J8ZE00000000000000000001",
+          "pageId": "wbp_01J8ZD00000000000000000001",
+          "color": "#1F4FD8",
+          "tool": "pen",
+          "width": 30,
+          "points": [1000, 1000, 1200, 1100, 1500, 1150, 2000, 1300],
+          "by": "usr_01J8ZB00000000000000000001",
+          "seq": 11
+        }
+      ]
+    }
+  },
+  {
+    "t": "evt",
+    "seq": 28,
+    "at": "2026-09-27T06:48:00.000Z",
+    "evt": {
+      "type": "wb.removed",
+      "itemIds": ["wbi_01J8ZE00000000000000000001"]
+    }
+  },
+  {
+    "t": "evt",
+    "seq": 29,
+    "at": "2026-09-27T06:49:00.000Z",
+    "evt": {
+      "type": "wb.cleared",
+      "pageId": "wbp_01J8ZD00000000000000000001"
+    }
+  },
+  {
+    "t": "evt",
+    "seq": 30,
+    "at": "2026-09-27T06:50:00.000Z",
+    "evt": {
+      "type": "wb.page.added",
+      "page": {
+        "id": "wbp_01J8ZD00000000000000000003",
+        "background": "dots"
+      }
+    }
+  },
+  {
+    "t": "evt",
+    "seq": 31,
+    "at": "2026-09-27T06:51:00.000Z",
+    "evt": {
+      "type": "wb.page.selected",
+      "pageId": "wbp_01J8ZD00000000000000000002"
+    }
+  },
+  {
+    "t": "evt",
+    "seq": 32,
+    "at": "2026-09-27T06:52:00.000Z",
+    "evt": {
+      "type": "wb.page.removed",
+      "pageId": "wbp_01J8ZD00000000000000000002"
+    }
+  },
+  {
+    "t": "evt",
+    "seq": 33,
+    "at": "2026-09-27T06:53:00.000Z",
+    "evt": {
+      "type": "capture.alert",
+      "userId": "usr_01J8ZB00000000000000000003",
+      "name": "علی کریمی",
+      "capturing": true,
+      "signals": ["recorder_process"],
+      "detail": "obs64.exe"
+    }
+  },
+  {
+    "t": "evt",
+    "seq": 34,
+    "at": "2026-09-27T06:54:00.000Z",
+    "evt": {
+      "type": "media.muted",
+      "userId": "usr_01J8ZB00000000000000000004",
+      "source": "audio",
+      "by": "usr_01J8ZB00000000000000000001"
+    }
+  },
+  {
+    "t": "evt",
+    "seq": 35,
+    "at": "2026-09-27T06:55:00.000Z",
+    "evt": {
+      "type": "recording.changed",
+      "recording": {
+        "active": false,
+        "startedAt": null
+      }
+    }
+  },
+  {
+    "t": "evt",
+    "seq": 36,
+    "at": "2026-09-27T06:56:00.000Z",
+    "evt": {
+      "type": "class.ended",
+      "reason": "host_ended"
+    }
+  },
+  {
+    "t": "eph",
+    "from": "usr_01J8ZB00000000000000000001",
+    "eph": {
+      "type": "wb.progress",
+      "strokeId": "wbi_01J8ZE00000000000000000008",
+      "pageId": "wbp_01J8ZD00000000000000000001",
+      "tool": "pen",
+      "color": "#1B1B1F",
+      "width": 30,
+      "points": [100, 100, 140, 120],
+      "done": true
+    }
+  },
+  {
+    "t": "ack",
+    "id": "c1"
+  },
+  {
+    "t": "nack",
+    "id": "c2",
+    "error": {
+      "code": "CAPABILITY_MISSING",
+      "message": "missing capability whiteboard.draw",
+      "messageFa": "در این کلاس اجازهٔ انجام این کار را ندارید."
+    }
+  },
+  {
+    "t": "pong"
+  },
+  {
+    "t": "bye",
+    "error": {
+      "code": "REMOVED_FROM_CLASS",
+      "message": "removed by host",
+      "messageFa": "میزبان شما را از کلاس خارج کرده است."
+    }
+  }
+]

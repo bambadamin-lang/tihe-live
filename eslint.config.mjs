@@ -12,11 +12,21 @@ export default tseslint.config(
       '**/coverage/**',
       '**/*.generated.ts',
       'apps/player/**',
+      'packages/tihe_classroom/**',
+      'packages/capture_guard/**',
+      'services/live/src/generated/**',
     ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   prettier,
+  {
+    // Plain-JS Node scripts (build helpers, screenshot tools).
+    files: ['**/*.mjs'],
+    languageOptions: {
+      globals: { process: 'readonly', console: 'readonly', URL: 'readonly' },
+    },
+  },
   {
     rules: {
       // Never silently swallow a key, a token or an error.

@@ -1,0 +1,57 @@
+{
+  "name": "@tihe/live",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Live classroom: classes and sessions, LiveKit orchestration, the classroom gateway and recording",
+  "type": "module",
+  "main": "./dist/main.js",
+  "exports": {
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "default": "./dist/core/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node --enable-source-maps dist/main.js",
+    "start:dev": "prisma generate && tsc -p tsconfig.build.json && node --env-file-if-exists=.env --enable-source-maps dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "dev-token": "node --env-file-if-exists=.env --import tsx scripts/dev-token.ts",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1141.0",
+    "@nestjs/common": "^12.1.0",
+    "@nestjs/core": "^12.1.0",
+    "@nestjs/platform-express": "^12.1.0",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "@tihe/contracts": "workspace:*",
+    "express": "^5.2.1",
+    "ioredis": "^5.8.0",
+    "jose": "^6.2.12",
+    "livekit-server-sdk": "^2.19.1",
+    "pg": "^8.16.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "ulid": "^3.0.2",
+    "ws": "^8.22.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.16.2",
+    "@types/express": "^5.0.6",
+    "@types/pg": "^8.15.0",
+    "@types/ws": "^8.18.0",
+    "prisma": "7.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "unplugin-swc": "^2.0.0",
+    "vite": "^5.4.0",
+    "vitest": "^2.1.8"
+  }
+}

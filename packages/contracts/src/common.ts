@@ -21,6 +21,14 @@ export const ID_PREFIXES = {
   attachment: 'att',
   quiz: 'qz',
   note: 'nt',
+  // Live classroom — see docs/11-live-classroom.md
+  liveClass: 'cls',
+  liveSession: 'ses',
+  layout: 'lay',
+  chatMessage: 'chm',
+  boardItem: 'wbi',
+  boardPage: 'wbp',
+  liveAudit: 'lae',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIXES;
@@ -114,6 +122,14 @@ export const ERROR_CODES = [
   'CAPTURE_ENVIRONMENT_BLOCKED',
   'RATE_LIMITED',
   'INTERNAL',
+  // Live classroom
+  'CLASS_NOT_LIVE',
+  'CLASS_ENDED',
+  'CLASS_LOCKED',
+  'CLASS_FULL',
+  'CAPABILITY_MISSING',
+  'REMOVED_FROM_CLASS',
+  'JOINED_ELSEWHERE',
 ] as const;
 
 export const errorCodeSchema = z.enum(ERROR_CODES);

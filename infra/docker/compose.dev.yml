@@ -95,6 +95,10 @@ services:
       - '50000-50100:50000-50100/udp' # RTC media
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
+    # Webhooks go to services/api and services/live running on the host. Docker Desktop
+    # resolves host.docker.internal by itself; Linux needs this mapping.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     depends_on:
       redis:
         condition: service_healthy
@@ -112,6 +116,10 @@ services:
     shm_size: '1gb'
     cap_add:
       - SYS_ADMIN
+    # Egress's Chrome loads the recording template and the classroom gateway from
+    # services/live on the host (:3100).
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     depends_on:
       - livekit
       - redis

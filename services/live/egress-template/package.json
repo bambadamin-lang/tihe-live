@@ -1,0 +1,27 @@
+{
+  "name": "@tihe/live-egress-template",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The page LiveKit Egress renders into each class recording: layout, whiteboard, institute mark",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src scripts",
+    "test": "vitest run",
+    "screenshot": "vite build && node scripts/screenshot.mjs"
+  },
+  "dependencies": {
+    "@livekit/egress-sdk": "^0.2.1",
+    "@tihe/contracts": "workspace:*",
+    "livekit-client": "^2.22.3",
+    "perfect-freehand": "^1.2.3"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.56.0",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.0",
+    "vitest": "^2.1.8"
+  }
+}

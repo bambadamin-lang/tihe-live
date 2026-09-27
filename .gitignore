@@ -23,13 +23,19 @@ secrets/
 .flutter-plugins-dependencies
 .packages
 apps/player/build/
-apps/player/windows/flutter/ephemeral/
-apps/player/android/.gradle/
-apps/player/android/local.properties
 apps/player/android/app/debug/
 apps/player/android/app/profile/
 apps/player/android/app/release/
-apps/player/ios/Pods/
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+**/ios/Flutter/ephemeral/
+**/android/.gradle/
+**/android/local.properties
+**/ios/Pods/
+**/macos/Pods/
+**/test/failures/
+pubspec_overrides.yaml
 *.iml
 # Generated from lib/l10n/*.arb by `flutter gen-l10n`, which `flutter pub get` runs.
 apps/player/lib/l10n/app_localizations*.dart
@@ -61,3 +67,5 @@ packages/secure-core/target/
 
 # prisma
 services/api/prisma/*.db
+
+services/live/src/generated/

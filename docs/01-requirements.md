@@ -10,11 +10,25 @@ Kickoff date: 2026-09-27 · Team: 2 developers.
 
 ## Ownership
 
-| Developer | Owns |
+| Owner | Owns |
 |---|---|
-| **You** (`hsn.eyvazian@gmail.com`) | Video management: `services/api`, `services/media-worker`, `services/ingest-worker`, `apps/player`, `packages/secure-core` |
-| **Your friend** | Live classroom: `services/live` and the LiveKit deployment |
+| **Video session** (`hsn.eyvazian@gmail.com`) | Video management: `services/api`, `services/media-worker`, `services/ingest-worker`, `apps/player`, `packages/secure-core` |
+| **Live-classroom session** | Live classroom: `services/live`, `packages/tihe_classroom`, `packages/capture_guard`, the LiveKit deployment |
 | **Shared, PR required** | `packages/contracts`, `infra/`, `docs/` |
+
+### Live classroom requirements (added 2026-09-27)
+
+Stated by the institute for the live classroom, designed in
+[11-live-classroom.md](11-live-classroom.md):
+
+- Apps for **Windows, Android, iOS and macOS** ([ADR-0009](adr/0009-four-platforms-classroom-desktop-first.md)); the classroom ships desktop-first.
+- Screen sharing and webcam.
+- A whiteboard with several pen types.
+- Raised hands and levels of access in class.
+- Class layouts with recommended presets.
+- **Screen recording is banned**: recording the screen or the app window produces censored output; detection alerts the host ([ADR-0011](adr/0011-live-capture-guard-censor-and-attribute.md)).
+- A watermark in a corner of the class, identifying the viewer.
+- Persian UI in the **Peyda** font, with a **skeuomorphic** theme (classroom only for now).
 
 ---
 
