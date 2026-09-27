@@ -22,11 +22,16 @@ secrets/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
-apps/player/build/
-apps/player/windows/flutter/ephemeral/
-apps/player/android/.gradle/
-apps/player/android/local.properties
-apps/player/ios/Pods/
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+**/ios/Flutter/ephemeral/
+**/android/.gradle/
+**/android/local.properties
+**/ios/Pods/
+**/macos/Pods/
+**/test/failures/
+pubspec_overrides.yaml
 *.iml
 
 # tooling caches

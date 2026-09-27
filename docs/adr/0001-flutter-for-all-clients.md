@@ -1,6 +1,8 @@
 # ADR-0001 — Flutter for all client platforms
 
-**Status:** Accepted · 2026-09-27
+**Status:** Accepted · 2026-09-27 · Platform scope superseded by
+[ADR-0009](0009-four-platforms-classroom-desktop-first.md): Windows, macOS, Android and iOS are all
+launch targets.
 
 ## Context
 

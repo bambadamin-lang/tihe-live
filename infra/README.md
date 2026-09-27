@@ -19,10 +19,15 @@ docker compose -f infra/docker/compose.dev.yml --profile live up -d
 | MinIO S3 API | `localhost:9000` | `tihe_minio` / `tihe_minio_dev_password` |
 | MinIO console | http://localhost:9001 | same |
 | LiveKit | `ws://localhost:7880` | `devkey` / `devsecret_...` |
+| services/live (run on host) | `http://localhost:3100/v1/live`, WS `/v1/live/ws` | — |
 
 `minio-init` runs once on startup and creates `tihe-raw` and `tihe-vod`, sets both to
 private, and enables versioning on `tihe-vod`. If you ever see those buckets public,
 something has gone wrong — every recording would be readable by anyone who guessed a key.
+
+`postgres-init/02-live-database.sql` creates a second database, `tihe_live`, for
+`services/live` (ADR-0012). Init scripts only run on a fresh volume — on an existing one, create
+it by hand or `docker compose down -v` first.
 
 Postgres is initialised with the `fa-IR` ICU collation and the `pg_trgm`, `unaccent` and
 `pgcrypto` extensions (`docker/postgres-init/`), because Persian search depends on them.
@@ -64,6 +69,7 @@ Single server, Docker Compose, nginx terminating TLS:
 ```
             ┌──────────── nginx (TLS, rate limit) ────────────┐
             │  api.tihe.ir → services/api                     │
+            │  api.tihe.ir/v1/live → services/live (+ws)      │
             │  live.tihe.ir → livekit (ws upgrade)            │
             │  cdn.tihe.ir → minio (tihe-vod, presigned only) │
             └─────────────────────────────────────────────────┘

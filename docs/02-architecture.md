@@ -3,7 +3,7 @@
 ## System overview
 
 ```
-                 ┌────────── Flutter app (Windows / Android / iOS) ──────────┐
+              ┌──────── Flutter app (Windows / macOS / Android / iOS) ────────┐
                  │  Dart UI (RTL)                                            │
                  │  secure-core (Rust via FFI) ── OS keystore ── loopback HLS │
                  └───────────────┬───────────────────────┬───────────────────┘
@@ -13,8 +13,8 @@
       │                          │                                  │
 ┌─────▼──────┐          ┌────────▼────────┐              ┌──────────▼─────────┐
 │ services/  │          │ services/       │              │ services/live      │
-│ api        │◄─ jobs ─►│ media-worker    │              │ LiveKit orchestr.  │
-│ (NestJS)   │  BullMQ  │ ffmpeg/package  │              │      [friend]      │
+│ api        │◄─ jobs ─►│ media-worker    │              │ classes, gateway,  │
+│ (NestJS)   │  BullMQ  │ ffmpeg/package  │              │ LiveKit orchestr.  │
 └─────┬──────┘          └────────┬────────┘              └──────────┬─────────┘
       │                          │                                  │
       │                 ┌────────▼───────────┐                      │
@@ -29,9 +29,10 @@
 
 ## Services
 
-### `services/api` — NestJS *(yours)*
+### `services/api` — NestJS *(video session)*
 
-The only service the client talks to. Responsibilities:
+The client's main service; `services/live` is the only other one it calls (ADR-0012).
+Responsibilities:
 
 - **Auth** — phone OTP, JWT access/refresh, device registration and binding.
 - **Catalog** — terms, courses, sections, videos, enrollments, Persian search.
@@ -44,29 +45,32 @@ The only service the client talks to. Responsibilities:
 It holds the KEK and the license signing key. It is the only component that can unwrap a
 content key, and it only ever hands out keys re-wrapped for one specific device.
 
-### `services/media-worker` — Node + ffmpeg *(yours)*
+### `services/media-worker` — Node + ffmpeg *(video session)*
 
 BullMQ consumer. Takes a source file and produces a publishable video: rendition ladder,
 poster, thumbnail sprite, fresh content key, AES-encrypted HLS, upload to `tihe-vod`, and
 the `video_assets` + `content_keys` rows. Idempotent and resumable — a crashed job re-runs
 without duplicating output.
 
-### `services/ingest-worker` — Node *(yours)*
+### `services/ingest-worker` — Node *(video session)*
 
 Bridges live to VOD. Watches for `recordings` rows in `pending`, validates and remuxes the
 raw egress output, then hands off to `media-worker`. Kept separate because raw-recording
 handling is the part most likely to need per-engine quirks, and isolating it keeps
 `media-worker` engine-agnostic.
 
-### `services/live` — LiveKit orchestration *(your friend's)*
+### `services/live` — live classroom *(live-classroom session)*
 
-Room lifecycle, join tokens, roles and permissions, classroom layout state, whiteboard data
-channels, and starting/stopping Egress. Talks to the same Postgres for class schedules and
-to `packages/contracts` for shared types. **Nothing in the video pipeline reaches into this
-service** — the contract between the two is the webhook plus the raw bucket layout, both
-specified in [06-recording-pipeline.md](06-recording-pipeline.md).
+Classes and sessions, join tokens, room lifecycle, and the **classroom gateway**: a WebSocket
+control plane for roles and permissions, raised hands, layouts, chat, the whiteboard and
+capture alerts (ADR-0010). Starts and stops Egress with its own recording template. Its own
+database `tihe_live` on the same Postgres server; reaches the API only through the
+`CourseDirectory` interface (ADR-0012). Clients call it at `/v1/live/*`. **Nothing in the
+video pipeline reaches into this service** — the contract between the two is the webhook plus
+the raw bucket layout, both specified in [06-recording-pipeline.md](06-recording-pipeline.md).
+Full design: [11-live-classroom.md](11-live-classroom.md).
 
-### `apps/player` — Flutter *(yours)*
+### `apps/player` — Flutter *(video session)*
 
 Two layers:
 
@@ -85,6 +89,13 @@ document that the Flutter client generates its models from, so a breaking API ch
 the build rather than production.
 
 **This is the seam between the two developers.** Changes require a PR.
+
+### `packages/tihe_classroom` and `packages/capture_guard` *(live-classroom session)*
+
+Flutter packages the app imports. `tihe_classroom` is the whole classroom UI with its own
+skeuomorphic Persian theme; it runs standalone through its `example/` app. `capture_guard` is
+a Flutter plugin that blocks and detects screen capture on all four platforms (ADR-0011) and
+is shared with the player.
 
 ### `packages/secure-core`
 
@@ -119,8 +130,9 @@ Consequences:
 
 ## Data flow: a class becomes a library video
 
-1. Teacher starts a class → `services/live` creates a LiveKit room and starts a room
-   composite egress writing to `s3://tihe-raw/recordings/{classId}/{sessionId}/`.
+1. Teacher starts a class → `services/live` creates a LiveKit room (named after the session
+   id) and starts a room composite egress, rendered by its recording template, writing to
+   `s3://tihe-raw/recordings/{classId}/{sessionId}/`.
 2. Class ends → LiveKit fires `egress_ended` → `POST /webhooks/livekit` (signature verified).
 3. API writes a `recordings` row (`status: pending`) and enqueues `ingest:process`.
 4. `ingest-worker` validates and remuxes, then enqueues `media:package`.
@@ -147,13 +159,15 @@ Consequences:
 ## Folder ownership, restated
 
 ```
-apps/player/            you
-services/api/           you
-services/media-worker/  you
-services/ingest-worker/ you
-services/live/          friend
-packages/secure-core/   you
-packages/contracts/     shared — PR required
-infra/                  shared — PR required
-docs/                   shared
+apps/player/               video session
+services/api/              video session
+services/media-worker/     video session
+services/ingest-worker/    video session
+packages/secure-core/      video session
+services/live/             live-classroom session
+packages/tihe_classroom/   live-classroom session
+packages/capture_guard/    live-classroom session (shared with the player)
+packages/contracts/        shared — PR required
+infra/                     shared — PR required
+docs/                      shared
 ```

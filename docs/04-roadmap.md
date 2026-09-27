@@ -71,9 +71,26 @@ a watermark string, get the account**.
 
 ## M7 — Hardening and reach
 
-iOS build and App Store constraints · FairPlay/Widevine L1/PlayReady evaluation ·
+App Store constraints for iOS/macOS · FairPlay/Widevine L1/PlayReady evaluation ·
 forensic A/B watermarking · recording editor (trim, split, merge) · payments (ZarinPal) if
 courses are sold directly · behavioural abuse detection.
+
+---
+
+## Live classroom track (L0–L6)
+
+Runs in parallel with M1–M7, owned by the live-classroom session. Design in
+[11-live-classroom.md](11-live-classroom.md). Desktop first (ADR-0009).
+
+| Milestone | Scope | Demo |
+|---|---|---|
+| **L0 — Foundation** | ADRs 0009–0012, live contracts, `services/live` skeleton, `tihe_classroom` theme and example app, `capture_guard` API | example app renders the Persian skeuomorphic stage; `pnpm check` and `flutter test` green |
+| **L1 — Join and media (desktop)** | classes/sessions/join, LiveKit tokens, camera and mic, screen-share picker, **capture blocking and watermark from day one** | two desktops in one class; OBS records a black box |
+| **L2 — Classroom control** | gateway, roles and capabilities, hands and floor, host controls, participants and chat pods, capture alerts | revoke a student's mic and the SFU drops it; the host sees a recording attempt |
+| **L3 — Layouts** | six presets, layout editor, saved layouts, small-screen collapse | host switches layouts and every stage follows |
+| **L4 — Whiteboard** | tools, pages, progress/commit sync, undo, manage rights | two people draw at once; a late joiner sees the board |
+| **L5 — Recording** | Egress template, auto-record, `metadata.json` ordering, handoff to the pipeline | a class ends and its composite with the board lands in `tihe-raw` |
+| **L6 — Mobile** | Android MediaProjection service, iOS broadcast extension, mobile capture detection | a class from an Android phone and an iPhone |
 
 ---
 
@@ -83,7 +100,8 @@ Recorded here so they are not forgotten and not half-built:
 
 - Live captions / Persian speech-to-text for search inside spoken content
 - Auto-generated chapter suggestions from slide changes in the screen share
-- Mac and Linux desktop builds (Flutter supports both; no demand stated yet)
+- Linux desktop build (Flutter supports it; used only for development today)
+- Breakout rooms and polls in the live classroom
 - Multi-institute tenancy
 - Public course catalogue website with a preview trailer per course
 - Peer-assisted delivery (students seeding segments) to cut bandwidth cost

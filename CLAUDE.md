@@ -12,6 +12,7 @@ recordings flow automatically into a protected course library for Windows/Androi
 - `docs/06-recording-pipeline.md` — read before changing anything that crosses the
   live↔VOD boundary
 - `docs/01-requirements.md` — every locked decision and why
+- `docs/11-live-classroom.md` — read before touching `services/live` or the classroom packages
 
 ## Stack
 
@@ -26,7 +27,9 @@ apps/player/            Flutter client                      [owner: video dev]
 services/api/           NestJS: auth, catalog, licensing     [owner: video dev]
 services/media-worker/  ffmpeg transcode/encrypt/package     [owner: video dev]
 services/ingest-worker/ live recording → VOD                 [owner: video dev]
-services/live/          LiveKit orchestration                [owner: live dev]
+services/live/          classes, LiveKit, classroom gateway  [owner: live-classroom session]
+packages/tihe_classroom/ Flutter: live classroom UI           [owner: live-classroom session]
+packages/capture_guard/ Flutter plugin: capture blocking     [owner: live-classroom session]
 packages/contracts/     shared zod schemas — PR REQUIRED
 packages/secure-core/   Rust: crypto, licences, loopback HLS [owner: video dev]
 infra/                  compose, nginx, scripts

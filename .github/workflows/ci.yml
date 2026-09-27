@@ -48,8 +48,10 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma client
-        run: pnpm --filter @tihe/api prisma generate
+      - name: Generate Prisma clients
+        run: |
+          pnpm --filter @tihe/api prisma generate
+          pnpm --filter @tihe/live prisma:generate
 
       - run: pnpm format:check
       - run: pnpm lint
@@ -80,25 +82,32 @@ jobs:
         run: cargo test --manifest-path packages/secure-core/Cargo.toml
 
   flutter:
-    name: Flutter (analyze)
+    name: Flutter (format · analyze · test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.x'
+          # livekit_client 2.x needs Flutter >= 3.38 (ADR-0009).
+          flutter-version: '3.47.5'
           channel: stable
           cache: true
 
-      - name: Pub get
-        working-directory: apps/player
-        run: flutter pub get
-
-      - name: Analyze
-        working-directory: apps/player
-        run: flutter analyze --no-fatal-infos
-
-      - name: Test
-        working-directory: apps/player
-        run: flutter test
+      # Every Flutter package and app in the repo, found by its pubspec, so a new package is
+      # covered without editing this file. example/ apps are analysed with their package.
+      - name: Format, analyze and test each Flutter project
+        run: |
+          set -euo pipefail
+          roots=$(ls -d apps packages 2>/dev/null)
+          mapfile -t projects < <(find $roots -name pubspec.yaml -not -path '*/example/*' \
+            -not -path '*/.dart_tool/*' -not -path '*/build/*' -printf '%h\n' | sort)
+          for dir in "${projects[@]}"; do
+            echo "::group::$dir"
+            (cd "$dir" && flutter pub get)
+            if [ -d "$dir/example" ]; then (cd "$dir/example" && flutter pub get); fi
+            dart format --output=none --set-exit-if-changed "$dir"
+            (cd "$dir" && flutter analyze --no-fatal-infos)
+            if [ -d "$dir/test" ]; then (cd "$dir" && flutter test); fi
+            echo "::endgroup::"
+          done

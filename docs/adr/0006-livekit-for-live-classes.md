@@ -1,6 +1,7 @@
 # ADR-0006 — LiveKit for the live classroom
 
-**Status:** Accepted · 2026-09-27
+**Status:** Accepted · 2026-09-27 · "Data channels cover whiteboard state" superseded by
+[ADR-0010](0010-classroom-control-plane-websocket-gateway.md): LiveKit carries media only.
 
 ## Context
 
