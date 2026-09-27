@@ -1,0 +1,38 @@
+# LiveKit development configuration.
+#
+# Owned by the live-classroom developer. Kept in this repo so the recording pipeline can be
+# exercised end to end by whoever needs it.
+#
+# Production must replace the keys below and terminate TLS in front of this service.
+
+port: 7880
+bind_addresses:
+  - ''
+
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50100
+  use_external_ip: false
+
+redis:
+  address: redis:6379
+
+# Development keys only. Generate real ones with `livekit-server generate-keys`.
+keys:
+  devkey: devsecret_change_me_in_production_00000000
+
+room:
+  auto_create: false # rooms are created by services/live, never implicitly by a join
+  empty_timeout: 300
+  max_participants: 100
+
+# Recording completion is what triggers the video pipeline. See docs/06-recording-pipeline.md.
+webhook:
+  api_key: devkey
+  urls:
+    - http://host.docker.internal:3000/v1/webhooks/livekit
+
+logging:
+  level: info
+  json: false
