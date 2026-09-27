@@ -1,14 +1,12 @@
-import { createDecipheriv, createCipheriv, randomBytes } from 'node:crypto';
-
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { PlaybackSession, StartPlaybackBody } from '@tihe/contracts';
 
 import { AppError } from '../../common/app-error.js';
-import { newId } from '../../common/ids.js';
+import { newId } from '@tihe/db';
 import { PrismaService } from '../../common/prisma.service.js';
 import type { Env } from '../../config/configuration.js';
-import { wrapKeyForDevice } from '../crypto/key-wrap.js';
+import { unwrapContentKeyWithKek, wrapKeyForDevice } from '@tihe/crypto';
 import { LicensingService } from '../licensing/licensing.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import { deriveWatermark, newWatermarkSeed } from './watermark.js';
@@ -280,32 +278,11 @@ export class PlaybackService {
   /**
    * Unwraps a content key with the KEK.
    *
-   * Format: `iv(12) || ciphertext || tag(16)`, AES-256-GCM. GCM rather than CBC so a corrupted or
-   * tampered row fails loudly instead of yielding garbage that then decrypts video into noise.
+   * Delegates to @tihe/crypto, which holds the one definition of the format. The packager writes
+   * these rows with the matching wrap, and a format that differs between writer and reader makes
+   * every video permanently undecryptable with no error until someone presses play.
    */
   private unwrapContentKey(wrapped: string): Buffer {
-    const kek = Buffer.from(this.config.getOrThrow('KEK_BASE64', { infer: true }), 'base64');
-    const blob = Buffer.from(wrapped, 'base64');
-
-    const iv = blob.subarray(0, 12);
-    const tag = blob.subarray(blob.length - 16);
-    const ciphertext = blob.subarray(12, blob.length - 16);
-
-    const decipher = createDecipheriv('aes-256-gcm', kek, iv);
-    decipher.setAuthTag(tag);
-    return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-  }
-
-  /**
-   * Wraps a content key with the KEK. Used by the seed script and, from M2, by media-worker.
-   *
-   * Lives here alongside the unwrap so the format cannot drift between the two.
-   */
-  static wrapContentKeyWithKek(cek: Buffer, kekBase64: string): string {
-    const kek = Buffer.from(kekBase64, 'base64');
-    const iv = randomBytes(12);
-    const cipher = createCipheriv('aes-256-gcm', kek, iv);
-    const ciphertext = Buffer.concat([cipher.update(cek), cipher.final()]);
-    return Buffer.concat([iv, ciphertext, cipher.getAuthTag()]).toString('base64');
+    return unwrapContentKeyWithKek(wrapped, this.config.getOrThrow('KEK_BASE64', { infer: true }));
   }
 }

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@tihe/db';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { normalizeFa } from './search.js';

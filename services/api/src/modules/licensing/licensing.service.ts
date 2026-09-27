@@ -2,10 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { AppError } from '../../common/app-error.js';
-import { newId } from '../../common/ids.js';
+import { newId } from '@tihe/db';
 import { PrismaService } from '../../common/prisma.service.js';
 import type { Env } from '../../config/configuration.js';
-import { signLicense, type LicensePayloadWire } from './license.signer.js';
+import { signLicense, type LicensePayloadWire } from '@tihe/crypto';
 
 export interface IssueLicenseInput {
   userId: string;

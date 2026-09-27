@@ -15,3 +15,4 @@ Decisions deliberately deferred. Each one has a "decide by" milestone so it does
 | Q9 | Backup and disaster recovery: what is the RPO for Postgres and for MinIO? | Needs the institute's answer on acceptable data loss. | M2 |
 | Q10 | Do we need Mac support? Flutter can build it; SpotPlayer has it. | No requirement stated. | M7 |
 | Q11 | Are class recordings ever shared between courses or terms (e.g. a reused lecture)? | Affects whether `videos` needs a many-to-many with `course_sections` instead of the current one-to-many. | M1 |
+| Q12 | What is the product actually called? `TihePlayer` is a placeholder. | Naming was deferred to get the protected-content pipeline moving. It is cheap to change now and expensive later: the `.tihex` file extension and the `tihe_player` package id are deliberately *not* renamed yet, because students will have `.tihex` files on disk and an extension should change exactly once. | Before the first build handed to students |

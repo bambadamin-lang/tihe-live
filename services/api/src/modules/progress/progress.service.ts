@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { WatchEvent } from '@tihe/contracts';
 
 import { AppError } from '../../common/app-error.js';
-import { newId } from '../../common/ids.js';
+import { newId } from '@tihe/db';
 import { PrismaService } from '../../common/prisma.service.js';
 
 /** Events claiming to be from further in the future than this are clamped. */

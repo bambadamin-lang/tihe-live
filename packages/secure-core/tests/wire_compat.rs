@@ -12,7 +12,7 @@
 //! ```
 //!
 //! The fixture is committed at
-//! `services/api/src/modules/crypto/__fixtures__/wire-vectors.json`.
+//! `packages/crypto/src/__fixtures__/wire-vectors.json`.
 
 use base64::Engine;
 use secure_core::crypto::{
@@ -121,7 +121,7 @@ fn emit_wire_vectors() {
 
     let path = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../services/api/src/modules/crypto/__fixtures__/wire-vectors.json"
+        "/../../packages/crypto/src/__fixtures__/wire-vectors.json"
     );
     std::fs::create_dir_all(std::path::Path::new(path).parent().unwrap()).unwrap();
     std::fs::write(path, &json).unwrap();

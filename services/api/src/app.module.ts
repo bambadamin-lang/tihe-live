@@ -21,6 +21,9 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module.js';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      // One env file for the whole workspace, at the repo root. A service-local .env still wins if
+      // one exists, which is useful for running two API instances against different databases.
+      envFilePath: ['.env', '../../.env'],
       // Validated at boot: a missing KEK should stop the process, not surface as a decryption
       // failure on the first playback request.
       validate: validateEnv,

@@ -4,7 +4,7 @@ import { ApiExcludeEndpoint, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { livekitWebhookSchema, recordingMetadataSchema } from '@tihe/contracts';
 import type { Request } from 'express';
 
-import { newId } from '../../common/ids.js';
+import { newId } from '@tihe/db';
 import { PrismaService } from '../../common/prisma.service.js';
 import type { Env } from '../../config/configuration.js';
 import { Public } from '../auth/auth.guard.js';

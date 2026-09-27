@@ -5,8 +5,12 @@
     "v": 1,
     "license_id": "lic_01J8ZQK5T9XVWR3M2N4P6H8B7C",
     "user_id": "usr_01J8ZQK5T9XVWR3M2N4P6H8B7C",
-    "device_ids": ["dev_01J8ZQK5T9XVWR3M2N4P6H8B7C"],
-    "course_ids": ["crs_01J8ZQK5T9XVWR3M2N4P6H8B7C"],
+    "device_ids": [
+      "dev_01J8ZQK5T9XVWR3M2N4P6H8B7C"
+    ],
+    "course_ids": [
+      "crs_01J8ZQK5T9XVWR3M2N4P6H8B7C"
+    ],
     "video_ids": [],
     "not_before": "2026-09-01T00:00:00.000Z",
     "not_after": "2026-10-01T00:00:00.000Z",

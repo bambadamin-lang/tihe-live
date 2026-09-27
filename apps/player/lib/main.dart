@@ -23,7 +23,7 @@ class TiheApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'TIHE Live',
+      title: 'TihePlayer',
       debugShowCheckedModeBanner: false,
       routerConfig: ref.watch(routerProvider),
 

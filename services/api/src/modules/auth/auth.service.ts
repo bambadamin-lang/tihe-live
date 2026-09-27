@@ -8,7 +8,7 @@ import { maskPhone } from '@tihe/contracts';
 import * as argon2 from 'argon2';
 
 import { AppError } from '../../common/app-error.js';
-import { newId } from '../../common/ids.js';
+import { newId } from '@tihe/db';
 import { PrismaService } from '../../common/prisma.service.js';
 import type { Env } from '../../config/configuration.js';
 import { DevicesService } from '../devices/devices.service.js';

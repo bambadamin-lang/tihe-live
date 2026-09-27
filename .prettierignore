@@ -7,3 +7,8 @@ coverage
 pnpm-lock.yaml
 apps/player
 *.md
+
+# Generated cross-language fixtures. Reformatting them makes every regeneration produce a spurious
+# diff, which hides the one thing the diff is for: a change in the actual key or signature bytes.
+packages/secure-core/tests/fixtures/
+packages/crypto/src/__fixtures__/

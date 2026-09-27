@@ -59,8 +59,8 @@ docker compose -f infra/docker/compose.dev.yml up -d   # postgres, redis, minio
 pnpm check                                          # lint + typecheck everything
 pnpm test                                           # all JS tests
 pnpm --filter @tihe/api start:dev                   # API on :3000, Swagger at /docs
-pnpm --filter @tihe/api prisma migrate dev          # apply migrations
-pnpm --filter @tihe/api seed                        # seed demo term/course/videos
+pnpm --filter @tihe/db migrate:dev                  # apply migrations
+pnpm --filter @tihe/db seed                         # seed demo term/course/videos
 cargo test --manifest-path packages/secure-core/Cargo.toml
 cd apps/player && flutter run -d windows            # or -d android
 ```

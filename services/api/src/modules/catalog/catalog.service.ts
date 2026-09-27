@@ -7,7 +7,7 @@ import type {
   VideoDetail,
   VideoSummary,
 } from '@tihe/contracts';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@tihe/db';
 
 import { AppError } from '../../common/app-error.js';
 import { PrismaService } from '../../common/prisma.service.js';

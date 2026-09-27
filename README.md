@@ -39,9 +39,9 @@ docker compose -f infra/docker/compose.dev.yml up -d
 # generate local dev secrets (KEK + licence signing keypair) into .env
 ./infra/scripts/generate-secrets.sh
 
-cp services/api/.env.example services/api/.env    # then fill from the output above
-pnpm --filter @tihe/api prisma migrate dev
-pnpm --filter @tihe/api seed
+cp .env.example .env                              # then fill from the output above
+pnpm --filter @tihe/db migrate
+pnpm --filter @tihe/db seed
 pnpm --filter @tihe/api start:dev                 # http://localhost:3000/docs
 ```
 

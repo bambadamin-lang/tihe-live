@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Device as DeviceDto, DeviceIdentity } from '@tihe/contracts';
-import type { Device } from '@prisma/client';
+import type { Device } from '@tihe/db';
 import { createHash } from 'node:crypto';
 
 import { AppError } from '../../common/app-error.js';
-import { newId } from '../../common/ids.js';
+import { newId } from '@tihe/db';
 import { PrismaService } from '../../common/prisma.service.js';
 import type { Env } from '../../config/configuration.js';
 

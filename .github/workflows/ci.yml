@@ -49,7 +49,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma client
-        run: pnpm --filter @tihe/api prisma generate
+        run: pnpm --filter @tihe/db generate
 
       - run: pnpm format:check
       - run: pnpm lint

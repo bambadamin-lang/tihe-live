@@ -13,11 +13,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import {
-  publicKeyRaw,
-  signLicense,
-  type LicensePayloadWire,
-} from '../src/modules/licensing/license.signer.js';
+import { publicKeyRaw, signLicense, type LicensePayloadWire } from '../src/license.signer.js';
 
 // A fixed seed, so the fixture is reproducible and reviewable in a diff.
 const PRIVATE_KEY_RAW = Buffer.from(
@@ -68,7 +64,7 @@ const fixture = {
 
 const out = join(
   import.meta.dirname ?? __dirname,
-  '../../../packages/secure-core/tests/fixtures/license-vector.json',
+  '../../secure-core/tests/fixtures/license-vector.json',
 );
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, `${JSON.stringify(fixture, null, 2)}\n`);

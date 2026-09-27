@@ -12,22 +12,13 @@
  */
 import { randomBytes } from 'node:crypto';
 
+import { wrapContentKeyWithKek } from '@tihe/crypto';
 import { PrismaClient } from '@prisma/client';
-import { createCipheriv } from 'node:crypto';
 import { ulid } from 'ulid';
 
 const prisma = new PrismaClient();
 
 const id = (prefix: string) => `${prefix}_${ulid()}`;
-
-/** Mirrors PlaybackService.wrapContentKeyWithKek — kept inline so the seed has no Nest dependency. */
-function wrapWithKek(cek: Buffer, kekBase64: string): string {
-  const kek = Buffer.from(kekBase64, 'base64');
-  const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', kek, iv);
-  const ciphertext = Buffer.concat([cipher.update(cek), cipher.final()]);
-  return Buffer.concat([iv, ciphertext, cipher.getAuthTag()]).toString('base64');
-}
 
 async function main() {
   const kek = process.env.KEK_BASE64;
@@ -202,7 +193,7 @@ async function main() {
               id: id('ck'),
               // A real key, really wrapped, so the playback path returns something the client can
               // genuinely attempt to unwrap.
-              wrappedKey: wrapWithKek(randomBytes(16), kek),
+              wrappedKey: wrapContentKeyWithKek(randomBytes(16), kek),
               keyVersion: 1,
               algorithm: 'AES-128-CTR',
             },
