@@ -434,6 +434,13 @@ describe('capture reports', () => {
     expect(effectsOf(r, 'audit')[0]!.audit.kind).toBe('capture.screenshot');
   });
 
+  it('alerts the host when the OS refused to block capture', () => {
+    const r = ok(cmd(ALI, { type: 'capture.report', capturing: false, signals: ['block_failed'] }));
+    expect(r.events.map((e) => e.evt.type)).toEqual(['capture.alert']);
+    expect(effectsOf(r, 'audit')[0]!.audit.kind).toBe('capture.block_failed');
+    expect(effectsOf(r, 'attendance')).toEqual([]);
+  });
+
   it('records when capture stops', () => {
     ok(cmd(ALI, { type: 'capture.report', capturing: true, signals: ['os_recording'] }));
     const r = ok(cmd(ALI, { type: 'capture.report', capturing: false, signals: [] }));

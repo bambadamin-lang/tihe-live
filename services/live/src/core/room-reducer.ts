@@ -41,6 +41,7 @@ export type AuditKind =
   | 'capture.detected'
   | 'capture.cleared'
   | 'capture.screenshot'
+  | 'capture.block_failed'
   | 'participant.removed'
   | 'participant.muted'
   | 'caps.changed'
@@ -615,8 +616,9 @@ function decideCommand(
 
 /**
  * A client says it is (or no longer is) being recorded. Its own app has already censored the
- * class; here the host is told and the attempt is written down. A screenshot is an instant, so
- * it alerts even though the participant was never in a "capturing" state.
+ * class; here the host is told and the attempt is written down. A screenshot, or the OS
+ * refusing to block capture, is an instant: it alerts even though the participant was never
+ * in a "capturing" state.
  */
 function decideCapture(
   state: RoomState,
@@ -627,7 +629,8 @@ function decideCapture(
   at: string,
 ): Decision {
   const screenshot = signals.includes('screenshot');
-  if (capturing === actor.capturing && !screenshot) return done();
+  const blockFailed = signals.includes('block_failed');
+  if (capturing === actor.capturing && !screenshot && !blockFailed) return done();
 
   const events: Out[] = [];
   if (capturing !== actor.capturing) events.push(updated({ ...actor, capturing }));
@@ -647,7 +650,9 @@ function decideCapture(
     ? 'capture.detected'
     : screenshot
       ? 'capture.screenshot'
-      : 'capture.cleared';
+      : blockFailed
+        ? 'capture.block_failed'
+        : 'capture.cleared';
   const effects: Effect[] = [
     audit({ kind, actorId: actor.userId, targetId: actor.userId, detail: { signals, detail } }),
   ];
