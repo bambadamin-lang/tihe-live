@@ -1,4 +1,5 @@
-import 'dart:io' show Platform;
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -50,6 +51,8 @@ class _LauncherState extends State<Launcher> {
   @override
   void initState() {
     super.initState();
+    final installed = _installedServer();
+    if (installed != null) _server.text = installed;
     final env = Platform.environment;
     final url = env['TIHE_LIVE_URL'],
         session = env['TIHE_SESSION'],
@@ -246,5 +249,23 @@ class _LauncherState extends State<Launcher> {
         ),
       ),
     );
+  }
+}
+
+/// The server the Windows installer was given (installer/windows/tihe_live.iss writes it next
+/// to the executable), so a student never has to type it.
+String? _installedServer() {
+  try {
+    final file = File(
+      '${File(Platform.resolvedExecutable).parent.path}'
+      '${Platform.pathSeparator}tihe_live.json',
+    );
+    if (!file.existsSync()) return null;
+    final json = jsonDecode(file.readAsStringSync());
+    final url = json is Map ? json['liveApiBaseUrl'] : null;
+    return url is String && url.isNotEmpty ? url : null;
+  } on Object {
+    // A damaged file only costs the pre-filled address.
+    return null;
   }
 }

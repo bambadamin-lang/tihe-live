@@ -46,3 +46,7 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Windows installer output, and the Persian wizard text CI downloads
+/installer/windows/Output/
+/installer/windows/Farsi.isl

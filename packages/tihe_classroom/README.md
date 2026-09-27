@@ -77,6 +77,43 @@ On Linux, `livekit_client` checks connectivity through NetworkManager over D-Bus
 as in containers, the gateway works but joining the media room fails. The desktop targets
 that ship are Windows and macOS.
 
+## Install on Windows
+
+`.github/workflows/windows-installer.yml` builds the app on a Windows runner and wraps it in a
+Persian setup wizard, `TIHE-Live-Setup-<version>.exe` (Inno Setup,
+[`installer/windows/tihe_live.iss`](example/installer/windows/tihe_live.iss)). The workflow
+runs on pull requests that touch the classroom, when started by hand from the Actions tab
+(**Run workflow**, with an optional version), and on `live-v*` tags, which also publish a
+GitHub release. Download the `.exe` from the run's **Artifacts**.
+
+The wizard:
+1. welcome
+2. install folder (per user, no administrator needed)
+3. **class server address**, pre-filled with the repository variable `TIHE_LIVE_URL`
+4. desktop shortcut
+5. install and start
+
+It needs Windows 10 version 2004 or later, the first release that can hide a window from
+screen capture. The Visual C++ runtime is bundled. Uninstall from Windows Settings → Apps.
+
+For IT staff: `TIHE-Live-Setup-0.1.0.exe /VERYSILENT /server=https://…` installs with no
+questions.
+
+The installer is **not code-signed yet**, so Windows SmartScreen warns on first run ("Windows
+protected your PC" → **More info** → **Run anyway**). Signing needs a code-signing
+certificate in the institute's name; add it to the workflow as a secret when there is one.
+
+To build it by hand on a Windows PC with Flutter, Visual Studio (C++ desktop) and
+Inno Setup 6.5+:
+
+```powershell
+cd packages\tihe_classroom\example
+flutter build windows --release
+copy C:\Windows\System32\msvcp140.dll, C:\Windows\System32\vcruntime140*.dll build\windows\x64\runner\Release\
+iscc /DDefaultServer=https://your-server/v1/live installer\windows\tihe_live.iss
+# → installer\windows\Output\TIHE-Live-Setup-0.1.0.exe
+```
+
 ## Test it
 
 ```bash
