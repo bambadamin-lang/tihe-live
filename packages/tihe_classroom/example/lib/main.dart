@@ -17,8 +17,20 @@ import 'package:tihe_classroom/tihe_classroom.dart';
 /// joins that session straight away.
 void main() => runApp(const ClassroomExampleApp());
 
-class ClassroomExampleApp extends StatelessWidget {
+/// Follows the system's light or dark mode until the user picks one, here or in class.
+class ClassroomExampleApp extends StatefulWidget {
   const ClassroomExampleApp({super.key});
+
+  @override
+  State<ClassroomExampleApp> createState() => _ClassroomExampleAppState();
+}
+
+class _ClassroomExampleAppState extends State<ClassroomExampleApp> {
+  ThemeMode _mode = ThemeMode.system;
+
+  void _setBrightness(Brightness b) => setState(
+    () => _mode = b == Brightness.dark ? ThemeMode.dark : ThemeMode.light,
+  );
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -27,13 +39,17 @@ class ClassroomExampleApp extends StatelessWidget {
     locale: const Locale('fa'),
     supportedLocales: const [Locale('fa'), Locale('en')],
     localizationsDelegates: GlobalMaterialLocalizations.delegates,
-    theme: buildClassroomThemeData(),
-    home: const Launcher(),
+    theme: buildClassroomThemeData(ClassroomTheme.light),
+    darkTheme: buildClassroomThemeData(ClassroomTheme.dark),
+    themeMode: _mode,
+    home: Launcher(onBrightnessChanged: _setBrightness),
   );
 }
 
 class Launcher extends StatefulWidget {
-  const Launcher({super.key});
+  const Launcher({super.key, required this.onBrightnessChanged});
+
+  final ValueChanged<Brightness> onBrightnessChanged;
 
   @override
   State<Launcher> createState() => _LauncherState();
@@ -70,6 +86,8 @@ class _LauncherState extends State<Launcher> {
       builder: (_) => ClassroomPage(
         session: session,
         onExit: (_) => Navigator.of(context).pop(),
+        // The class follows this app's theme; a switch made in class carries back here.
+        onBrightnessChanged: widget.onBrightnessChanged,
       ),
     ),
   );
@@ -108,36 +126,71 @@ class _LauncherState extends State<Launcher> {
   @override
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
+    final dark = t.isDark;
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: t.woodDark,
-        body: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Center(
-                    child: BrassPlate(
-                      child: Text(
-                        'تیهه لایو — کلاس آنلاین',
-                        style: TextStyle(fontSize: 18),
+        body: GlassBackdrop(
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: t.accent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              ClassroomIcons.play,
+                              size: 18,
+                              color: t.onAccent,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'تیهه لایو — کلاس آنلاین',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: t.text,
+                              ),
+                            ),
+                          ),
+                          Glass(
+                            radius: 999,
+                            shadow: false,
+                            padding: const EdgeInsets.all(1),
+                            child: GlassIconButton(
+                              icon: dark
+                                  ? ClassroomIcons.light
+                                  : ClassroomIcons.dark,
+                              tooltip: dark ? 'پوستهٔ روشن' : 'پوستهٔ تیره',
+                              size: 34,
+                              onPressed: () => widget.onBrightnessChanged(
+                                dark ? Brightness.light : Brightness.dark,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    height: 250,
-                    child: PaperCard(
-                      title: 'کلاس نمایشی (بدون سرور)',
-                      inset: false,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                      const SizedBox(height: 24),
+                      _Section(
+                        title: 'کلاس نمایشی',
+                        hint:
+                            'بدون سرور؛ طرف دیگر کلاس در خود برنامه اجرا می‌شود.',
                         children: [
                           SegmentedButton<String>(
+                            showSelectedIcon: false,
                             segments: const [
                               ButtonSegment(
                                 value: DemoClassroom.host,
@@ -159,9 +212,9 @@ class _LauncherState extends State<Launcher> {
                           const SizedBox(height: 12),
                           DropdownButtonFormField<LayoutPreset>(
                             initialValue: _layout,
+                            borderRadius: BorderRadius.circular(12),
                             decoration: const InputDecoration(
                               labelText: 'چیدمان آغازین',
-                              border: OutlineInputBorder(),
                             ),
                             items: [
                               for (final p in LayoutPreset.values)
@@ -173,31 +226,24 @@ class _LauncherState extends State<Launcher> {
                             onChanged: (p) =>
                                 setState(() => _layout = p ?? _layout),
                           ),
-                          const Spacer(),
+                          const SizedBox(height: 16),
                           FilledButton.icon(
                             onPressed: _demo,
-                            icon: const Icon(Icons.play_arrow),
+                            icon: const Icon(ClassroomIcons.play, size: 16),
                             label: const Text('ورود به کلاس نمایشی'),
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    height: 340,
-                    child: PaperCard(
-                      title: 'اتصال به سرور',
-                      inset: false,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                      const SizedBox(height: 14),
+                      _Section(
+                        title: 'اتصال به سرور',
+                        hint: 'ورود به جلسه‌ای واقعی روی services/live.',
                         children: [
                           TextField(
                             controller: _server,
                             textDirection: TextDirection.ltr,
                             decoration: const InputDecoration(
                               labelText: 'نشانی services/live',
-                              border: OutlineInputBorder(),
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -206,7 +252,6 @@ class _LauncherState extends State<Launcher> {
                             textDirection: TextDirection.ltr,
                             decoration: const InputDecoration(
                               labelText: 'شناسهٔ جلسه (ses_…)',
-                              border: OutlineInputBorder(),
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -216,37 +261,82 @@ class _LauncherState extends State<Launcher> {
                             obscureText: true,
                             decoration: const InputDecoration(
                               labelText: 'توکن دسترسی',
-                              border: OutlineInputBorder(),
                             ),
                           ),
                           if (_error != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
+                            Container(
+                              margin: const EdgeInsets.only(top: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 9,
+                              ),
+                              decoration: BoxDecoration(
+                                color: t.dangerSubtle,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                               child: Text(
                                 _error!,
                                 style: TextStyle(
-                                  color: t.ledRed,
-                                  fontWeight: FontWeight.w600,
+                                  color: t.danger,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ),
-                          const Spacer(),
+                          const SizedBox(height: 16),
                           FilledButton.icon(
                             onPressed: _joining ? null : _connect,
-                            icon: const Icon(Icons.login),
+                            icon: const Icon(ClassroomIcons.join, size: 16),
                             label: Text(
                               _joining ? 'در حال ورود…' : 'ورود به کلاس',
                             ),
                           ),
                         ],
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _Section extends StatelessWidget {
+  const _Section({
+    required this.title,
+    required this.hint,
+    required this.children,
+  });
+
+  final String title;
+  final String hint;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = ClassroomTheme.of(context);
+    return Glass(
+      radius: 20,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: t.text,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(hint, style: TextStyle(fontSize: 12.5, color: t.textSecondary)),
+          const SizedBox(height: 16),
+          ...children,
+        ],
       ),
     );
   }

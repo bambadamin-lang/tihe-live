@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../contracts.dart';
 import '../theme/classroom_theme.dart';
-import '../theme/skeuo.dart';
+import '../theme/glass.dart';
 
 /// Small pieces shared by the people-showing pods.
 
-/// A person with no video: their initial on an enamel disc, coloured from their id.
+/// A person with no video: their initial on a soft disc, its hue taken from their id so the same
+/// person always looks the same.
 class Avatar extends StatelessWidget {
   const Avatar({
     super.key,
@@ -24,7 +25,8 @@ class Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hue = _hues[userId.hashCode.abs() % _hues.length];
-    final base = HSLColor.fromAHSL(1, hue, 0.35, 0.42).toColor();
+    final top = HSLColor.fromAHSL(1, hue, 0.55, 0.62).toColor();
+    final bottom = HSLColor.fromAHSL(1, (hue + 24) % 360, 0.5, 0.46).toColor();
     final initial = name.trim().isEmpty ? '؟' : name.trim().characters.first;
     return Container(
       width: size,
@@ -32,30 +34,31 @@ class Avatar extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(
-          center: const Alignment(-0.3, -0.4),
-          colors: [
-            Color.lerp(base, Colors.white, 0.35)!,
-            base,
-            Color.lerp(base, Colors.black, 0.4)!,
-          ],
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [top, bottom],
         ),
-        border: Border.all(color: ClassroomTheme.of(context).brass, width: 2),
-        boxShadow: ClassroomTheme.of(context).lifted,
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.22),
+          width: size >= 48 ? 1.5 : 1,
+        ),
       ),
       child: Text(
         initial,
         style: TextStyle(
           color: Colors.white,
-          fontSize: size * 0.42,
-          fontWeight: FontWeight.w700,
+          fontSize: size * 0.4,
+          fontWeight: FontWeight.w600,
+          height: 1.1,
         ),
       ),
     );
   }
 }
 
-/// The name strip at the bottom of a video tile, with a mic lamp.
+/// The name strip at the bottom of a video tile. A muted microphone shows as a red crossed-out
+/// mic; a live one lights up while its owner speaks.
 class NameStrip extends StatelessWidget {
   const NameStrip({
     super.key,
@@ -74,15 +77,24 @@ class NameStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(6),
+        color: Colors.black.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Led(color: speaking ? t.ledGreen : t.ledRed, on: micOn, size: 7),
+          Icon(
+            micOn ? ClassroomIcons.mic : ClassroomIcons.micOff,
+            size: 12,
+            color: !micOn
+                ? t.danger
+                : speaking
+                ? t.success
+                : Colors.white70,
+          ),
           const SizedBox(width: 6),
           Flexible(
             child: Text(
@@ -92,13 +104,14 @@ class NameStrip extends StatelessWidget {
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                height: 1.3,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
           if (hand) ...[
             const SizedBox(width: 6),
-            Icon(Icons.back_hand, size: 13, color: t.ledAmber),
+            Icon(ClassroomIcons.hand, size: 12, color: t.warning),
           ],
         ],
       ),
@@ -106,7 +119,7 @@ class NameStrip extends StatelessWidget {
   }
 }
 
-/// The role pin shown next to a name.
+/// The role tag shown next to a name.
 class RolePin extends StatelessWidget {
   const RolePin({super.key, required this.role});
 
@@ -116,15 +129,18 @@ class RolePin extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
     return switch (role) {
-      ClassRole.host => EnamelPin(label: role.labelFa, color: t.pinPlum),
-      ClassRole.cohost => EnamelPin(label: role.labelFa, color: t.pinNavy),
-      ClassRole.presenter => EnamelPin(label: role.labelFa, color: t.pinTeal),
+      ClassRole.host => RoleBadge(label: role.labelFa, color: t.roleHost),
+      ClassRole.cohost => RoleBadge(label: role.labelFa, color: t.roleCohost),
+      ClassRole.presenter => RoleBadge(
+        label: role.labelFa,
+        color: t.rolePresenter,
+      ),
       _ => const SizedBox.shrink(),
     };
   }
 }
 
-/// A frame with a speaking glow, used around every video tile.
+/// A frame with a speaking ring, used around every video tile.
 class SpeakingFrame extends StatelessWidget {
   const SpeakingFrame({super.key, required this.speaking, required this.child});
 
@@ -132,17 +148,26 @@ class SpeakingFrame extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => AnimatedContainer(
-    duration: const Duration(milliseconds: 180),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(
-        color: speaking
-            ? ClassroomTheme.of(context).ledGreen
-            : Colors.transparent,
-        width: 2.5,
+  Widget build(BuildContext context) {
+    final t = ClassroomTheme.of(context);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: speaking ? t.success : Colors.white.withValues(alpha: 0.06),
+          width: speaking ? 2 : 1,
+        ),
+        boxShadow: speaking
+            ? [
+                BoxShadow(
+                  color: t.success.withValues(alpha: 0.35),
+                  blurRadius: 12,
+                ),
+              ]
+            : null,
       ),
-    ),
-    child: ClipRRect(borderRadius: BorderRadius.circular(6), child: child),
-  );
+      child: ClipRRect(borderRadius: BorderRadius.circular(9), child: child),
+    );
+  }
 }

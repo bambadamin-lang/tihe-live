@@ -235,7 +235,7 @@ be tuned without an app release.
 
 Server-side Egress only; the app has no recording path. Egress renders
 `services/live/egress-template` — the same layout (minus private pods), the whiteboard and
-the institute mark — and writes to the path fixed in docs/06. A red LED "در حال ضبط" is
+the institute mark — and writes to the path fixed in docs/06. A pulsing red "در حال ضبط" pill is
 visible to everyone while recording.
 
 Ordering that matters for the pipeline:
@@ -252,16 +252,28 @@ Ordering that matters for the pipeline:
   README there). They are discovered and registered at runtime, so the build works before the
   files exist; until then the classroom falls back to the platform font. Flutter cannot load
   WOFF/WOFF2.
-- **Skeuomorphism**, with a classroom metaphor:
-  - Materials: a wooden desk as background, cream paper cards for panels, and brushed-aluminium
-    toolbars.
-  - Media controls: physical rocker switches for mic and camera, and domed push-buttons with
-    pressed insets.
-  - Status: glowing LEDs for "live" and "recording".
-  - Whiteboard: an enamel board in an aluminium frame, with a marker tray holding the pen tools.
-  - Hand-raise: a wooden paddle.
-- The theme lives in `tihe_classroom/lib/src/ui/theme/` behind one `ClassroomTheme` object, so it
-  can be swapped for an app-wide design system later without touching the widgets.
+- **Glass, in light and dark.** The classroom is layers — pods over the stage, the dock and
+  sheets over pods — and frosted glass keeps each layer's place readable without heavy borders
+  or shadows:
+  - Canvas: a near-flat colour with three soft glows, painted once, so the blur has something to
+    refract but nothing competes with the class.
+  - Panes: every pod, the top bar and the dock are frosted glass with a lit one-pixel rim. The
+    stage's panes share one `BackdropGroup`, so seven pods cost one blur; overlays (toasts,
+    sheets) blur on their own.
+  - Media: video and screen share sit on an inset dark screen in both themes. The whiteboard page
+    stays near-white in both — ink colours are chosen for it and it is what Egress records.
+  - Controls: a centred dock of glass keys. A muted microphone or camera is red and crossed out,
+    so it is never mistaken for a live one; a locked control shows a padlock; a raised hand turns
+    amber with its place in the queue; "end class" is the one solid red key.
+  - Status: pills with a dot — green for live, pulsing red for recording, amber while
+    reconnecting.
+  - Icons: Lucide, the same set as the video player; the accent, neutrals and status colours
+    match the player too, so the two apps read as one product.
+- **Light and dark.** `ClassroomPage` follows the host app's theme unless given a `brightness`;
+  a switch in the top bar flips it for the rest of the class and reports the choice through
+  `onBrightnessChanged`, so the host app can remember it.
+- The theme lives in `tihe_classroom/lib/src/ui/theme/`: tokens in one `ClassroomTheme` object
+  (`ClassroomTheme.light` / `.dark`), and the glass controls in `glass.dart`.
 
 ## 12. Manual device checklist
 
@@ -299,6 +311,10 @@ Vazirmatn in place of Peyda until the Peyda files are added.
 | The six recommended layouts | The layout editor on the 12 × 12 grid |
 | ![Censored](images/classroom/student-censored.jpg) | ![Phone](images/classroom/student-phone.jpg) |
 | A student's classroom while a recorder runs | Phone width: the largest pod plus tabs |
+| ![Whiteboard layout, light](images/classroom/host-whiteboard-light.jpg) | ![Presentation, light](images/classroom/student-presentation-light.jpg) |
+| The light theme: the same glass over a pale canvas | A student's view in light |
+| ![Layout picker, light](images/classroom/host-layout-picker-light.jpg) | ![Phone, light](images/classroom/student-phone-light.jpg) |
+| The layout picker in light | Phone width in light |
 
 ## 14. Running it end to end
 

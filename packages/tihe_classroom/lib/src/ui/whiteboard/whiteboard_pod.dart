@@ -8,10 +8,11 @@ import '../../domain/persian.dart';
 import '../../state/board_controller.dart';
 import '../../state/providers.dart';
 import '../theme/classroom_theme.dart';
-import '../theme/skeuo.dart';
+import '../theme/glass.dart';
 import 'board_painter.dart';
 
-/// The whiteboard pod: an enamel board in an aluminium frame, with the marker tray below it.
+/// The whiteboard pod: the board on the pod's glass, with the tool tray below it. The page stays
+/// near-white in both themes — ink colours are chosen for it, and it is what the recording shows.
 /// Anyone can watch; drawing needs `whiteboard.draw`, page control `whiteboard.manage`.
 class WhiteboardPod extends ConsumerWidget {
   const WhiteboardPod({super.key});
@@ -30,67 +31,50 @@ class WhiteboardPod extends ConsumerWidget {
         // One row needs room for ten markers, eight colours and the actions; managers have
         // page controls too. Narrower than that, the tray takes two rows.
         final compactTray = box.maxWidth < (canManage ? 930 : 780);
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: t.raised,
-          ),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [t.metalHigh, t.metalMid, t.metalHigh, t.metalLow],
-                stops: const [0, 0.38, 0.55, 1],
-              ),
-              border: Border.all(color: Colors.black.withValues(alpha: 0.3)),
-            ),
-            child: Column(
-              children: [
-                Expanded(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(4),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x66000000),
-                          blurRadius: 3,
-                          offset: Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: ColoredBox(
-                        color: const Color(0xFFE9E9E4),
-                        child: BoardCanvas(
-                          canDraw: canDraw,
-                          canManage: canManage,
-                        ),
-                      ),
-                    ),
+        return Column(
+          children: [
+            Expanded(
+              child: DecoratedBox(
+                position: DecorationPosition.foreground,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(11),
+                  border: Border.all(color: t.edgeLow),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(11),
+                  child: ColoredBox(
+                    // Around the page, where the pod's shape and the page's differ.
+                    color: t.isDark
+                        ? const Color(0xFF1C1E24)
+                        : const Color(0xFFE3E6ED),
+                    child: BoardCanvas(canDraw: canDraw, canManage: canManage),
                   ),
                 ),
-                const SizedBox(height: 6),
-                if (canDraw)
-                  MarkerTray(canManage: canManage, compact: compactTray)
-                else
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Text(
+              ),
+            ),
+            const SizedBox(height: 6),
+            if (canDraw)
+              MarkerTray(canManage: canManage, compact: compactTray)
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(ClassroomIcons.lock, size: 13, color: t.textTertiary),
+                    const SizedBox(width: 6),
+                    Text(
                       'تخته فقط برای مشاهده است',
                       style: TextStyle(
-                        fontSize: 12,
-                        color: t.inkSoft,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 12.5,
+                        color: t.textSecondary,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                  ),
-              ],
-            ),
-          ),
+                  ],
+                ),
+              ),
+          ],
         );
       },
     );
@@ -134,7 +118,7 @@ class _BoardCanvasState extends ConsumerState<BoardCanvas>
     final controller = TextEditingController();
     final text = await showDialog<String>(
       context: context,
-      builder: (context) => PaperSheet(
+      builder: (context) => GlassSheet(
         title: 'نوشتن روی تخته',
         width: 420,
         child: Column(
@@ -148,12 +132,9 @@ class _BoardCanvasState extends ConsumerState<BoardCanvas>
               minLines: 2,
               maxLength: maxTextLength,
               textDirection: TextDirection.rtl,
-              decoration: const InputDecoration(
-                hintText: 'متن…',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(hintText: 'متن…'),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Align(
               alignment: AlignmentDirectional.centerEnd,
               child: FilledButton(
@@ -242,7 +223,7 @@ class _BoardCanvasState extends ConsumerState<BoardCanvas>
   }
 }
 
-/// The marker tray: tools as physical markers, colour caps, width, undo/redo and pages.
+/// The tool tray: tools, colours, width, undo/redo and pages.
 class MarkerTray extends ConsumerWidget {
   const MarkerTray({super.key, required this.canManage, this.compact = false});
 
@@ -250,16 +231,16 @@ class MarkerTray extends ConsumerWidget {
   final bool compact;
 
   static const _icons = {
-    BoardTool.pen: Icons.edit,
-    BoardTool.marker: Icons.brush,
-    BoardTool.highlighter: Icons.highlight,
-    BoardTool.line: Icons.horizontal_rule,
-    BoardTool.arrow: Icons.call_made,
-    BoardTool.rect: Icons.crop_square,
-    BoardTool.ellipse: Icons.circle_outlined,
-    BoardTool.text: Icons.title,
-    BoardTool.eraser: Icons.auto_fix_normal,
-    BoardTool.laser: Icons.flare,
+    BoardTool.pen: ClassroomIcons.pen,
+    BoardTool.marker: ClassroomIcons.marker,
+    BoardTool.highlighter: ClassroomIcons.highlighter,
+    BoardTool.line: ClassroomIcons.line,
+    BoardTool.arrow: ClassroomIcons.arrow,
+    BoardTool.rect: ClassroomIcons.rect,
+    BoardTool.ellipse: ClassroomIcons.ellipse,
+    BoardTool.text: ClassroomIcons.text,
+    BoardTool.eraser: ClassroomIcons.eraser,
+    BoardTool.laser: ClassroomIcons.laser,
   };
 
   @override
@@ -276,8 +257,9 @@ class MarkerTray extends ConsumerWidget {
             _Marker(
               icon: _icons[tool]!,
               label: tool.labelFa,
+              // The eraser and laser have no ink of their own.
               cap: tool == BoardTool.eraser
-                  ? const Color(0xFFE8E2D6)
+                  ? null
                   : tool == BoardTool.laser
                   ? const Color(0xFFD32F2F)
                   : colorFromHex(board.color),
@@ -295,20 +277,20 @@ class MarkerTray extends ConsumerWidget {
         ];
         final actions = [
           _TrayIcon(
-            icon: Icons.undo,
+            icon: ClassroomIcons.undo,
             label: 'واگرد',
             onTap: board.history.canUndo ? board.undo : null,
           ),
           _TrayIcon(
-            icon: Icons.redo,
+            icon: ClassroomIcons.redo,
             label: 'انجام دوباره',
             onTap: board.history.canRedo ? board.redo : null,
           ),
           if (board.tool == BoardTool.rect || board.tool == BoardTool.ellipse)
             _TrayIcon(
               icon: board.fillShapes
-                  ? Icons.format_color_fill
-                  : Icons.format_color_reset,
+                  ? ClassroomIcons.fill
+                  : ClassroomIcons.noFill,
               label: board.fillShapes ? 'بدون رنگ داخل' : 'با رنگ داخل',
               onTap: board.toggleFill,
             ),
@@ -320,12 +302,12 @@ class MarkerTray extends ConsumerWidget {
           if (canManage && room != null) ...[
             const _PageSwitcher(),
             _TrayIcon(
-              icon: Icons.note_add_outlined,
+              icon: ClassroomIcons.newPage,
               label: 'صفحهٔ تازه',
               onTap: () => _pickBackground(context, board),
             ),
             _TrayIcon(
-              icon: Icons.layers_clear_outlined,
+              icon: ClassroomIcons.clearPage,
               label: 'پاک کردن صفحه',
               onTap: () => board.clearPage(room),
             ),
@@ -362,23 +344,11 @@ class MarkerTray extends ConsumerWidget {
                 ],
               );
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           decoration: BoxDecoration(
-            borderRadius: const BorderRadius.vertical(
-              bottom: Radius.circular(8),
-            ),
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [t.metalMid, t.metalHigh, t.metalLow],
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x55000000),
-                blurRadius: 3,
-                offset: Offset(0, 2),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(12),
+            color: t.glassHover,
+            border: Border.all(color: t.hairline),
           ),
           child: content,
         );
@@ -392,7 +362,7 @@ class MarkerTray extends ConsumerWidget {
   ) async {
     final chosen = await showDialog<BoardBackground>(
       context: context,
-      builder: (context) => PaperSheet(
+      builder: (context) => GlassSheet(
         title: 'صفحهٔ تازه',
         width: 360,
         child: Wrap(
@@ -412,7 +382,7 @@ class MarkerTray extends ConsumerWidget {
   }
 }
 
-/// A marker lying in the tray; the chosen one is lifted out.
+/// A tool key. Drawing tools show the current ink as a bar under the icon.
 class _Marker extends StatelessWidget {
   const _Marker({
     required this.icon,
@@ -424,50 +394,53 @@ class _Marker extends StatelessWidget {
 
   final IconData icon;
   final String label;
-  final Color cap;
+  final Color? cap;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
-    return Tooltip(
-      message: label,
-      child: Semantics(
-        button: true,
-        selected: selected,
-        label: label,
-        child: GestureDetector(
-          onTap: onTap,
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              margin: EdgeInsets.only(
-                top: selected ? 0 : 6,
-                bottom: selected ? 6 : 0,
-                left: 2,
-                right: 2,
-              ),
-              width: 30,
-              height: 34,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(6),
-                gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [Colors.white, t.paperLow, t.paperEdge],
-                ),
-                border: Border(top: BorderSide(color: cap, width: 7)),
-                boxShadow: selected
-                    ? t.lifted
-                    : const [
-                        BoxShadow(color: Color(0x33000000), blurRadius: 1),
-                      ],
-              ),
-              child: Icon(icon, size: 15, color: t.ink),
+    return GlassPressable(
+      onTap: onTap,
+      tooltip: label,
+      semanticLabel: label,
+      selected: selected,
+      radius: 9,
+      builder: (context, s) => AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        width: 32,
+        height: 34,
+        margin: const EdgeInsets.symmetric(horizontal: 1),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(9),
+          color: selected
+              ? t.accentSubtle
+              : s.hovered
+              ? t.glassHover
+              : Colors.transparent,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: selected ? t.accentText : t.textSecondary,
             ),
-          ),
+            const SizedBox(height: 3),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 140),
+              width: selected ? 14 : 10,
+              height: 2.5,
+              decoration: BoxDecoration(
+                color:
+                    cap?.withValues(alpha: selected ? 1 : 0.55) ??
+                    Colors.transparent,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -486,32 +459,42 @@ class _ColorCap extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        width: selected ? 22 : 18,
-        height: selected ? 22 : 18,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            center: const Alignment(-0.35, -0.35),
-            colors: [
-              Color.lerp(color, Colors.white, 0.45)!,
-              color,
-              Color.lerp(color, Colors.black, 0.3)!,
-            ],
+  Widget build(BuildContext context) {
+    final t = ClassroomTheme.of(context);
+    return GlassPressable(
+      onTap: onTap,
+      semanticLabel: 'رنگ',
+      selected: selected,
+      radius: 12,
+      builder: (context, s) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          width: 20,
+          height: 20,
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: selected
+                  ? t.accent
+                  : s.hovered
+                  ? t.edgeHigh
+                  : Colors.transparent,
+              width: 1.5,
+            ),
           ),
-          border: Border.all(
-            color: selected ? Colors.black87 : Colors.black26,
-            width: selected ? 2 : 1,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+              border: Border.all(color: Colors.black.withValues(alpha: 0.12)),
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _TrayIcon extends StatelessWidget {
@@ -526,13 +509,12 @@ class _TrayIcon extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => IconButton(
+  Widget build(BuildContext context) => GlassIconButton(
+    icon: icon,
     tooltip: label,
-    visualDensity: VisualDensity.compact,
-    iconSize: 20,
-    color: ClassroomTheme.of(context).ink,
+    size: 32,
+    iconSize: 16,
     onPressed: onTap,
-    icon: Icon(icon),
   );
 }
 
@@ -540,17 +522,7 @@ class _TrayDivider extends StatelessWidget {
   const _TrayDivider();
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: 2,
-    height: 26,
-    margin: const EdgeInsets.symmetric(horizontal: 8),
-    decoration: const BoxDecoration(
-      border: Border(
-        left: BorderSide(color: Color(0x55000000)),
-        right: BorderSide(color: Color(0xAAFFFFFF)),
-      ),
-    ),
-  );
+  Widget build(BuildContext context) => const BarDivider(height: 22);
 }
 
 /// Pen width: a small stepped control, since exact numbers mean nothing on a board.
@@ -582,7 +554,10 @@ class _WidthDial extends StatelessWidget {
                 Container(
                   width: 40,
                   height: 2.0 + i * 3,
-                  color: Colors.black87,
+                  decoration: BoxDecoration(
+                    color: ClassroomTheme.of(context).text,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Text(['نازک', 'معمولی', 'پهن', 'خیلی پهن'][i]),
@@ -590,9 +565,13 @@ class _WidthDial extends StatelessWidget {
             ),
           ),
       ],
-      child: const Padding(
-        padding: EdgeInsets.all(6),
-        child: Icon(Icons.line_weight, size: 20),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Icon(
+          ClassroomIcons.width,
+          size: 16,
+          color: ClassroomTheme.of(context).textSecondary,
+        ),
       ),
     );
   }
@@ -612,7 +591,7 @@ class _PageSwitcher extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _TrayIcon(
-          icon: Icons.chevron_right,
+          icon: ClassroomIcons.previousPage,
           label: 'صفحهٔ قبل',
           onTap: index > 0
               ? () => board.selectPage(state.pages[index - 1].id)
@@ -620,10 +599,13 @@ class _PageSwitcher extends ConsumerWidget {
         ),
         Text(
           toPersianDigits('${index + 1} / $count'),
-          style: const TextStyle(fontSize: 12),
+          style: TextStyle(
+            fontSize: 12,
+            color: ClassroomTheme.of(context).textSecondary,
+          ),
         ),
         _TrayIcon(
-          icon: Icons.chevron_left,
+          icon: ClassroomIcons.nextPage,
           label: 'صفحهٔ بعد',
           onTap: index < count - 1
               ? () => board.selectPage(state.pages[index + 1].id)

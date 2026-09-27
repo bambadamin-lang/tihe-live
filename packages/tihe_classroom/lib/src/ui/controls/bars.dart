@@ -8,8 +8,9 @@ import '../../data/gateway_client.dart';
 import '../../data/media.dart';
 import '../../domain/persian.dart';
 import '../../state/providers.dart';
+import '../classroom_page.dart';
 import '../theme/classroom_theme.dart';
-import '../theme/skeuo.dart';
+import '../theme/glass.dart';
 import 'layout_picker.dart';
 
 /// Opens a dialog that still sees the classroom's providers (dialogs live above the page's
@@ -17,13 +18,15 @@ import 'layout_picker.dart';
 Future<T?> showClassroomDialog<T>(BuildContext context, Widget child) =>
     showDialog<T>(
       context: context,
+      barrierColor: ClassroomTheme.of(context).scrim,
       builder: (_) => UncontrolledProviderScope(
         container: ProviderScope.containerOf(context),
         child: Directionality(textDirection: TextDirection.rtl, child: child),
       ),
     );
 
-/// The brass title plate, the LIVE and REC lamps, and the connection state.
+/// The class title, the live clock and recording state, who is here, the connection, and the
+/// light/dark switch — as glass pills floating over the canvas.
 class TopBar extends ConsumerWidget {
   const TopBar({super.key});
 
@@ -46,21 +49,23 @@ class TopBar extends ConsumerWidget {
     final capturing = ref.watch(
       classroomViewProvider.select((v) => v.capturing.length),
     );
+    final appearance = ClassroomAppearance.maybeOf(context);
     final narrow = MediaQuery.sizeOf(context).width < 700;
-    final plate = BrassPlate(
+    final plate = GlassPill(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       child: Text(
         title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 15),
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
     );
     final classLamps = [
       if (startedAt != null) _LiveClock(startedAt: DateTime.parse(startedAt)),
       if (recording)
-        _Lamp(
-          led: PulsingLed(color: t.ledRed),
-          label: narrow ? 'ضبط' : 'در حال ضبط',
+        GlassPill(
+          leading: PulsingDot(color: t.danger),
+          child: Text(narrow ? 'ضبط' : 'در حال ضبط'),
         ),
     ];
     final roomLamps = [
@@ -68,21 +73,41 @@ class TopBar extends ConsumerWidget {
         Tooltip(
           message:
               'شرکت‌کنندگانی که در حال ضبط صفحه‌اند؛ نمای آن‌ها سانسور شده است',
-          child: _Lamp(
-            led: Led(color: t.ledRed),
-            label: '${toPersianDigits(capturing)} ضبط',
+          child: GlassPill(
+            fill: t.dangerSubtle,
+            leading: Icon(
+              ClassroomIcons.captureBlocked,
+              size: 14,
+              color: t.danger,
+            ),
+            child: Text(
+              '${toPersianDigits(capturing)} ضبط',
+              style: TextStyle(color: t.danger),
+            ),
           ),
         ),
-      _Lamp(
-        led: Icon(Icons.people_alt, size: 16, color: t.paperHigh),
-        label: toPersianDigits(online),
+      Tooltip(
+        message: 'حاضران',
+        child: GlassPill(
+          leading: Icon(
+            ClassroomIcons.people,
+            size: 14,
+            color: t.textSecondary,
+          ),
+          child: Text(toPersianDigits(online)),
+        ),
       ),
       _ConnectionLamp(status: status),
+      if (appearance != null)
+        _ThemeSwitch(
+          dark: appearance.brightness == Brightness.dark,
+          onPressed: appearance.onToggle,
+        ),
     ];
     // Wide: class lamps by the title, room lamps at the far end. Narrow: they wrap.
     final lamps = narrow
         ? Wrap(
-            spacing: 8,
+            spacing: 6,
             runSpacing: 6,
             children: [...classLamps, ...roomLamps],
           )
@@ -90,29 +115,29 @@ class TopBar extends ConsumerWidget {
             children: [
               for (final lamp in classLamps)
                 Padding(
-                  padding: const EdgeInsetsDirectional.only(end: 12),
+                  padding: const EdgeInsetsDirectional.only(end: 8),
                   child: lamp,
                 ),
               const Spacer(),
               for (final lamp in roomLamps)
                 Padding(
-                  padding: const EdgeInsetsDirectional.only(start: 10),
+                  padding: const EdgeInsetsDirectional.only(start: 8),
                   child: lamp,
                 ),
             ],
           );
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-      // A phone has no room for the plate beside the lamps: it gets its own row.
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+      // A phone has no room for the title beside the lamps: it gets its own row.
       child: narrow
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [plate, const SizedBox(height: 6), lamps],
+              children: [plate, const SizedBox(height: 8), lamps],
             )
           : Row(
               children: [
                 Flexible(child: plate),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(child: lamps),
               ],
             ),
@@ -120,34 +145,23 @@ class TopBar extends ConsumerWidget {
   }
 }
 
-class _Lamp extends StatelessWidget {
-  const _Lamp({required this.led, required this.label});
+class _ThemeSwitch extends StatelessWidget {
+  const _ThemeSwitch({required this.dark, required this.onPressed});
 
-  final Widget led;
-  final String label;
+  final bool dark;
+  final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(
-      color: Colors.black.withValues(alpha: 0.35),
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        led,
-        const SizedBox(width: 7),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Color(0xFFF3EAD6),
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
+  Widget build(BuildContext context) => Glass(
+    radius: 999,
+    shadow: false,
+    padding: const EdgeInsets.all(1),
+    child: GlassIconButton(
+      icon: dark ? ClassroomIcons.light : ClassroomIcons.dark,
+      tooltip: dark ? 'پوستهٔ روشن' : 'پوستهٔ تیره',
+      size: 30,
+      iconSize: 15,
+      onPressed: onPressed,
     ),
   );
 }
@@ -173,9 +187,12 @@ class _LiveClockState extends State<_LiveClock> {
   }
 
   @override
-  Widget build(BuildContext context) => _Lamp(
-    led: Led(color: ClassroomTheme.of(context).ledGreen),
-    label: 'زنده  ${elapsedClock(DateTime.now().difference(widget.startedAt))}',
+  Widget build(BuildContext context) => GlassPill(
+    leading: StatusDot(color: ClassroomTheme.of(context).success),
+    child: Text(
+      'زنده  ${elapsedClock(DateTime.now().difference(widget.startedAt))}',
+      style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()]),
+    ),
   );
 }
 
@@ -187,20 +204,22 @@ class _ConnectionLamp extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
     final (color, label) = switch (status) {
-      GatewayStatus.online => (t.ledGreen, 'متصل'),
-      GatewayStatus.connecting => (t.ledAmber, 'در حال اتصال'),
-      GatewayStatus.reconnecting => (t.ledAmber, 'اتصال دوباره…'),
-      GatewayStatus.closed => (t.ledRed, 'قطع'),
+      GatewayStatus.online => (t.success, 'متصل'),
+      GatewayStatus.connecting => (t.warning, 'در حال اتصال'),
+      GatewayStatus.reconnecting => (t.warning, 'اتصال دوباره…'),
+      GatewayStatus.closed => (t.danger, 'قطع'),
     };
-    return _Lamp(
-      led: Led(color: color, size: 8),
-      label: label,
+    return GlassPill(
+      leading: status == GatewayStatus.online
+          ? StatusDot(color: color, size: 7)
+          : PulsingDot(color: color, size: 7),
+      child: Text(label),
     );
   }
 }
 
-/// The metal control bar: microphone, camera and screen rockers, the hand paddle, and the
-/// host's layout, settings and end-of-class buttons.
+/// The dock: microphone, camera and screen share, the raised hand, and the host's layout,
+/// settings and end-of-class keys, grouped and floating centred over the canvas.
 class ControlBar extends ConsumerWidget {
   const ControlBar({super.key});
 
@@ -216,35 +235,46 @@ class ControlBar extends ConsumerWidget {
     final narrow = MediaQuery.sizeOf(context).width < 640;
 
     final media = [
-      RockerSwitch(
+      MediaToggle(
         on: local?.micOn ?? false,
         locked: !view.can(Capability.publishAudio),
-        icon: Icons.mic,
-        offIcon: Icons.mic_off,
+        icon: ClassroomIcons.mic,
+        offIcon: ClassroomIcons.micOff,
         label: 'میکروفون',
         onPressed: session.toggleMicrophone,
       ),
-      RockerSwitch(
+      MediaToggle(
         on: local?.cameraOn ?? false,
         locked: !view.can(Capability.publishVideo),
-        icon: Icons.videocam,
-        offIcon: Icons.videocam_off,
+        icon: ClassroomIcons.camera,
+        offIcon: ClassroomIcons.cameraOff,
         label: 'دوربین',
         onPressed: session.toggleCamera,
       ),
       if (!narrow || view.can(Capability.publishScreen))
-        RockerSwitch(
-          on: local?.screenOn ?? false,
-          locked: !view.can(Capability.publishScreen),
-          icon: Icons.screen_share,
-          offIcon: Icons.stop_screen_share_outlined,
+        // Sharing is a thing you start, not a thing you mute: off is neutral, not red.
+        DockButton(
+          icon: (local?.screenOn ?? false)
+              ? ClassroomIcons.screenShareOff
+              : view.can(Capability.publishScreen)
+              ? ClassroomIcons.screenShare
+              : ClassroomIcons.lock,
           label: 'اشتراک صفحه',
-          onPressed: () => (local?.screenOn ?? false)
-              ? session.stopScreenShare()
-              : _pickScreen(context, ref),
+          toggled: local?.screenOn ?? false,
+          tint: (local?.screenOn ?? false) ? t.accent : null,
+          tooltip: view.can(Capability.publishScreen)
+              ? 'اشتراک صفحه'
+              : 'اشتراک صفحه — نیاز به اجازهٔ میزبان',
+          disabledCursor: SystemMouseCursors.forbidden,
+          onPressed:
+              !(local?.screenOn ?? false) && !view.can(Capability.publishScreen)
+              ? null
+              : () => (local?.screenOn ?? false)
+                    ? session.stopScreenShare()
+                    : _pickScreen(context, ref),
         ),
       if (me == null || me.role.rank < ClassRole.cohost.rank)
-        HandPaddle(
+        HandToggle(
           raised: me?.hand != null,
           queuePosition: position >= 0 ? position + 1 : null,
           onPressed: (me?.hand != null || view.can(Capability.handRaise))
@@ -255,66 +285,76 @@ class ControlBar extends ConsumerWidget {
 
     final host = [
       if (view.can(Capability.layoutChange))
-        DomeButton(
-          icon: Icons.dashboard_customize_outlined,
+        DockButton(
+          icon: ClassroomIcons.layout,
           label: 'چیدمان',
-          color: t.pinNavy,
           showLabel: !narrow,
           onPressed: () =>
               showClassroomDialog<void>(context, const LayoutPickerSheet()),
         ),
       if (view.can(Capability.participantsManage))
-        DomeButton(
-          icon: Icons.tune,
+        DockButton(
+          icon: ClassroomIcons.settings,
           label: 'تنظیمات کلاس',
-          color: t.pinTeal,
           showLabel: !narrow,
           onPressed: () =>
               showClassroomDialog<void>(context, const ClassSettingsSheet()),
         ),
+    ];
+
+    final exits = [
       if (view.can(Capability.classEnd))
-        DomeButton(
-          icon: Icons.stop_circle_outlined,
+        DockButton(
+          icon: ClassroomIcons.endClass,
           label: 'پایان کلاس',
-          color: const Color(0xFF9E2A22),
+          tint: t.danger,
+          solid: true,
           showLabel: !narrow,
           onPressed: () => _confirmEnd(context, ref),
         ),
-      DomeButton(
-        icon: Icons.logout,
+      DockButton(
+        icon: ClassroomIcons.leave,
         label: 'خروج',
-        color: const Color(0xFF6B5B47),
         showLabel: !narrow,
         onPressed: session.leave,
       ),
     ];
 
+    Widget group(List<Widget> items) => Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final w in items)
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: w),
+      ],
+    );
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-      child: MetalBar(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        child: narrow
-            ? Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 12,
-                runSpacing: 8,
-                children: [...media, ...host],
-              )
-            : Row(
-                children: [
-                  for (final w in media)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 7),
-                      child: w,
-                    ),
-                  const Spacer(),
-                  for (final w in host)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 7),
-                      child: w,
-                    ),
-                ],
-              ),
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+      child: Center(
+        child: GlassBar(
+          radius: 22,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: narrow
+              ? Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [...media, ...host, ...exits],
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    group(media),
+                    if (host.isNotEmpty) ...[
+                      const BarDivider(height: 42),
+                      group(host),
+                    ],
+                    const BarDivider(height: 42),
+                    group(exits),
+                  ],
+                ),
+        ),
       ),
     );
   }
@@ -336,10 +376,11 @@ class ControlBar extends ConsumerWidget {
   }
 
   Future<void> _confirmEnd(BuildContext context, WidgetRef ref) async {
+    final danger = ClassroomTheme.of(context).danger;
     final sure = await showClassroomDialog<bool>(
       context,
       Builder(
-        builder: (context) => PaperSheet(
+        builder: (context) => GlassSheet(
           title: 'پایان کلاس',
           width: 400,
           child: Column(
@@ -349,11 +390,9 @@ class ControlBar extends ConsumerWidget {
               const Text(
                 'کلاس برای همه تمام می‌شود و ضبط آن به کتابخانه می‌رود.',
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 18),
               FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF9E2A22),
-                ),
+                style: FilledButton.styleFrom(backgroundColor: danger),
                 onPressed: () => Navigator.of(context).pop(true),
                 child: const Text('پایان کلاس برای همه'),
               ),
@@ -380,7 +419,7 @@ class ScreenPickerSheet extends StatelessWidget {
         sources.where((s) => !s.name.toLowerCase().contains('tihe')).toList()
           // Windows first: sharing one window is the safer default (and required on macOS 15+).
           ..sort((a, b) => (a.isScreen ? 1 : 0) - (b.isScreen ? 1 : 0));
-    return PaperSheet(
+    return GlassSheet(
       title: 'اشتراک صفحه',
       width: 640,
       child: GridView.count(
@@ -391,17 +430,21 @@ class ScreenPickerSheet extends StatelessWidget {
         childAspectRatio: 1.25,
         children: [
           for (final s in offered)
-            InkWell(
+            GlassPressable(
               onTap: () => Navigator.of(context).pop(s),
-              borderRadius: BorderRadius.circular(8),
-              child: Column(
+              semanticLabel: s.name,
+              builder: (context, state) => Column(
                 children: [
                   Expanded(
-                    child: Container(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 140),
                       decoration: BoxDecoration(
-                        color: t.screenGlass,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: t.paperEdge),
+                        color: t.screen,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: state.hovered ? t.accent : t.edgeLow,
+                          width: state.hovered ? 1.5 : 1,
+                        ),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: s.thumbnail != null
@@ -412,19 +455,19 @@ class ScreenPickerSheet extends StatelessWidget {
                             )
                           : Icon(
                               s.isScreen
-                                  ? Icons.desktop_windows_outlined
-                                  : Icons.web_asset,
-                              color: t.paperLow,
-                              size: 36,
+                                  ? ClassroomIcons.screen
+                                  : ClassroomIcons.window,
+                              color: Colors.white38,
+                              size: 32,
                             ),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     s.isScreen ? 'کل صفحه — ${s.name}' : s.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12),
+                    style: TextStyle(fontSize: 12, color: t.textSecondary),
                   ),
                 ],
               ),
@@ -447,7 +490,7 @@ class ClassSettingsSheet extends ConsumerWidget {
     final session = ref.read(classroomSessionProvider);
     if (policy == null) return const SizedBox.shrink();
     final values = policy.toJson();
-    return PaperSheet(
+    return GlassSheet(
       title: 'تنظیمات کلاس',
       width: 420,
       child: SingleChildScrollView(
@@ -469,19 +512,22 @@ class ClassSettingsSheet extends ConsumerWidget {
                 value: values[entry.key] as bool,
                 onChanged: (on) => session.send(UpdatePolicy({entry.key: on})),
               ),
-            const Divider(),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Divider(),
+            ),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 OutlinedButton.icon(
                   onPressed: () => session.send(const MuteAll()),
-                  icon: const Icon(Icons.mic_off),
+                  icon: const Icon(ClassroomIcons.muteAll, size: 16),
                   label: const Text('بی‌صدا کردن همه'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => session.send(const LowerAllHands()),
-                  icon: const Icon(Icons.clear_all),
+                  icon: const Icon(ClassroomIcons.lowerAll, size: 16),
                   label: const Text('پایین آوردن همهٔ دست‌ها'),
                 ),
               ],

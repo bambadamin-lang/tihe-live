@@ -8,7 +8,9 @@ The TIHE Live classroom as a Flutter package. It covers:
 - capture censoring
 - the identity watermark
 
-The UI is in Persian, right to left, in Peyda, with a skeuomorphic theme. Design and rules:
+The UI is in Persian, right to left, in Peyda, in a glass theme with light and dark modes. It
+follows the host app's theme unless given `brightness:`, and a switch in the class's top bar
+flips it (reported through `onBrightnessChanged:`). Design and rules:
 [docs/11-live-classroom.md](../../docs/11-live-classroom.md).
 
 ![Host at the whiteboard](../../docs/images/classroom/host-whiteboard.jpg)
@@ -41,7 +43,7 @@ lib/src/data/        LiveApi (REST), GatewayClient (WebSocket, reconnect + repla
 lib/src/domain/      ClassroomState and its reducer, board model, stage geometry, watermark
                      hopper, Persian digits and Jalali dates
 lib/src/state/       ClassroomSession (gateway + media + capture guard), BoardController, providers
-lib/src/ui/          theme (wood, paper, aluminium, Peyda loader), stage and pods, whiteboard,
+lib/src/ui/          theme (tokens, glass controls, Peyda loader), stage and pods, whiteboard,
                      bars and layout editor, censor screen, watermark
 lib/src/demo/        an in-process gateway and a fixture class, for the demo and the tests
 ```

@@ -1,5 +1,5 @@
 name: tihe_classroom
-description: The TIHE Live classroom — stage, whiteboard, hands, layouts, capture censoring and watermark — in Persian with a skeuomorphic theme.
+description: The TIHE Live classroom — stage, whiteboard, hands, layouts, capture censoring and watermark — in Persian, in a glass theme with light and dark modes.
 version: 0.1.0
 publish_to: none
 
@@ -20,6 +20,8 @@ dependencies:
   flutter_webrtc: any
   http: ^1.2.0
   livekit_client: ^2.13.0
+  # The same line-icon set as the player, so the two apps read as one product.
+  lucide_icons_flutter: ^3.1.20
   meta: ^1.15.0
   perfect_freehand: ^2.5.0
   shamsi_date: ^1.1.0

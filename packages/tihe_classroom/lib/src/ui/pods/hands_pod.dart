@@ -5,10 +5,10 @@ import '../../contracts.dart';
 import '../../domain/persian.dart';
 import '../../state/providers.dart';
 import '../theme/classroom_theme.dart';
-import '../theme/materials.dart';
+import '../theme/glass.dart';
 import 'people.dart';
 
-/// The raised-hand queue, as numbered tickets in the order the server received them. Managers
+/// The raised-hand queue, numbered in the order the server received them. Managers
 /// give the floor (with or without camera) or lower hands from here.
 class HandsPod extends ConsumerWidget {
   const HandsPod({super.key});
@@ -20,106 +20,95 @@ class HandsPod extends ConsumerWidget {
     final hands = view.room?.raisedHands ?? const <ParticipantState>[];
     final canManage = view.can(Capability.participantsManage);
     final session = ref.read(classroomSessionProvider);
-    return CustomPaint(
-      painter: PaperPainter(t, radius: 10),
-      child: Column(
-        children: [
-          Expanded(
-            child: hands.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.back_hand_outlined,
-                          size: 28,
-                          color: t.paperEdge,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'دستی بالا نیست',
-                          style: TextStyle(color: t.inkSoft),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(8),
-                    itemCount: hands.length,
-                    itemBuilder: (context, i) {
-                      final p = hands[i];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 5),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.8),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border(
-                            right: BorderSide(color: t.ledAmber, width: 4),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            _Ticket(number: i + 1),
-                            const SizedBox(width: 8),
-                            Avatar(userId: p.userId, name: p.name, size: 26),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                p.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: t.ink,
-                                ),
+    return Column(
+      children: [
+        Expanded(
+          child: hands.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        ClassroomIcons.hand,
+                        size: 22,
+                        color: t.textTertiary,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'دستی بالا نیست',
+                        style: TextStyle(color: t.textSecondary, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(2),
+                  itemCount: hands.length,
+                  itemBuilder: (context, i) {
+                    final p = hands[i];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 4),
+                      padding: const EdgeInsetsDirectional.fromSTEB(8, 6, 4, 6),
+                      decoration: BoxDecoration(
+                        color: t.glassHover,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: t.hairline),
+                      ),
+                      child: Row(
+                        children: [
+                          _Ticket(number: i + 1),
+                          const SizedBox(width: 10),
+                          Avatar(userId: p.userId, name: p.name, size: 28),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              p.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13.5,
+                                color: t.text,
                               ),
                             ),
-                            if (canManage) ...[
-                              IconButton(
-                                tooltip: 'اجازهٔ صحبت',
-                                visualDensity: VisualDensity.compact,
-                                icon: Icon(Icons.mic, color: t.ledGreen),
-                                onPressed: () => session.send(
-                                  GiveFloor(p.userId, video: false),
-                                ),
+                          ),
+                          if (canManage) ...[
+                            GlassIconButton(
+                              tooltip: 'اجازهٔ صحبت',
+                              icon: ClassroomIcons.mic,
+                              color: t.success,
+                              onPressed: () => session.send(
+                                GiveFloor(p.userId, video: false),
                               ),
-                              IconButton(
-                                tooltip: 'اجازهٔ صحبت با تصویر',
-                                visualDensity: VisualDensity.compact,
-                                icon: Icon(Icons.videocam, color: t.pinTeal),
-                                onPressed: () => session.send(
-                                  GiveFloor(p.userId, video: true),
-                                ),
+                            ),
+                            GlassIconButton(
+                              tooltip: 'اجازهٔ صحبت با تصویر',
+                              icon: ClassroomIcons.camera,
+                              color: t.accentText,
+                              onPressed: () => session.send(
+                                GiveFloor(p.userId, video: true),
                               ),
-                              IconButton(
-                                tooltip: 'پایین آوردن دست',
-                                visualDensity: VisualDensity.compact,
-                                icon: Icon(
-                                  Icons.pan_tool_alt_outlined,
-                                  color: t.inkSoft,
-                                ),
-                                onPressed: () =>
-                                    session.send(LowerHand(p.userId)),
-                              ),
-                            ],
+                            ),
+                            GlassIconButton(
+                              tooltip: 'پایین آوردن دست',
+                              icon: ClassroomIcons.close,
+                              onPressed: () =>
+                                  session.send(LowerHand(p.userId)),
+                            ),
                           ],
-                        ),
-                      );
-                    },
-                  ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+        if (canManage && hands.length > 1)
+          TextButton.icon(
+            onPressed: () => session.send(const LowerAllHands()),
+            icon: const Icon(ClassroomIcons.lowerAll, size: 16),
+            label: const Text('پایین آوردن همهٔ دست‌ها'),
           ),
-          if (canManage && hands.length > 1)
-            TextButton.icon(
-              onPressed: () => session.send(const LowerAllHands()),
-              icon: const Icon(Icons.clear_all),
-              label: const Text('پایین آوردن همهٔ دست‌ها'),
-            ),
-        ],
-      ),
+      ],
     );
   }
 }
@@ -132,19 +121,19 @@ class _Ticket extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
     return Container(
-      width: 26,
-      height: 26,
+      width: 24,
+      height: 24,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        gradient: t.brassPlate,
-        borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: t.brassDark),
+        color: t.warningSubtle,
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         toPersianDigits(number),
-        style: const TextStyle(
-          fontWeight: FontWeight.w800,
-          color: Color(0xFF3A2A10),
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 12.5,
+          color: t.warning,
         ),
       ),
     );

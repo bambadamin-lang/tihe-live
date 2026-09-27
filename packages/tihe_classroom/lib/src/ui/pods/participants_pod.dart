@@ -5,11 +5,10 @@ import '../../contracts.dart';
 import '../../state/classroom_session.dart';
 import '../../state/providers.dart';
 import '../theme/classroom_theme.dart';
-import '../theme/materials.dart';
-import '../theme/skeuo.dart';
+import '../theme/glass.dart';
 import 'people.dart';
 
-/// Everyone in the class as index cards: role pin, mic and camera lamps, raised hand, and —
+/// Everyone in the class: role tag, mic and camera state, raised hand, and —
 /// for managers — the actions they may take on each person (docs/11 §3–4).
 class ParticipantsPod extends ConsumerWidget {
   const ParticipantsPod({super.key});
@@ -25,14 +24,14 @@ class ParticipantsPod extends ConsumerWidget {
         if (a.online != b.online) return a.online ? -1 : 1;
         return b.role.rank.compareTo(a.role.rank);
       });
-    return CustomPaint(
-      painter: PaperPainter(t, radius: 10),
-      child: ListView.separated(
-        padding: const EdgeInsets.all(8),
-        itemCount: people.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 5),
-        itemBuilder: (context, i) => _Card(participant: people[i], view: view),
+    return ListView.separated(
+      padding: const EdgeInsets.all(2),
+      itemCount: people.length,
+      separatorBuilder: (_, _) => Padding(
+        padding: const EdgeInsetsDirectional.only(start: 48),
+        child: Divider(color: t.hairline),
       ),
+      itemBuilder: (context, i) => _Card(participant: people[i], view: view),
     );
   }
 }
@@ -59,23 +58,18 @@ class _Card extends ConsumerWidget {
     return Opacity(
       opacity: p.online ? 1 : 0.5,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.78),
-          borderRadius: BorderRadius.circular(8),
-          border: p.capturing ? Border.all(color: t.ledRed, width: 2) : null,
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x22000000),
-              blurRadius: 2,
-              offset: Offset(0, 1),
-            ),
-          ],
-        ),
+        padding: const EdgeInsetsDirectional.fromSTEB(6, 7, 0, 7),
+        decoration: p.capturing
+            ? BoxDecoration(
+                color: t.dangerSubtle,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: t.danger.withValues(alpha: 0.5)),
+              )
+            : null,
         child: Row(
           children: [
-            Avatar(userId: p.userId, name: p.name, size: 30),
-            const SizedBox(width: 8),
+            Avatar(userId: p.userId, name: p.name, size: 32),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -88,9 +82,9 @@ class _Card extends ConsumerWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: t.ink,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13.5,
+                            color: t.text,
                           ),
                         ),
                       ),
@@ -102,38 +96,42 @@ class _Card extends ConsumerWidget {
                     Text(
                       'در حال ضبط صفحه — نمای او سانسور شده است',
                       style: TextStyle(
-                        fontSize: 11,
-                        color: t.ledRed,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 11.5,
+                        color: t.danger,
+                        fontWeight: FontWeight.w500,
                       ),
                     )
                   else if (p.floor)
                     Text(
                       'اجازهٔ صحبت دارد',
-                      style: TextStyle(fontSize: 11, color: t.pinTeal),
+                      style: TextStyle(fontSize: 11.5, color: t.success),
                     ),
                 ],
               ),
             ),
-            if (p.hand != null)
-              Icon(Icons.back_hand, size: 17, color: t.ledAmber),
+            if (p.hand != null) ...[
+              Icon(ClassroomIcons.hand, size: 15, color: t.warning),
+              const SizedBox(width: 8),
+            ],
+            Icon(
+              media.micOn ? ClassroomIcons.mic : ClassroomIcons.micOff,
+              size: 15,
+              color: media.micOn ? t.success : t.textTertiary,
+            ),
             const SizedBox(width: 6),
             Icon(
-              media.micOn ? Icons.mic : Icons.mic_off,
-              size: 16,
-              color: media.micOn ? t.ledGreen : t.inkSoft,
-            ),
-            Icon(
-              media.cameraOn ? Icons.videocam : Icons.videocam_off,
-              size: 16,
-              color: media.cameraOn ? t.ledGreen : t.inkSoft,
+              media.cameraOn ? ClassroomIcons.camera : ClassroomIcons.cameraOff,
+              size: 15,
+              color: media.cameraOn ? t.success : t.textTertiary,
             ),
             if (canManage || canAssign)
               _Actions(
                 participant: p,
                 canManage: canManage,
                 canAssign: canAssign,
-              ),
+              )
+            else
+              const SizedBox(width: 8),
           ],
         ),
       ),
@@ -156,9 +154,10 @@ class _Actions extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.read(classroomSessionProvider);
     final p = participant;
+    final danger = ClassroomTheme.of(context).danger;
     return PopupMenuButton<VoidCallback>(
       tooltip: 'کارها',
-      icon: const Icon(Icons.more_vert, size: 18),
+      icon: const Icon(ClassroomIcons.more, size: 16),
       onSelected: (action) => action(),
       itemBuilder: (context) => [
         if (canManage) ...[
@@ -220,10 +219,7 @@ class _Actions extends ConsumerWidget {
           const PopupMenuDivider(),
           PopupMenuItem(
             value: () => _confirmRemove(context, session),
-            child: const Text(
-              'خارج کردن از کلاس',
-              style: TextStyle(color: Color(0xFFB3261E)),
-            ),
+            child: Text('خارج کردن از کلاس', style: TextStyle(color: danger)),
           ),
         ],
       ],
@@ -234,9 +230,10 @@ class _Actions extends ConsumerWidget {
     BuildContext context,
     ClassroomSession session,
   ) async {
+    final danger = ClassroomTheme.of(context).danger;
     final sure = await showDialog<bool>(
       context: context,
-      builder: (context) => PaperSheet(
+      builder: (context) => GlassSheet(
         title: 'خارج کردن ${participant.name}',
         width: 380,
         child: Column(
@@ -244,11 +241,9 @@ class _Actions extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text('تا پایان این جلسه نمی‌تواند دوباره وارد شود.'),
-            const SizedBox(height: 14),
+            const SizedBox(height: 18),
             FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFB3261E),
-              ),
+              style: FilledButton.styleFrom(backgroundColor: danger),
               onPressed: () => Navigator.of(context).pop(true),
               child: const Text('خارج کن'),
             ),
@@ -276,7 +271,7 @@ class PermissionsDialog extends ConsumerWidget {
     );
     final session = ref.read(classroomSessionProvider);
     if (p == null) return const SizedBox.shrink();
-    return PaperSheet(
+    return GlassSheet(
       title: 'اجازه‌های ${p.name}',
       width: 400,
       child: Column(

@@ -1,6 +1,6 @@
 /// The TIHE Live classroom: stage and layouts, webcam and screen share, the whiteboard, raised
 /// hands and access levels, capture censoring and the identity watermark — in Persian, in a
-/// skeuomorphic theme. Design: docs/11-live-classroom.md.
+/// glass theme with light and dark modes. Design: docs/11-live-classroom.md.
 ///
 /// Apps use [openClassroom] and [ClassroomPage]; the rest is exported for tests, the demo and
 /// the video player (which shares the capture guard and theme pieces).
@@ -21,4 +21,4 @@ export 'src/state/providers.dart';
 export 'src/ui/classroom_page.dart';
 export 'src/ui/theme/classroom_theme.dart';
 export 'src/ui/theme/fonts.dart';
-export 'src/ui/theme/skeuo.dart';
+export 'src/ui/theme/glass.dart';
