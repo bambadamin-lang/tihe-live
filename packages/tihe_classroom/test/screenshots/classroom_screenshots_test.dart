@@ -1,6 +1,7 @@
 @TestOn('vm')
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:capture_guard/capture_guard.dart';
@@ -33,16 +34,17 @@ Future<void> _loadFonts() async {
     }
     await peyda.load();
   }
-  final flutterRoot =
-      Platform.environment['FLUTTER_ROOT'] ?? '/opt/flutter-sdk/flutter';
-  final icons = File(
-    '$flutterRoot/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
-  );
-  if (icons.existsSync()) {
-    await (FontLoader(
-          'MaterialIcons',
-        )..addFont(Future.value(ByteData.sublistView(icons.readAsBytesSync()))))
-        .load();
+  // Icon fonts (Lucide, Material) come from the test bundle's font manifest.
+  final manifest =
+      json.decode(await rootBundle.loadString('FontManifest.json'))
+          as List<dynamic>;
+  for (final family in manifest.cast<Map<String, dynamic>>()) {
+    final loader = FontLoader(family['family'] as String);
+    for (final font
+        in (family['fonts'] as List<dynamic>).cast<Map<String, dynamic>>()) {
+      loader.addFont(rootBundle.load(font['asset'] as String));
+    }
+    await loader.load();
   }
 }
 
@@ -76,6 +78,7 @@ Future<void> _shoot(
   Layout? layout,
   bool hostSharing = false,
   CaptureMonitor? capture,
+  Brightness brightness = Brightness.dark,
   Future<void> Function(WidgetTester tester)? then,
 }) async {
   tester.view.physicalSize = size;
@@ -90,7 +93,7 @@ Future<void> _shoot(
   await tester.pumpWidget(
     MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: ClassroomPage(session: demo.session),
+      home: ClassroomPage(session: demo.session, brightness: brightness),
     ),
   );
   for (var i = 0; i < 12; i++) {
@@ -190,12 +193,12 @@ void main() {
         final context = tester.element(find.byType(ControlBar));
         Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => UncontrolledProviderScope(
-              container: ProviderScope.containerOf(context),
-              child: Directionality(
-                textDirection: TextDirection.rtl,
-                child: Theme(
-                  data: buildClassroomThemeData(),
+            builder: (_) => InheritedTheme.captureAll(
+              context,
+              UncontrolledProviderScope(
+                container: ProviderScope.containerOf(context),
+                child: Directionality(
+                  textDirection: TextDirection.rtl,
                   child: LayoutEditor(
                     initial: layoutPresets[LayoutPreset.split]!.pods,
                   ),
@@ -217,6 +220,54 @@ void main() {
       'student-phone',
       size: const Size(390, 844),
       as: DemoClassroom.sara,
+    );
+  });
+
+  testWidgets('host at the whiteboard, light', skip: !_enabled, (tester) async {
+    await _shoot(
+      tester,
+      'host-whiteboard-light',
+      size: desktop,
+      brightness: Brightness.light,
+    );
+  });
+
+  testWidgets('student during a presentation, light', skip: !_enabled, (
+    tester,
+  ) async {
+    await _shoot(
+      tester,
+      'student-presentation-light',
+      size: desktop,
+      as: DemoClassroom.ali,
+      layout: layoutPresets[LayoutPreset.presentation],
+      hostSharing: true,
+      brightness: Brightness.light,
+    );
+  });
+
+  testWidgets('layout picker, light', skip: !_enabled, (tester) async {
+    await _shoot(
+      tester,
+      'host-layout-picker-light',
+      size: desktop,
+      brightness: Brightness.light,
+      then: (tester) async {
+        final context = tester.element(find.byType(ControlBar));
+        showClassroomDialog<void>(context, const LayoutPickerSheet());
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+      },
+    );
+  });
+
+  testWidgets('student on a phone, light', skip: !_enabled, (tester) async {
+    await _shoot(
+      tester,
+      'student-phone-light',
+      size: const Size(390, 844),
+      as: DemoClassroom.sara,
+      brightness: Brightness.light,
     );
   });
 }

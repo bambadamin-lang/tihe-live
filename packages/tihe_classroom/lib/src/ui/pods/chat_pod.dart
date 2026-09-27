@@ -5,10 +5,11 @@ import '../../contracts.dart';
 import '../../domain/persian.dart';
 import '../../state/providers.dart';
 import '../theme/classroom_theme.dart';
-import '../theme/materials.dart';
+import '../theme/glass.dart';
 import 'people.dart';
 
-/// Chat on lined notebook paper. Sending needs `chat.send`; managers can delete any message.
+/// Chat, as bubbles on the pod's glass — yours tinted with the accent. Sending needs
+/// `chat.send`; managers can delete any message.
 class ChatPod extends ConsumerStatefulWidget {
   const ChatPod({super.key});
 
@@ -60,81 +61,117 @@ class _ChatPodState extends ConsumerState<ChatPod> {
       });
     }
 
-    return CustomPaint(
-      painter: PaperPainter(t, radius: 10, lined: true),
-      child: Column(
-        children: [
-          Expanded(
-            child: chat.isEmpty
-                ? Center(
-                    child: Text(
-                      'هنوز پیامی نیست',
-                      style: TextStyle(color: t.inkSoft),
-                    ),
-                  )
-                : ListView.builder(
-                    controller: _scroll,
-                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                    itemCount: chat.length,
-                    itemBuilder: (context, i) {
-                      final m = chat[i];
-                      return _Message(
-                        message: m,
-                        mine: m.userId == me,
-                        onDelete: (m.userId == me || canManage)
-                            ? () => ref
-                                  .read(classroomSessionProvider)
-                                  .send(DeleteChat(m.id))
-                            : null,
-                      );
-                    },
-                  ),
-          ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: t.paperEdge)),
-            ),
-            child: canSend
-                ? Row(
+    return Column(
+      children: [
+        Expanded(
+          child: chat.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _input,
-                          textDirection: TextDirection.rtl,
-                          maxLength: 1000,
-                          onSubmitted: (_) => _send(),
-                          decoration: InputDecoration(
-                            hintText: 'پیام…',
-                            counterText: '',
-                            isDense: true,
-                            filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.7),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
+                      Icon(
+                        ClassroomIcons.chat,
+                        size: 22,
+                        color: t.textTertiary,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'هنوز پیامی نیست',
+                        style: TextStyle(color: t.textSecondary, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  controller: _scroll,
+                  padding: const EdgeInsets.fromLTRB(4, 2, 4, 8),
+                  itemCount: chat.length,
+                  itemBuilder: (context, i) {
+                    final m = chat[i];
+                    return _Message(
+                      message: m,
+                      mine: m.userId == me,
+                      onDelete: (m.userId == me || canManage)
+                          ? () => ref
+                                .read(classroomSessionProvider)
+                                .send(DeleteChat(m.id))
+                          : null,
+                    );
+                  },
+                ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(2, 4, 2, 2),
+          child: canSend
+              ? Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _input,
+                        textDirection: TextDirection.rtl,
+                        maxLength: 1000,
+                        onSubmitted: (_) => _send(),
+                        style: TextStyle(color: t.text, fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: 'پیام…',
+                          counterText: '',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: t.edgeLow),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: t.edgeLow),
                           ),
                         ),
                       ),
-                      IconButton(
-                        tooltip: 'ارسال',
-                        onPressed: _send,
-                        icon: Icon(
-                          Icons.send,
-                          color: t.pinTeal,
-                          textDirection: TextDirection.rtl,
+                    ),
+                    const SizedBox(width: 6),
+                    GlassPressable(
+                      onTap: _send,
+                      tooltip: 'ارسال',
+                      semanticLabel: 'ارسال',
+                      radius: 12,
+                      builder: (context, s) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 120),
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: s.hovered ? t.accentHover : t.accent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          ClassroomIcons.send,
+                          size: 17,
+                          color: t.onAccent,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        ClassroomIcons.lock,
+                        size: 13,
+                        color: t.textTertiary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'میزبان گفتگو را بسته است',
+                        style: TextStyle(
+                          color: t.textSecondary,
+                          fontSize: 12.5,
                         ),
                       ),
                     ],
-                  )
-                : Text(
-                    'میزبان گفتگو را بسته است',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: t.inkSoft, fontSize: 12),
                   ),
-          ),
-        ],
-      ),
+                ),
+        ),
+      ],
     );
   }
 }
@@ -156,19 +193,13 @@ class _Message extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(10, 6, 10, 7),
+        padding: const EdgeInsets.fromLTRB(11, 7, 11, 8),
         decoration: BoxDecoration(
-          color: mine
-              ? const Color(0xFFFFF6C9)
-              : Colors.white.withValues(alpha: 0.72),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x22000000),
-              blurRadius: 2,
-              offset: Offset(0, 1),
-            ),
-          ],
+          color: mine ? t.accentSubtle : t.glassHover,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: mine ? t.accent.withValues(alpha: 0.18) : t.hairline,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,9 +212,9 @@ class _Message extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                       fontSize: 12.5,
-                      color: t.ink,
+                      color: t.text,
                     ),
                   ),
                 ),
@@ -192,22 +223,25 @@ class _Message extends StatelessWidget {
                 const Spacer(),
                 Text(
                   clockTime(DateTime.parse(message.at)),
-                  style: TextStyle(fontSize: 11, color: t.inkSoft),
+                  style: TextStyle(fontSize: 11, color: t.textTertiary),
                 ),
                 if (onDelete != null)
-                  InkWell(
-                    onTap: onDelete,
-                    child: Padding(
-                      padding: const EdgeInsetsDirectional.only(start: 4),
-                      child: Icon(Icons.close, size: 13, color: t.inkSoft),
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(start: 2),
+                    child: GlassIconButton(
+                      icon: ClassroomIcons.close,
+                      tooltip: 'حذف پیام',
+                      size: 20,
+                      iconSize: 12,
+                      onPressed: onDelete,
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Text(
               message.text,
-              style: TextStyle(fontSize: 14, color: t.ink, height: 1.5),
+              style: TextStyle(fontSize: 14, color: t.text, height: 1.55),
             ),
           ],
         ),

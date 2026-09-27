@@ -75,7 +75,7 @@ services/api/           NestJS: auth, catalog, progress, licensing, webhooks
 services/media-worker/  ffmpeg: transcode, encrypt, package HLS
 services/ingest-worker/ live recording → VOD library
 services/live/          live classroom: classes, LiveKit, classroom gateway, recording template
-packages/tihe_classroom/ Flutter: the live classroom UI (Persian, skeuomorphic)
+packages/tihe_classroom/ Flutter: the live classroom UI (Persian, glass, light and dark)
 packages/capture_guard/ Flutter plugin: block and detect screen capture
 packages/contracts/     shared zod schemas + OpenAPI — the API contract
 packages/secure-core/   Rust: licences, crypto, .tihex container, loopback HLS server

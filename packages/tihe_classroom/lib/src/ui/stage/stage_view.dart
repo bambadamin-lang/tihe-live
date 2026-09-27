@@ -8,9 +8,19 @@ import '../pods/chat_pod.dart';
 import '../pods/hands_pod.dart';
 import '../pods/media_pods.dart';
 import '../pods/participants_pod.dart';
-import '../theme/classroom_theme.dart';
-import '../theme/skeuo.dart';
+import '../theme/glass.dart';
 import '../whiteboard/whiteboard_pod.dart';
+
+/// The icon each pod kind wears in its header, its tab and the layout picker.
+const podIcons = {
+  PodKind.speaker: ClassroomIcons.person,
+  PodKind.gallery: ClassroomIcons.gallery,
+  PodKind.screen: ClassroomIcons.screen,
+  PodKind.whiteboard: ClassroomIcons.whiteboard,
+  PodKind.chat: ClassroomIcons.chat,
+  PodKind.participants: ClassroomIcons.people,
+  PodKind.hands: ClassroomIcons.hand,
+};
 
 /// The stage: the host's layout, pod by pod (docs/11 §5). Wide screens show the whole 12 × 12
 /// grid in reading direction; phones show one pod at a time behind tabs. A viewer can maximise
@@ -42,7 +52,7 @@ class _StageViewState extends ConsumerState<StageView> {
             .firstOrNull;
         if (maximised != null) {
           return Padding(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(4),
             child: _pod(maximised, maximised: true),
           );
         }
@@ -73,30 +83,25 @@ class _StageViewState extends ConsumerState<StageView> {
       (p) => p.id == _tab,
       orElse: () => tabs.first,
     );
-    final t = ClassroomTheme.of(context);
     return Column(
       children: [
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(4),
             child: _pod(current, compact: true),
           ),
         ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Row(
-            children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 6, 4, 2),
+          child: GlassTabs<String>(
+            selected: current.id,
+            onSelected: (id) => setState(() => _tab = id),
+            options: [
               for (final pod in tabs)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: ChoiceChip(
-                    label: Text(pod.kind.labelFa),
-                    selected: pod.id == current.id,
-                    selectedColor: t.brassHigh,
-                    backgroundColor: t.paperHigh,
-                    onSelected: (_) => setState(() => _tab = pod.id),
-                  ),
+                (
+                  value: pod.id,
+                  label: pod.kind.labelFa,
+                  icon: podIcons[pod.kind],
                 ),
             ],
           ),
@@ -115,26 +120,31 @@ class _StageViewState extends ConsumerState<StageView> {
       PodKind.participants => const ParticipantsPod(),
       PodKind.hands => const HandsPod(),
     };
-    // The whiteboard is its own physical object; everything else sits on a paper card.
+    final maximise = compact
+        ? null
+        : _MaximiseButton(
+            maximised: maximised,
+            onPressed: () =>
+                setState(() => _maximised = maximised ? null : pod.id),
+          );
+    // The board is its own surface: no header, the maximise control floats on its corner.
     if (pod.kind == PodKind.whiteboard) {
-      return _WithCorner(
-        maximised: maximised,
-        visible: !compact,
-        onToggle: () => setState(() => _maximised = maximised ? null : pod.id),
-        child: content,
+      return GlassPanel(
+        padding: 6,
+        child: Stack(
+          children: [
+            Positioned.fill(child: content),
+            if (maximise != null)
+              PositionedDirectional(top: 8, end: 8, child: maximise),
+          ],
+        ),
       );
     }
-    final screenLike = pod.kind.isMedia;
-    return PaperCard(
+    return GlassPanel(
       title: pod.kind.labelFa,
-      inset: screenLike,
-      trailing: compact
-          ? null
-          : _MaximiseButton(
-              maximised: maximised,
-              onPressed: () =>
-                  setState(() => _maximised = maximised ? null : pod.id),
-            ),
+      icon: podIcons[pod.kind],
+      inset: pod.kind.isMedia,
+      trailing: maximise,
       child: content,
     );
   }
@@ -147,51 +157,12 @@ class _MaximiseButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onPressed,
-    borderRadius: BorderRadius.circular(6),
-    child: Tooltip(
-      message: maximised ? 'بازگشت به چیدمان' : 'بزرگ کردن',
-      child: Padding(
-        padding: const EdgeInsets.all(2),
-        child: Icon(
-          maximised ? Icons.close_fullscreen : Icons.open_in_full,
-          size: 15,
-          color: ClassroomTheme.of(context).inkSoft,
-        ),
-      ),
-    ),
-  );
-}
-
-class _WithCorner extends StatelessWidget {
-  const _WithCorner({
-    required this.child,
-    required this.maximised,
-    required this.onToggle,
-    required this.visible,
-  });
-
-  final Widget child;
-  final bool maximised;
-  final VoidCallback onToggle;
-  final bool visible;
-
-  @override
-  Widget build(BuildContext context) => Stack(
-    children: [
-      Positioned.fill(child: child),
-      if (visible)
-        PositionedDirectional(
-          top: 14,
-          end: 16,
-          child: Material(
-            color: Colors.white.withValues(alpha: 0.7),
-            shape: const CircleBorder(),
-            child: _MaximiseButton(maximised: maximised, onPressed: onToggle),
-          ),
-        ),
-    ],
+  Widget build(BuildContext context) => GlassIconButton(
+    icon: maximised ? ClassroomIcons.restore : ClassroomIcons.maximise,
+    tooltip: maximised ? 'بازگشت به چیدمان' : 'بزرگ کردن',
+    size: 26,
+    iconSize: 14,
+    onPressed: onPressed,
   );
 }
 

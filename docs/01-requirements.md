@@ -28,7 +28,9 @@ Stated by the institute for the live classroom, designed in
 - Class layouts with recommended presets.
 - **Screen recording is banned**: recording the screen or the app window produces censored output; detection alerts the host ([ADR-0011](adr/0011-live-capture-guard-censor-and-attribute.md)).
 - A watermark in a corner of the class, identifying the viewer.
-- Persian UI in the **Peyda** font, with a **skeuomorphic** theme (classroom only for now).
+- Persian UI in the **Peyda** font. The classroom was first built skeuomorphic; it now uses a
+  **glass** theme in **light and dark**, matching the video player's design system
+  (docs/11 §11).
 
 ---
 

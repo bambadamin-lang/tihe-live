@@ -93,7 +93,7 @@ the build rather than production.
 ### `packages/tihe_classroom` and `packages/capture_guard` *(live-classroom session)*
 
 Flutter packages the app imports. `tihe_classroom` is the whole classroom UI with its own
-skeuomorphic Persian theme; it runs standalone through its `example/` app. `capture_guard` is
+Persian glass theme, light and dark; it runs standalone through its `example/` app. `capture_guard` is
 a Flutter plugin that blocks and detects screen capture on all four platforms (ADR-0011) and
 is shared with the player.
 

@@ -7,7 +7,7 @@ import '../../contracts.dart';
 import '../../data/media.dart';
 import '../../state/classroom_session.dart';
 import '../../state/providers.dart';
-import '../theme/classroom_theme.dart';
+import '../theme/glass.dart';
 import 'people.dart';
 
 /// The pods that show video: speaker, gallery and screen share.
@@ -146,7 +146,7 @@ class _Tile extends StatelessWidget {
   Widget build(BuildContext context) => SpeakingFrame(
     speaking: media.speaking,
     child: ColoredBox(
-      color: const Color(0xFF221C16),
+      color: const Color(0xFF16181E),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -198,14 +198,14 @@ class ScreenPod extends ConsumerWidget {
     if (sharer == null) {
       return const _Empty(
         text: 'اشتراک صفحه‌ای در جریان نیست',
-        icon: Icons.desktop_windows_outlined,
+        icon: ClassroomIcons.screen,
       );
     }
     if (sharer == view.userId) {
       // Showing your own screen back to you only makes a hall of mirrors.
       return const _Empty(
         text: 'صفحهٔ شما در حال اشتراک است',
-        icon: Icons.screen_share,
+        icon: ClassroomIcons.screenShare,
       );
     }
     final name = view.room?.participants[sharer]?.name ?? '';
@@ -227,27 +227,34 @@ class ScreenPod extends ConsumerWidget {
 }
 
 class _Empty extends StatelessWidget {
-  const _Empty({required this.text, this.icon = Icons.videocam_off_outlined});
+  const _Empty({required this.text, this.icon = ClassroomIcons.cameraOff});
 
   final String text;
   final IconData icon;
 
+  // On the dark inset screen in both themes, so the colours are fixed rather than themed.
   @override
-  Widget build(BuildContext context) {
-    final t = ClassroomTheme.of(context);
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 34, color: t.paperEdge),
-          const SizedBox(height: 8),
-          Text(
-            text,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: t.paperLow, fontSize: 14),
+  Widget build(BuildContext context) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
-        ],
-      ),
-    );
-  }
+          child: Icon(icon, size: 20, color: Colors.white54),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.white60, fontSize: 13.5),
+        ),
+      ],
+    ),
+  );
 }

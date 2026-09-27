@@ -10,28 +10,43 @@ import 'protection/watermark_overlay.dart';
 import 'stage/stage_view.dart';
 import 'theme/classroom_theme.dart';
 import 'theme/fonts.dart';
-import 'theme/materials.dart';
-import 'theme/skeuo.dart';
+import 'theme/glass.dart';
 
 /// The live classroom (docs/11-live-classroom.md). Give it a [ClassroomSession] — from
 /// `openClassroom` in production, or built from fakes in tests and the demo — and it runs the
 /// class until the user leaves, the host ends it, or access is lost.
 ///
-/// Persian and right-to-left throughout, in the classroom's own skeuomorphic theme; the host
-/// app's theme does not leak in, and this page's theme does not leak out.
+/// Persian and right-to-left throughout, in the classroom's own glass theme. It follows the host
+/// app's light or dark mode unless given [brightness], and the student can switch it from the
+/// top bar for the rest of the class. The host app's theme does not otherwise leak in, and this
+/// page's theme does not leak out.
 class ClassroomPage extends StatefulWidget {
-  const ClassroomPage({super.key, required this.session, this.onExit});
+  const ClassroomPage({
+    super.key,
+    required this.session,
+    this.onExit,
+    this.brightness,
+    this.onBrightnessChanged,
+  });
 
   final ClassroomSession session;
 
   /// Called once the user dismisses the exit screen.
   final void Function(ClassroomExit exit)? onExit;
 
+  /// Light or dark. Null follows the host app's theme.
+  final Brightness? brightness;
+
+  /// Called when the student switches the theme in class, so the host app can remember it.
+  final ValueChanged<Brightness>? onBrightnessChanged;
+
   @override
   State<ClassroomPage> createState() => _ClassroomPageState();
 }
 
 class _ClassroomPageState extends State<ClassroomPage> {
+  Brightness? _chosen;
+
   @override
   void initState() {
     super.initState();
@@ -45,22 +60,58 @@ class _ClassroomPageState extends State<ClassroomPage> {
     super.dispose();
   }
 
+  void _toggle(Brightness current) {
+    final next = current == Brightness.dark
+        ? Brightness.light
+        : Brightness.dark;
+    setState(() => _chosen = next);
+    widget.onBrightnessChanged?.call(next);
+  }
+
   @override
-  Widget build(BuildContext context) => ProviderScope(
-    overrides: [classroomSessionProvider.overrideWithValue(widget.session)],
-    child: Theme(
-      data: buildClassroomThemeData(),
-      child: Localizations.override(
-        context: context,
-        locale: const Locale('fa'),
-        delegates: GlobalMaterialLocalizations.delegates,
-        child: Directionality(
-          textDirection: TextDirection.rtl,
-          child: _Classroom(onExit: widget.onExit),
+  Widget build(BuildContext context) {
+    final brightness =
+        _chosen ?? widget.brightness ?? Theme.of(context).brightness;
+    return ProviderScope(
+      overrides: [classroomSessionProvider.overrideWithValue(widget.session)],
+      child: Theme(
+        data: buildClassroomThemeData(ClassroomTheme.forBrightness(brightness)),
+        child: ClassroomAppearance(
+          brightness: brightness,
+          onToggle: () => _toggle(brightness),
+          child: Localizations.override(
+            context: context,
+            locale: const Locale('fa'),
+            delegates: GlobalMaterialLocalizations.delegates,
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: _Classroom(onExit: widget.onExit),
+            ),
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
+}
+
+/// The page's light/dark state, for the switch in the top bar.
+class ClassroomAppearance extends InheritedWidget {
+  const ClassroomAppearance({
+    super.key,
+    required this.brightness,
+    required this.onToggle,
+    required super.child,
+  });
+
+  final Brightness brightness;
+  final VoidCallback onToggle;
+
+  static ClassroomAppearance? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ClassroomAppearance>();
+
+  @override
+  bool updateShouldNotify(ClassroomAppearance old) =>
+      old.brightness != brightness;
 }
 
 class _Classroom extends ConsumerWidget {
@@ -98,7 +149,7 @@ class _Classroom extends ConsumerWidget {
     );
     return Material(
       type: MaterialType.transparency,
-      child: WoodDesk(
+      child: GlassBackdrop(
         child: SafeArea(
           child: Stack(
             children: [
@@ -119,7 +170,13 @@ class _Classroom extends ConsumerWidget {
                               ],
                             )
                           : const Center(
-                              child: BrassPlate(
+                              child: GlassPill(
+                                leading: SizedBox.square(
+                                  dimension: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.75,
+                                  ),
+                                ),
                                 child: Text('در حال ورود به کلاس…'),
                               ),
                             ),
@@ -137,7 +194,7 @@ class _Classroom extends ConsumerWidget {
   }
 }
 
-/// Toasts: paper slips pinned under the top bar.
+/// Toasts: glass slips under the top bar, with a dot for their tone.
 class _Notices extends ConsumerWidget {
   const _Notices();
 
@@ -147,42 +204,51 @@ class _Notices extends ConsumerWidget {
     final session = ref.read(classroomSessionProvider);
     final t = ClassroomTheme.of(context);
     return PositionedDirectional(
-      top: 58,
+      top: 62,
       start: 0,
       end: 0,
       child: Column(
         children: [
           for (final n in notices.reversed.take(3))
             Padding(
-              padding: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.only(top: 8),
               child: Dismissible(
                 key: ValueKey(n.id),
                 onDismissed: (_) => session.dismissNotice(n.id),
-                child: Container(
+                child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 520),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 9,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: t.paper,
-                    borderRadius: BorderRadius.circular(8),
-                    border: BorderDirectional(
-                      start: BorderSide(
-                        width: 5,
-                        color: switch (n.tone) {
-                          NoticeTone.alert => t.ledRed,
-                          NoticeTone.warning => t.ledAmber,
-                          NoticeTone.success => t.ledGreen,
-                          NoticeTone.info => t.pinNavy,
-                        },
-                      ),
+                  child: Glass(
+                    radius: 14,
+                    strong: true,
+                    overlay: true,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
                     ),
-                    boxShadow: t.raised,
-                  ),
-                  child: Text(
-                    n.textFa,
-                    style: TextStyle(color: t.ink, fontWeight: FontWeight.w600),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        StatusDot(
+                          color: switch (n.tone) {
+                            NoticeTone.alert => t.danger,
+                            NoticeTone.warning => t.warning,
+                            NoticeTone.success => t.success,
+                            NoticeTone.info => t.accent,
+                          },
+                        ),
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            n.textFa,
+                            style: TextStyle(
+                              color: t.text,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -200,34 +266,61 @@ class _ExitScreen extends StatelessWidget {
   final VoidCallback onClose;
 
   @override
-  Widget build(BuildContext context) => Material(
-    type: MaterialType.transparency,
-    child: WoodDesk(
-      child: Center(
-        child: SizedBox(
-          width: 420,
-          height: 220,
-          child: PaperCard(
-            inset: false,
-            padding: 24,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
+  Widget build(BuildContext context) {
+    final t = ClassroomTheme.of(context);
+    return Material(
+      type: MaterialType.transparency,
+      child: GlassBackdrop(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Glass(
+                radius: 20,
+                padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: t.accentSubtle,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          ClassroomIcons.classEnded,
+                          size: 22,
+                          color: t.accentText,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      message,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 17,
+                        height: 1.6,
+                        fontWeight: FontWeight.w600,
+                        color: t.text,
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    FilledButton(
+                      onPressed: onClose,
+                      child: const Text('بازگشت'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 22),
-                FilledButton(onPressed: onClose, child: const Text('بازگشت')),
-              ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
