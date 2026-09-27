@@ -50,14 +50,14 @@ jobs:
         working-directory: packages/tihe_classroom/example
         run: flutter build windows --release --build-name $env:APP_VERSION
 
-      # App-local MSVC runtime, which Microsoft permits, so students need no separate
-      # Visual C++ Redistributable.
-      - name: Bundle the Visual C++ runtime
-        run: |
-          $dest = 'packages/tihe_classroom/example/build/windows/x64/runner/Release'
-          foreach ($dll in 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
-            Copy-Item "$env:WINDIR\System32\$dll" $dest
-          }
+      # Copies in the Visual C++ runtime DLLs the app imports (app-local, which Microsoft
+      # permits), then fails if anything loaded at start-up is neither bundled nor part of
+      # Windows, so Setup.exe never needs a separate runtime install.
+      - name: Bundle the Visual C++ runtime and check dependencies
+        run: >
+          ./packages/tihe_classroom/example/installer/windows/check-dependencies.ps1
+          -Bundle packages/tihe_classroom/example/build/windows/x64/runner/Release
+          -BundleVcRuntime
 
       - name: Fetch the Persian wizard text
         continue-on-error: true

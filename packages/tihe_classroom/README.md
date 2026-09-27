@@ -94,7 +94,10 @@ The wizard:
 5. install and start
 
 It needs Windows 10 version 2004 or later, the first release that can hide a window from
-screen capture. The Visual C++ runtime is bundled. Uninstall from Windows Settings → Apps.
+screen capture. The Visual C++ runtime is bundled, and every build runs
+[`check-dependencies.ps1`](example/installer/windows/check-dependencies.ps1): it reads what
+each bundled `.exe` and `.dll` imports and fails if a DLL loaded at start-up is neither in the
+bundle nor part of Windows. Uninstall from Windows Settings → Apps.
 
 For IT staff: `TIHE-Live-Setup-0.1.0.exe /VERYSILENT /server=https://…` installs with no
 questions.
@@ -109,7 +112,7 @@ Inno Setup 6.5+:
 ```powershell
 cd packages\tihe_classroom\example
 flutter build windows --release
-copy C:\Windows\System32\msvcp140.dll, C:\Windows\System32\vcruntime140*.dll build\windows\x64\runner\Release\
+installer\windows\check-dependencies.ps1 -Bundle build\windows\x64\runner\Release -BundleVcRuntime
 iscc /DDefaultServer=https://your-server/v1/live installer\windows\tihe_live.iss
 # → installer\windows\Output\TIHE-Live-Setup-0.1.0.exe
 ```
