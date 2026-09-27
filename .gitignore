@@ -53,3 +53,6 @@ Thumbs.db
 
 # rust
 packages/secure-core/target/
+
+# prisma
+services/api/prisma/*.db

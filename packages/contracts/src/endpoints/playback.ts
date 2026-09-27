@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { id } from '../common.js';
-import { downloadManifestSchema, downloadSchema, playbackSessionSchema } from '../entities/protection.js';
+import {
+  downloadManifestSchema,
+  downloadSchema,
+  playbackSessionSchema,
+} from '../entities/protection.js';
 
 export const startPlaybackBodySchema = z.object({
   deviceId: id('device'),

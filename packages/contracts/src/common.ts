@@ -46,10 +46,9 @@ export const phoneSchema = z
   .trim()
   .transform((raw) => {
     // Fold Persian and Arabic-Indic digits to ASCII — users paste these constantly.
-    const ascii = raw.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0)).replace(
-      /[٠-٩]/g,
-      (d) => String(d.charCodeAt(0) - 0x0660),
-    );
+    const ascii = raw
+      .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+      .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
     const digits = ascii.replace(/[^\d+]/g, '');
     if (digits.startsWith('+98')) return digits;
     if (digits.startsWith('0098')) return `+${digits.slice(2)}`;

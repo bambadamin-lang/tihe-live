@@ -15,13 +15,7 @@ export const updateProgressBodySchema = z.object({
 });
 export type UpdateProgressBody = z.infer<typeof updateProgressBodySchema>;
 
-export const watchEventKindSchema = z.enum([
-  'start',
-  'heartbeat',
-  'seek',
-  'pause',
-  'complete',
-]);
+export const watchEventKindSchema = z.enum(['start', 'heartbeat', 'seek', 'pause', 'complete']);
 export type WatchEventKind = z.infer<typeof watchEventKindSchema>;
 
 export const watchEventSchema = z.object({
