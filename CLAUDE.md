@@ -25,6 +25,8 @@ Docker Compose (deploy) · pnpm workspaces + Turborepo (monorepo)
 apps/player/            Flutter client                      [owner: video dev]
 services/api/           NestJS: auth, catalog, licensing     [owner: video dev]
 services/media-worker/  ffmpeg transcode/encrypt/package     [owner: video dev]
+packages/db/            Prisma schema, migrations, seed — shared
+packages/crypto/        server-side crypto: CEK, KEK, licences — shared
 services/ingest-worker/ live recording → VOD                 [owner: video dev]
 services/live/          LiveKit orchestration                [owner: live dev]
 packages/contracts/     shared zod schemas — PR REQUIRED
@@ -61,6 +63,7 @@ pnpm test                                           # all JS tests
 pnpm --filter @tihe/api start:dev                   # API on :3000, Swagger at /docs
 pnpm --filter @tihe/db migrate:dev                  # apply migrations
 pnpm --filter @tihe/db seed                         # seed demo term/course/videos
+pnpm --filter @tihe/media-worker package <file> --course crs_… --inline   # package a video
 cargo test --manifest-path packages/secure-core/Cargo.toml
 cd apps/player && flutter run -d windows            # or -d android
 ```

@@ -1,0 +1,31 @@
+{
+  "name": "@tihe/media-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Turns a source video into encrypted HLS: transcode, encrypt, package, publish",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "dotenv -e ../../.env -- node dist/worker.js",
+    "dev": "dotenv -e ../../.env -- tsx watch src/worker.ts",
+    "package": "dotenv -e ../../.env -- tsx src/cli.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "emit-fixtures": "tsx tools/emit-segment-fixture.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.716.0",
+    "@tihe/crypto": "workspace:*",
+    "@tihe/db": "workspace:*",
+    "bullmq": "^5.34.0",
+    "ioredis": "^5.4.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "dotenv-cli": "^8.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

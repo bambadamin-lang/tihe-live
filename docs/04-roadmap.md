@@ -21,13 +21,27 @@ model, Rust protection core with tests, Flutter shell with the first screens.
 
 **Demo:** full student lifecycle driven from the CLI and API, no player needed.
 
-## M2 — Media pipeline
+## M2a — The packager ✅
 
-- `media-worker`: ffmpeg rendition ladder (1080p/720p/480p + audio-only), poster, thumbnail
-  sprite, CEK generation, AES-CTR encryption, HLS packaging, MinIO upload
+- `media-worker`: ffmpeg rendition ladder (1080p/720p/480p + audio-only, never upscaling), poster,
+  thumbnail sprite, CEK generation, AES-CTR encryption, HLS packaging, object-storage upload
+- Idempotency keyed on the video, progress reporting, failures visible on the row
+- A CLI, so a file can be packaged without LiveKit or the admin panel
+
+Split out from the original M2 so the video-management side is never blocked on the live side —
+packaging an uploaded file is the same work as packaging a recording, minus the handoff.
+
+**Demo:** `pnpm --filter @tihe/media-worker package ./lecture.mp4 --course crs_… --inline` and the
+video is `ready` in the library, its segments encrypted, its content key wrapped with the KEK.
+
+## M2b — The live handoff
+
 - `ingest-worker`: raw egress validation and remux
-- LiveKit webhook end to end
-- Job retry, idempotency, dead-letter handling, progress reporting
+- LiveKit webhook → ingest → packager, end to end
+- Dead-letter handling and retention of the raw master
+
+Contract already specified in [06-recording-pipeline.md](06-recording-pipeline.md), and exercisable
+with `infra/scripts/fake-egress.sh` before LiveKit exists.
 
 **Demo:** a LiveKit class ends, and minutes later the video is `ready` in the library with no
 human step. This is the moment the two halves of the product connect.
