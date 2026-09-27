@@ -9,3 +9,4 @@ export * from './capture.js';
 export * from './gateway.js';
 export * from './endpoints.js';
 export * from './watermark.js';
+export * from './directory.js';

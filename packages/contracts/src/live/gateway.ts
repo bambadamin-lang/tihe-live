@@ -166,9 +166,12 @@ export type ClassroomCommandType = ClassroomCommand['type'];
 
 export const classroomEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('participant.joined'), participant: participantStateSchema }),
-  /** Any change to one participant: role, capabilities, hand, floor, presence, capture. */
+  /**
+   * Any change to one participant: role, capabilities, hand, floor, presence (leaving is an
+   * update with `online: false`), capture. Always the whole participant, so clients never
+   * re-derive capabilities themselves.
+   */
   z.object({ type: z.literal('participant.updated'), participant: participantStateSchema }),
-  z.object({ type: z.literal('participant.left'), userId: id('user') }),
   z.object({
     type: z.literal('participant.removed'),
     userId: id('user'),
@@ -242,7 +245,8 @@ export type GatewayError = z.infer<typeof gatewayErrorSchema>;
 export const serverMessageSchema = z.discriminatedUnion('t', [
   z.object({
     t: z.literal('welcome'),
-    you: z.object({ userId: id('user'), role: classRoleSchema }),
+    /** A `usr_` id — or, for the Egress recorder, its egress id; it is not a participant. */
+    you: z.object({ userId: z.string(), role: classRoleSchema }),
     /** The latest sequence number, whether or not a snapshot is attached. */
     seq: z.number().int().nonnegative(),
     /** Present on first connect, or when `lastSeq` is too old to replay. */
