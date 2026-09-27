@@ -164,6 +164,10 @@ the Egress template).
 - **Rendering**: strokes are outlined with the perfect-freehand algorithm — `perfect_freehand`
   in Dart, `perfect-freehand` in the Egress template — so the recording matches the live
   board.
+- **Text direction**: each text item takes its direction from its first strong character, so
+  a Persian note reads right to left and a formula like `f′(g(x))` reads left to right in
+  both. Either way it is right-aligned at its anchor, `at`, which is the item's top-right
+  corner. The rule is `textDirectionOf`, in both the Flutter painter and the template.
 - Limits: 2000 points per stroke (the client splits longer ones), 10 000 items per page, 500
   characters per text item.
 
@@ -256,7 +260,7 @@ Ordering that matters for the pipeline:
   - Status: glowing LEDs for "live" and "recording".
   - Whiteboard: an enamel board in an aluminium frame, with a marker tray holding the pen tools.
   - Hand-raise: a wooden paddle.
-- The theme lives in `tihe_classroom/lib/src/theme/` behind one `ClassroomTheme` object, so it
+- The theme lives in `tihe_classroom/lib/src/ui/theme/` behind one `ClassroomTheme` object, so it
   can be swapped for an app-wide design system later without touching the widgets.
 
 ## 12. Manual device checklist
@@ -279,3 +283,50 @@ These cannot run in CI. Run them before each release on real hardware.
 | 12 | all | Revoke mic from a speaking student | track muted within 1 s; re-publish refused |
 | 13 | all | Watermark | visible on the stage and changing corners; masked phone correct |
 | 14 | all | Kill network for 10 s, restore | gateway resumes and the board, hands and chat are intact |
+
+## 13. What it looks like
+
+These are rendered by the opt-in screenshot test in `packages/tihe_classroom`, using
+Vazirmatn in place of Peyda until the Peyda files are added.
+
+| | |
+|---|---|
+| ![Whiteboard layout, host](images/classroom/host-whiteboard.jpg) | ![Split layout, host](images/classroom/host-split.jpg) |
+| Whiteboard layout: the marker tray, pages, and a raised-hand alert | Split: screen share next to the board |
+| ![Discussion layout, host](images/classroom/host-discussion.jpg) | ![Presentation, student](images/classroom/student-presentation.jpg) |
+| Discussion: gallery, chat, hands queue | A student's view: the watermark sits in a stage corner |
+| ![Layout picker](images/classroom/host-layout-picker.jpg) | ![Layout editor](images/classroom/host-layout-editor.jpg) |
+| The six recommended layouts | The layout editor on the 12 × 12 grid |
+| ![Censored](images/classroom/student-censored.jpg) | ![Phone](images/classroom/student-phone.jpg) |
+| A student's classroom while a recorder runs | Phone width: the largest pod plus tabs |
+
+## 14. Running it end to end
+
+To drive a class by hand:
+1. Start services/live in memory (see `services/live/README.md`).
+2. Mint a teacher token and a student token with `dev-token`.
+3. Create and start a class over REST.
+4. Join from the example app (`packages/tihe_classroom/README.md`).
+
+**Verified in a container**, with:
+- real `livekit-server` 1.13
+- services/live built and running in memory
+- the example app as a Linux desktop build
+
+What worked:
+- Creating and starting a class created a LiveKit room named after the session.
+- Starting the class asked Egress to record, with the template URL and the
+  `recordings/{classId}/{sessionId}/composite.mp4` path.
+- With no Egress worker running, the request timed out, and the session logged
+  `recordingError` rather than failing.
+- The app joined the gateway, and the teacher saw the student come online.
+- The gateway acknowledged every command the teacher sent.
+- A change to the room policy reached the student as a participant update.
+
+Not verified there:
+- **The app's media connection.** `livekit_client` on Linux needs NetworkManager over D-Bus,
+  which the container lacks.
+- **Screen rendering under Xvfb.** The virtual display stopped repainting, so the app's
+  screens were checked with the widget tests and the screenshot test instead.
+
+Both need a real desktop, and the device checklist in §12 covers the rest.
