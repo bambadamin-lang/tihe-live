@@ -1,0 +1,47 @@
+{
+  "users": [
+    {
+      "id": "usr_01J8ZB00000000000000000001",
+      "displayName": "دکتر رضایی",
+      "phone": "+989121234501",
+      "role": "teacher"
+    },
+    {
+      "id": "usr_01J8ZB00000000000000000002",
+      "displayName": "مریم احمدی",
+      "phone": "+989121234502",
+      "role": "teacher"
+    },
+    {
+      "id": "usr_01J8ZB00000000000000000003",
+      "displayName": "علی کریمی",
+      "phone": "+989121234503",
+      "role": "student"
+    },
+    {
+      "id": "usr_01J8ZB00000000000000000004",
+      "displayName": "سارا محمدی",
+      "phone": "+989121234504",
+      "role": "student"
+    },
+    {
+      "id": "usr_01J8ZB00000000000000000005",
+      "displayName": "مدیر مؤسسه",
+      "phone": "+989121234505",
+      "role": "admin"
+    }
+  ],
+  "courses": [
+    {
+      "id": "crs_01J8ZA00000000000000000001",
+      "title": "ریاضی ۱",
+      "teacherId": "usr_01J8ZB00000000000000000001",
+      "allowCapture": false,
+      "enrolled": [
+        "usr_01J8ZB00000000000000000002",
+        "usr_01J8ZB00000000000000000003",
+        "usr_01J8ZB00000000000000000004"
+      ]
+    }
+  ]
+}

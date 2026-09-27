@@ -65,13 +65,15 @@ pnpm --filter @tihe/api start:dev                   # API on :3000, Swagger at /
 pnpm --filter @tihe/api prisma migrate dev          # apply migrations
 pnpm --filter @tihe/api seed                        # seed demo term/course/videos
 cargo test --manifest-path packages/secure-core/Cargo.toml
+pnpm --filter @tihe/live start:dev                  # live classroom on :3100 (services/live/README.md)
+cd packages/tihe_classroom/example && flutter run -d macos   # classroom standalone
 cd apps/player && flutter run -d windows            # or -d android
 ```
 
 ## Commits
 
 Conventional Commits with an area scope: `feat(api):`, `fix(player):`, `docs(protection):`.
-Areas: `api`, `player`, `core`, `media`, `live`, `infra`, `docs`, `contracts`.
+Areas: `api`, `player`, `core`, `media`, `live`, `classroom`, `capture`, `infra`, `docs`, `contracts`.
 
 ## Style
 

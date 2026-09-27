@@ -1,0 +1,105 @@
+// services/live database: tihe_live (ADR-0012). Separate from services/api's database so
+// neither service's migrations can touch the other's tables. Ids from the API (usr_, crs_,
+// sec_) are stored without foreign keys and resolved through CourseDirectory.
+//
+// Timestamps are UTC (timestamptz). Ids are prefixed ULIDs generated in code.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model LiveClass {
+  id               String        @id
+  courseId         String        @map("course_id")
+  sectionId        String?       @map("section_id")
+  title            String
+  description      String?
+  teacherId        String        @map("teacher_id")
+  scheduledStartAt DateTime?     @map("scheduled_start_at") @db.Timestamptz(3)
+  durationMinutes  Int           @map("duration_minutes")
+  /// ClassSettings from @tihe/contracts: autoRecord, defaultLayout, policy, maxParticipants.
+  settings         Json
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sessions         LiveSession[]
+
+  @@index([courseId])
+  @@index([teacherId])
+  @@map("live_classes")
+}
+
+model LiveSession {
+  id                 String            @id
+  classId            String            @map("class_id")
+  class              LiveClass         @relation(fields: [classId], references: [id])
+  /// live | ended
+  status             String
+  startedAt          DateTime          @map("started_at") @db.Timestamptz(3)
+  endedAt            DateTime?         @map("ended_at") @db.Timestamptz(3)
+  /// One egress per session in v1: restarting would overwrite composite.mp4 (docs/06).
+  egressId           String?           @unique @map("egress_id")
+  recordingStartedAt DateTime?         @map("recording_started_at") @db.Timestamptz(3)
+  recordingEndedAt   DateTime?         @map("recording_ended_at") @db.Timestamptz(3)
+  recordingError     String?           @map("recording_error")
+  peakParticipants   Int               @default(0) @map("peak_participants")
+  /// The final classroom state (board, chat, layout) kept when the session ends.
+  finalSnapshot      Json?             @map("final_snapshot")
+  attendance         LiveAttendance[]
+  auditEvents        LiveAuditEvent[]
+
+  @@index([classId, status])
+  @@map("live_sessions")
+}
+
+model LiveAttendance {
+  sessionId       String      @map("session_id")
+  session         LiveSession @relation(fields: [sessionId], references: [id])
+  userId          String      @map("user_id")
+  name            String
+  role            String
+  firstJoinedAt   DateTime    @map("first_joined_at") @db.Timestamptz(3)
+  lastLeftAt      DateTime?   @map("last_left_at") @db.Timestamptz(3)
+  /// Summed across reconnects.
+  secondsPresent  Int         @default(0) @map("seconds_present")
+  /// Set while connected; closed into secondsPresent on leave.
+  openSince       DateTime?   @map("open_since") @db.Timestamptz(3)
+  joinCount       Int         @default(0) @map("join_count")
+  captureAttempts Int         @default(0) @map("capture_attempts")
+
+  @@id([sessionId, userId])
+  @@map("live_attendance")
+}
+
+model SavedLayout {
+  id        String   @id
+  ownerId   String   @map("owner_id")
+  name      String
+  /// Pod[] from @tihe/contracts, validated on write.
+  pods      Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([ownerId])
+  @@map("saved_layouts")
+}
+
+/// Append-only. Capture attempts, removals, permission and role changes, recording state.
+model LiveAuditEvent {
+  id        String      @id
+  sessionId String      @map("session_id")
+  session   LiveSession @relation(fields: [sessionId], references: [id])
+  actorId   String?     @map("actor_id")
+  targetId  String?     @map("target_id")
+  kind      String
+  detail    Json
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([sessionId, createdAt])
+  @@index([targetId, kind])
+  @@map("live_audit_events")
+}
