@@ -87,12 +87,14 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.x'
+          flutter-version: '3.35.7'
           channel: stable
           cache: true
 
       - name: Pub get
         working-directory: apps/player
+        # Also runs gen-l10n, which produces lib/l10n/app_localizations*.dart from the ARB files.
+        # Those are generated, not committed, so this step is required before analyze.
         run: flutter pub get
 
       - name: Analyze

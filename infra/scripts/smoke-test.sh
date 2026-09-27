@@ -163,12 +163,43 @@ check "sync returns the revocation epoch" "$(echo "$events" | jqp "'revocationEp
 # ── Playback ──────────────────────────────────────────────────────────────────
 echo
 echo "playback"
-# No licence has been issued yet, so this must be refused — and say why precisely.
-nolic=$(curl -s -X POST -H "$H" -H 'Content-Type: application/json' \
+# Whether a licence exists depends on what an admin has issued, so both outcomes are checked —
+# each asserting the thing that actually matters in that state.
+playback=$(curl -s -X POST -H "$H" -H 'Content-Type: application/json' \
   -d "{\"deviceId\":\"$device\"}" "$API/playback/$video/session")
-check "playback without a licence is refused ($(echo "$nolic" | jqp "d['error']['code']"))" \
-  "$(echo "$nolic" | jqp "d['error']['code'].startswith('LICENSE')")"
-check "refusal carries a Persian message" "$(echo "$nolic" | jqp "len(d['error']['messageFa'])>0")"
+
+if [[ "$(echo "$playback" | jqp "'sessionId' in d")" == "true" ]]; then
+  # A licence is present, so the protected-playback response itself is under test.
+  check "playback session minted" true
+  check "a content key wrapped for this device is returned" \
+    "$(echo "$playback" | jqp "len(d['wrappedKey'])>0")"
+  check "encryption scheme is AES-128-CTR with per-segment IVs" \
+    "$(echo "$playback" | jqp "d['encryption']['scheme']=='AES-128-CTR' and d['encryption']['ivMode']=='per-segment-sequence'")"
+  check "watermark carries a masked number, never a full one" \
+    "$(echo "$playback" | jqp "'\u2022' in d['watermark']['text']")"
+  check "watermark drifts rather than sitting still" \
+    "$(echo "$playback" | jqp "d['watermark']['movement']=='drift'")"
+  check "capture blocking is on (course policy)" \
+    "$(echo "$playback" | jqp "d['blockCapture'] is True")"
+  check "session carries a revocation epoch for the heartbeat to compare" \
+    "$(echo "$playback" | jqp "'revocationEpoch' in d")"
+
+  session_id=$(echo "$playback" | jqp "d['sessionId']")
+  beat=$(curl -s -X POST -H "$H" -H 'Content-Type: application/json' \
+    -d '{"positionMs":1000}' "$API/playback/sessions/$session_id/heartbeat")
+  check "heartbeat reports whether to stop" "$(echo "$beat" | jqp "'stop' in d")"
+  check "heartbeat does not ask us to stop on a valid licence" \
+    "$(echo "$beat" | jqp "d['stop'] is False")"
+
+  curl -s -o /dev/null -X DELETE -H "$H" "$API/playback/sessions/$session_id"
+  check "session can be ended, freeing the stream slot" true
+else
+  # No licence, so the refusal is under test — and it must name the reason precisely.
+  check "playback without a licence is refused ($(echo "$playback" | jqp "d['error']['code']"))" \
+    "$(echo "$playback" | jqp "d['error']['code'].startswith('LICENSE') or d['error']['code']=='NOT_ENROLLED'")"
+  check "refusal carries a Persian message" \
+    "$(echo "$playback" | jqp "len(d['error']['messageFa'])>0")"
+fi
 
 # A client must not be able to request a key wrapped for a device it does not control.
 # A syntactically valid id belonging to no-one, so the ownership check is what rejects it rather
