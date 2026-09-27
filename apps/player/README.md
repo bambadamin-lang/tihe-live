@@ -23,20 +23,41 @@ development server returns it in the response, so the code field is prefilled.
 ```
 lib/
 ├── core/
-│   ├── api/           client, error envelope, models, repositories
+│   ├── api/            client, error envelope, models, repositories
 │   ├── security/       token store, device identity, masked logging
-│   ├── theme/          Material 3 theme, Jalali date formatting
-│   ├── router/         go_router with the auth redirect
+│   ├── theme/          design tokens, colours, type scale, icons, Jalali formatting
+│   ├── router/         go_router with the auth redirect and the app shell
+│   ├── preferences.dart  appearance (dark by default), app version
 │   └── providers.dart  Riverpod wiring
+├── ui/                 the design system: buttons, fields, rows, tabs, dialogs, states…
 ├── features/
+│   ├── shell/          sidebar / rail / bottom bar, splash
 │   ├── auth/           phone + OTP sign-in
-│   ├── library/        courses and search
+│   ├── library/        home: continue learning, all courses
+│   ├── search/         courses and sessions
 │   ├── course/         sections and sessions
-│   ├── player/         playback and the identity watermark
+│   ├── player/         controller, controls, playback screen, identity watermark
 │   ├── devices/        device management
-│   └── shared/         error view
+│   └── account/        profile, appearance, shortcuts, sign-out
 └── l10n/               Persian and English ARB files
 ```
+
+## Design system
+
+Screens build only from `lib/ui/` and the tokens in `lib/core/theme/`, so the app reads as one
+product:
+
+- **Colour** — `AppColors` (a `ThemeExtension`): neutral surfaces carry the interface; the single
+  accent marks what is primary, selected, focused or in progress. Dark and light are both complete.
+- **Type** — Vazirmatn at 400/500/600, scale in `AppTheme.textTheme`. Letter spacing stays zero:
+  tracking breaks Persian joins.
+- **Spacing, radius, motion** — `AppSpace` (4-pt grid), `AppRadius` (6/8/12), `AppMotion` (120–260 ms).
+- **Icons** — Lucide only, through `AppIcons`. Directional glyphs mirror under RTL; player
+  transport never does.
+- **Interaction** — every clickable thing is a `Pressable`, so hover, press, keyboard focus ring and
+  disabled behave the same everywhere.
+- **Layout** — `WindowSize` switches pattern, not scale: bottom bar under 600 px, icon rail to
+  1024 px, sidebar above. Pages centre at a readable width with a gutter that grows with the window.
 
 ## What is deliberately not here yet
 
@@ -46,7 +67,9 @@ the loopback HLS server all live in `packages/secure-core` (Rust), reached over 
 [`docs/adr/0008`](../../docs/adr/0008-loopback-hls-server-for-playback.md).
 
 That is why `PlayerScreen` shows a placeholder where the video surface goes rather than playing the
-manifest URL directly. Wiring a plain player against that URL would work today — and would be an
+manifest URL directly. The full player chrome is in place — timeline with chapters, transport,
+volume, speed/quality/subtitles, fullscreen, keyboard shortcuts — driving a `PlayerController` that
+the engine binds to in M3; until then position moves only when the student seeks. Wiring a plain player against that URL would work today — and would be an
 unprotected playback path, which is exactly the kind of shortcut that survives into a release. The
 watermark overlay is already in place, on the same frame, so the video arrives into a screen that
 already marks it.

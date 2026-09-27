@@ -60,6 +60,28 @@ class JalaliFormat {
     return toPersianDigits(text);
   }
 
+  /// A rounded, spoken length for totals: `۲ ساعت و ۱۵ دقیقه`, `۴۵ دقیقه`.
+  ///
+  /// For a course's total length, where seconds are noise. Rounds to the nearest minute, and never
+  /// shows zero minutes for something that has any length at all.
+  static String spokenDuration(Duration d) {
+    if (d <= Duration.zero) return '${toPersianDigits('0')} دقیقه';
+    final totalMinutes = ((d.inSeconds + 30) ~/ 60).clamp(1, 1 << 31);
+    final hours = totalMinutes ~/ 60;
+    final minutes = totalMinutes % 60;
+    if (hours == 0) return '${toPersianDigits('$minutes')} دقیقه';
+    if (minutes == 0) return '${toPersianDigits('$hours')} ساعت';
+    return '${toPersianDigits('$hours')} ساعت و ${toPersianDigits('$minutes')} دقیقه';
+  }
+
+  /// A playback speed as Persian text with the Persian decimal separator: `۱٫۲۵×`.
+  static String speed(double value) {
+    final text = value == value.roundToDouble()
+        ? value.toStringAsFixed(0)
+        : value.toString().replaceAll(RegExp(r'0+$'), '');
+    return '${toPersianDigits(text).replaceAll('.', '٫')}×';
+  }
+
   /// Western digits to Persian. Applied at the very end of formatting, never to data.
   static String toPersianDigits(String input) {
     const persian = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];

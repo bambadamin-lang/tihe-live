@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_error.dart';
 import '../../core/api/models.dart' as api;
 import '../../core/providers.dart';
+import '../../core/theme/app_icons.dart';
 import '../../core/theme/jalali.dart';
+import '../../core/theme/tokens.dart';
 import '../../l10n/l10n.dart';
-import '../shared/error_view.dart';
+import '../../ui/ui.dart';
 
 /// Device management.
 ///
@@ -21,149 +23,136 @@ class DevicesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final devices = ref.watch(devicesProvider);
+    final back = context.windowSize.isExpanded
+        ? null
+        : BackTarget(label: l10n.accountTitle, fallbackLocation: '/account');
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.devicesTitle)),
-      body: devices.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => ErrorView(
-          error: error,
-          onRetry: () => ref.invalidate(devicesProvider),
+    return AppPage(
+      back: back,
+      maxWidth: 720,
+      onRefresh: () async => ref.invalidate(devicesProvider),
+      header: PageHeader(title: l10n.devicesTitle, subtitle: l10n.devicesSubtitle),
+      slivers: [
+        const SliverToBoxAdapter(child: SizedBox(height: AppSpace.x6)),
+        ...devices.when(
+          skipLoadingOnRefresh: true,
+          loading: () => [
+            SliverToBoxAdapter(
+              child: AppListGroup(
+                children: [for (var i = 0; i < 3; i++) const SkeletonRow(titleWidth: 140)],
+              ),
+            ),
+          ],
+          error: (error, _) => [
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: ErrorView(error: error, onRetry: () => ref.invalidate(devicesProvider)),
+            ),
+          ],
+          data: (items) => [
+            if (items.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: EmptyState(icon: AppIcons.devices, title: l10n.devicesEmpty),
+              )
+            else
+              SliverToBoxAdapter(
+                child: AppListGroup(
+                  children: [for (final device in items) _DeviceRow(device: device)],
+                ),
+              ),
+          ],
         ),
-        data: (items) => ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (_, index) => _DeviceCard(device: items[index]),
-        ),
-      ),
+      ],
     );
   }
 }
 
-class _DeviceCard extends ConsumerWidget {
-  const _DeviceCard({required this.device});
+class _DeviceRow extends StatefulWidget {
+  const _DeviceRow({required this.device});
 
   final api.Device device;
 
+  @override
+  State<_DeviceRow> createState() => _DeviceRowState();
+}
+
+class _DeviceRowState extends State<_DeviceRow> {
+  bool _releasing = false;
+
   static const _icons = {
-    'windows': Icons.laptop_windows,
-    'android': Icons.phone_android,
-    'ios': Icons.phone_iphone,
-    'macos': Icons.laptop_mac,
-    'linux': Icons.computer,
+    'windows': AppIcons.laptop,
+    'android': AppIcons.phone,
+    'ios': AppIcons.phone,
+    'macos': AppIcons.laptop,
+    'linux': AppIcons.desktop,
   };
 
-  Future<void> _release(BuildContext context, WidgetRef ref) async {
+  Future<void> _release() async {
     final l10n = context.l10n;
+    final device = widget.device;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.releaseDevice),
-        content: Text(l10n.releaseDeviceConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(l10n.confirm),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.releaseDevice,
+      message: l10n.releaseDeviceConfirm,
+      confirmLabel: l10n.remove,
+      destructive: true,
     );
 
-    if (confirmed != true) return;
+    if (!confirmed || !mounted) return;
+    setState(() => _releasing = true);
+
+    // The row can be rebuilt away while the request is in flight; the container outlives it.
+    final container = ProviderScope.containerOf(context, listen: false);
 
     try {
-      await ref.read(devicesRepositoryProvider).release(device.id);
-      ref.invalidate(devicesProvider);
+      await container.read(devicesRepositoryProvider).release(device.id);
+      container.invalidate(devicesProvider);
+      if (mounted) showToast(context, l10n.deviceReleased, tone: ToastTone.success);
 
       // Releasing the device you are using ends your own session, which is a legitimate thing to
       // want — the router sends you back to sign-in.
       if (device.isCurrent) {
-        await ref.read(authControllerProvider.notifier).signOut();
+        await container.read(authControllerProvider.notifier).signOut();
       }
     } on ApiError catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.messageFa)));
-      }
+      if (mounted) showToast(context, e.messageFa, tone: ToastTone.danger);
+    } finally {
+      if (mounted) setState(() => _releasing = false);
     }
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final device = widget.device;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(
-              _icons[device.platform] ?? Icons.devices_other,
-              size: 32,
-              color: theme.colorScheme.primary,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          device.name,
-                          style: theme.textTheme.titleSmall,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (device.isCurrent) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            l10n.thisDevice,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    [
-                      if (device.offlineVideoCount > 0)
-                        l10n.offlineVideos(
-                          JalaliFormat.toPersianDigits('${device.offlineVideoCount}'),
-                        ),
-                      if (device.lastSeenAt != null)
-                        l10n.lastSeen(JalaliFormat.relative(device.lastSeenAt!)),
-                    ].join(' · '),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: l10n.releaseDevice,
-              onPressed: () => _release(context, ref),
-            ),
-          ],
-        ),
+    final meta = [
+      if (device.offlineVideoCount > 0)
+        l10n.offlineVideos(JalaliFormat.toPersianDigits('${device.offlineVideoCount}')),
+      if (device.lastSeenAt != null) l10n.lastSeen(JalaliFormat.relative(device.lastSeenAt!)),
+    ];
+
+    return AppListRow(
+      title: device.name,
+      leading: IconTile(icon: _icons[device.platform] ?? AppIcons.devices),
+      // Wraps rather than truncating: on a phone the badge and "last used" do not fit one line.
+      subtitle: Wrap(
+        spacing: AppSpace.x2,
+        runSpacing: AppSpace.x1,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          if (device.isCurrent) AppBadge(label: l10n.thisDevice, tone: BadgeTone.accent),
+          if (meta.isNotEmpty) MetaLine(items: meta, maxLines: 2),
+        ],
+      ),
+      trailing: AppIconButton(
+        icon: AppIcons.remove,
+        tooltip: l10n.releaseDevice,
+        loading: _releasing,
+        hoverColor: Theme.of(context).colorScheme.errorContainer,
+        onPressed: _release,
       ),
     );
   }

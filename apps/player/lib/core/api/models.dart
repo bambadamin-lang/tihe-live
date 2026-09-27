@@ -123,6 +123,42 @@ class Course {
         ...looseVideos,
       ];
 
+  /// Videos the student can open right now, in display order.
+  List<Video> get playableVideos => [
+        for (final video in allVideos)
+          if (video.isReady && !video.isLocked) video,
+      ];
+
+  /// Where "continue" goes: the first part-watched session, else the first one not yet completed,
+  /// else the first playable one (a finished course restarts from the top). Null when nothing is
+  /// playable.
+  Video? get nextVideo {
+    final playable = playableVideos;
+    if (playable.isEmpty) return null;
+    for (final video in playable) {
+      if (video.hasProgress) return video;
+    }
+    for (final video in playable) {
+      if (!video.completed) return video;
+    }
+    return playable.first;
+  }
+
+  int get completedCount => allVideos.where((v) => v.completed).length;
+
+  Duration get totalDuration => allVideos.fold(Duration.zero, (sum, v) => sum + v.duration);
+
+  /// The playable neighbours of [videoId], for previous/next in the player.
+  ({Video? previous, Video? next}) neighboursOf(String videoId) {
+    final playable = playableVideos;
+    final index = playable.indexWhere((v) => v.id == videoId);
+    if (index < 0) return (previous: null, next: null);
+    return (
+      previous: index > 0 ? playable[index - 1] : null,
+      next: index < playable.length - 1 ? playable[index + 1] : null,
+    );
+  }
+
   factory Course.fromJson(Map<String, dynamic> json) => Course(
         id: json['id'] as String,
         title: json['title'] as String,

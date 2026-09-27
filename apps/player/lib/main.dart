@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 
+import 'core/preferences.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'l10n/l10n.dart';
@@ -29,7 +30,8 @@ class TiheApp extends ConsumerWidget {
 
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.dark,
+      // Dark unless the student chose otherwise in Account → Appearance.
+      themeMode: ref.watch(themeModeProvider),
 
       // Persian-first. The locale is fixed rather than following the system, because the institute's
       // content is Persian and a student whose phone is set to English still wants a Persian

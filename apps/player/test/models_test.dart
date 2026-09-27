@@ -110,6 +110,101 @@ void main() {
 
       expect(course.allVideos.map((v) => v.title).toList(), ['الف', 'ب']);
     });
+
+    Video video(
+      String id, {
+      String status = 'ready',
+      int durationMs = 600000,
+      int progressMs = 0,
+      bool completed = false,
+      String? lockedReason,
+    }) =>
+        Video(
+          id: id,
+          courseId: 'crs_1',
+          title: id,
+          duration: Duration(milliseconds: durationMs),
+          status: status,
+          progress: Duration(milliseconds: progressMs),
+          completed: completed,
+          downloaded: false,
+          lockedReason: lockedReason,
+        );
+
+    Course courseOf(List<Video> videos) => Course(
+          id: 'crs_1',
+          title: 'ریاضی',
+          videoCount: videos.length,
+          progress: 0,
+          policy: const CoursePolicy(
+            allowDownload: false,
+            allowCapture: false,
+            offlineWindowDays: 30,
+            maxDevices: 1,
+          ),
+          looseVideos: videos,
+        );
+
+    test('nextVideo prefers a part-watched session over an earlier unwatched one', () {
+      final course = courseOf([
+        video('a', completed: true),
+        video('b'),
+        video('c', progressMs: 60000),
+      ]);
+      expect(course.nextVideo?.id, 'c');
+    });
+
+    test('nextVideo falls back to the first session not yet completed', () {
+      final course = courseOf([video('a', completed: true), video('b'), video('c')]);
+      expect(course.nextVideo?.id, 'b');
+    });
+
+    test('nextVideo restarts a finished course from the top', () {
+      final course = courseOf([video('a', completed: true), video('b', completed: true)]);
+      expect(course.nextVideo?.id, 'a');
+    });
+
+    test('nextVideo never offers a locked or processing session', () {
+      // Offering one would send the student straight into VIDEO_NOT_READY or a lock screen.
+      final course = courseOf([
+        video('a', status: 'processing'),
+        video('b', lockedReason: 'quiz'),
+        video('c'),
+      ]);
+      expect(course.nextVideo?.id, 'c');
+      expect(courseOf([video('a', status: 'processing')]).nextVideo, isNull);
+    });
+
+    test('neighboursOf skips sessions that cannot be played', () {
+      final course = courseOf([
+        video('a'),
+        video('b', lockedReason: 'quiz'),
+        video('c'),
+        video('d', status: 'processing'),
+      ]);
+      final middle = course.neighboursOf('c');
+      expect(middle.previous?.id, 'a');
+      expect(middle.next, isNull);
+
+      final first = course.neighboursOf('a');
+      expect(first.previous, isNull);
+      expect(first.next?.id, 'c');
+    });
+
+    test('neighboursOf returns nothing for a video not in the course', () {
+      final result = courseOf([video('a')]).neighboursOf('zzz');
+      expect(result.previous, isNull);
+      expect(result.next, isNull);
+    });
+
+    test('totals count every session', () {
+      final course = courseOf([
+        video('a', durationMs: 60000, completed: true),
+        video('b', durationMs: 120000),
+      ]);
+      expect(course.totalDuration, const Duration(minutes: 3));
+      expect(course.completedCount, 1);
+    });
   });
 
   group('PlaybackSession', () {

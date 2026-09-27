@@ -91,4 +91,44 @@ void main() {
       expect(JalaliFormat.relative(old), isNot(contains('پیش')));
     });
   });
+
+  group('spokenDuration', () {
+    test('uses minutes under an hour', () {
+      expect(JalaliFormat.spokenDuration(const Duration(minutes: 45)), '۴۵ دقیقه');
+    });
+
+    test('combines hours and minutes', () {
+      expect(
+        JalaliFormat.spokenDuration(const Duration(hours: 2, minutes: 15)),
+        '۲ ساعت و ۱۵ دقیقه',
+      );
+    });
+
+    test('drops zero minutes on a whole hour', () {
+      expect(JalaliFormat.spokenDuration(const Duration(hours: 3)), '۳ ساعت');
+    });
+
+    test('rounds to the nearest minute', () {
+      expect(JalaliFormat.spokenDuration(const Duration(minutes: 9, seconds: 31)), '۱۰ دقیقه');
+      expect(JalaliFormat.spokenDuration(const Duration(minutes: 59, seconds: 45)), '۱ ساعت');
+    });
+
+    test('never shows zero for something with length', () {
+      expect(JalaliFormat.spokenDuration(const Duration(seconds: 5)), '۱ دقیقه');
+      expect(JalaliFormat.spokenDuration(Duration.zero), '۰ دقیقه');
+    });
+  });
+
+  group('speed', () {
+    test('whole speeds have no decimal', () {
+      expect(JalaliFormat.speed(1), '۱×');
+      expect(JalaliFormat.speed(2), '۲×');
+    });
+
+    test('fractional speeds use the Persian decimal separator', () {
+      expect(JalaliFormat.speed(1.25), '۱٫۲۵×');
+      expect(JalaliFormat.speed(0.5), '۰٫۵×');
+      expect(JalaliFormat.speed(1.5), '۱٫۵×');
+    });
+  });
 }

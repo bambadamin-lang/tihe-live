@@ -46,6 +46,11 @@ dependencies:
   crypto: ^3.0.6
   intl: ^0.20.2
 
+  # UI. Lucide for one consistent line-icon set, with RTL-mirroring variants for directional glyphs.
+  lucide_icons_flutter: ^3.1.20
+  # Non-secret preferences only (appearance). Tokens stay in flutter_secure_storage.
+  shared_preferences: ^2.5.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -66,5 +71,8 @@ flutter:
         - asset: assets/fonts/Vazirmatn-Regular.ttf
         - asset: assets/fonts/Vazirmatn-Medium.ttf
           weight: 500
+        # Headings. Softer than Bold, which reads heavy in Persian script at title sizes.
+        - asset: assets/fonts/Vazirmatn-SemiBold.ttf
+          weight: 600
         - asset: assets/fonts/Vazirmatn-Bold.ttf
           weight: 700

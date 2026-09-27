@@ -6,8 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_error.dart';
 import '../../core/providers.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_icons.dart';
 import '../../core/theme/jalali.dart';
+import '../../core/theme/tokens.dart';
 import '../../l10n/l10n.dart';
+import '../../ui/ui.dart';
 
 /// Phone + OTP sign-in.
 ///
@@ -47,6 +51,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       if (_resendIn <= 0) timer.cancel();
     });
   }
+
+  void _changeNumber() => setState(() {
+        _codeSent = false;
+        _codeController.clear();
+        _error = null;
+      });
 
   Future<void> _requestCode() async {
     setState(() {
@@ -97,9 +107,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
       // A student at the device limit needs somewhere to go, not just a refusal.
       if (e.needsDeviceManager && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.messageFa)),
-        );
+        showToast(context, e.messageFa, tone: ToastTone.danger);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -110,71 +118,99 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
+    final colors = context.colors;
+    final compact = context.windowSize.isCompact;
+
+    final form = Column(
+      key: ValueKey(_codeSent),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!_codeSent) _phoneField(l10n) else _codeField(l10n),
+        if (_error != null) ...[
+          const SizedBox(height: AppSpace.x3),
+          InlineAlert(message: _error!),
+        ],
+        const SizedBox(height: AppSpace.x5),
+        AppButton.primary(
+          label: _codeSent ? l10n.verifyCode : l10n.sendCode,
+          size: AppButtonSize.large,
+          expand: true,
+          loading: _busy,
+          onPressed: _codeSent ? _verify : _requestCode,
+        ),
+        if (_codeSent) ...[
+          const SizedBox(height: AppSpace.x3),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              AppButton.ghost(
+                label: l10n.changeNumber,
+                icon: AppIcons.back,
+                size: AppButtonSize.small,
+                onPressed: _busy ? null : _changeNumber,
+              ),
+              AppButton.ghost(
+                label: _resendIn > 0
+                    ? l10n.resendIn(JalaliFormat.toPersianDigits('$_resendIn'))
+                    : l10n.resendCode,
+                size: AppButtonSize.small,
+                onPressed: _resendIn > 0 || _busy ? null : _requestCode,
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
 
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+        child: Align(
+          // On a phone the form sits high, clear of the keyboard; elsewhere it is centred.
+          alignment: compact ? const Alignment(0, -0.4) : Alignment.center,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpace.x6, vertical: AppSpace.x8),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 32),
-                  Icon(Icons.school_outlined, size: 56, color: theme.colorScheme.primary),
-                  const SizedBox(height: 24),
+                  const Center(child: BrandMark(size: 40)),
+                  const SizedBox(height: AppSpace.x6),
                   Text(
                     l10n.signInTitle,
-                    style: theme.textTheme.headlineMedium,
+                    style: theme.textTheme.headlineSmall,
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpace.x2),
                   Text(
                     _codeSent ? l10n.codeSubtitle(_phoneController.text) : l10n.signInSubtitle,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: theme.textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 32),
-                  if (!_codeSent) _phoneField(l10n) else _codeField(l10n),
-                  if (_error != null) ...[
-                    const SizedBox(height: 16),
-                    _errorBanner(theme, _error!),
-                  ],
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: _busy ? null : (_codeSent ? _verify : _requestCode),
-                    child: _busy
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(_codeSent ? l10n.verifyCode : l10n.sendCode),
-                  ),
-                  if (_codeSent) ...[
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: _resendIn > 0 || _busy ? null : _requestCode,
-                      child: Text(
-                        _resendIn > 0
-                            ? l10n.resendIn(JalaliFormat.toPersianDigits('$_resendIn'))
-                            : l10n.resendCode,
+                  const SizedBox(height: AppSpace.x8),
+                  AnimatedSwitcher(
+                    duration: AppMotion.base,
+                    switchInCurve: AppMotion.curve,
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween(begin: const Offset(0, 0.03), end: Offset.zero)
+                            .animate(animation),
+                        child: child,
                       ),
                     ),
-                    TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => setState(() {
-                                _codeSent = false;
-                                _codeController.clear();
-                                _error = null;
-                              }),
-                      child: Text(l10n.changeNumber),
+                    layoutBuilder: (current, previous) => Stack(
+                      alignment: Alignment.topCenter,
+                      children: [...previous, if (current != null) current],
                     ),
-                  ],
+                    child: form,
+                  ),
+                  const SizedBox(height: AppSpace.x8),
+                  Text(
+                    l10n.signInFooter,
+                    style: theme.textTheme.bodySmall?.copyWith(color: colors.textTertiary),
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ),
             ),
@@ -184,10 +220,16 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     );
   }
 
-  Widget _phoneField(AppLocalizations l10n) => TextField(
+  Widget _phoneField(AppLocalizations l10n) => AppTextField(
         controller: _phoneController,
         autofocus: true,
+        label: l10n.phoneLabel,
+        hint: l10n.phoneHint,
+        prefixIcon: AppIcons.phoneInput,
+        size: AppTextFieldSize.large,
         keyboardType: TextInputType.phone,
+        textInputAction: TextInputAction.go,
+        autofillHints: const [AutofillHints.telephoneNumber],
         // The number is data, not display text: LTR so the digits read in entry order, even inside an
         // RTL interface.
         textDirection: TextDirection.ltr,
@@ -198,44 +240,26 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           LengthLimitingTextInputFormatter(16),
           FilteringTextInputFormatter.allow(RegExp(r'[0-9+۰-۹٠-٩\s-]')),
         ],
-        decoration: InputDecoration(labelText: l10n.phoneLabel, hintText: l10n.phoneHint),
         onSubmitted: (_) => _busy ? null : _requestCode(),
       );
 
-  Widget _codeField(AppLocalizations l10n) => TextField(
+  // One field rather than a box per digit: the code length is a server setting (4–8), and a single
+  // field takes a pasted or autofilled code in one go.
+  Widget _codeField(AppLocalizations l10n) => AppTextField(
         controller: _codeController,
         autofocus: true,
+        label: l10n.codeLabel,
+        size: AppTextFieldSize.large,
         keyboardType: TextInputType.number,
+        textInputAction: TextInputAction.done,
+        autofillHints: const [AutofillHints.oneTimeCode],
         textDirection: TextDirection.ltr,
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 24, letterSpacing: 8),
+        style: const TextStyle(fontSize: 22, letterSpacing: 10, fontWeight: FontWeight.w500),
         inputFormatters: [
           LengthLimitingTextInputFormatter(8),
           FilteringTextInputFormatter.allow(RegExp(r'[0-9۰-۹٠-٩]')),
         ],
-        decoration: InputDecoration(labelText: l10n.codeLabel),
         onSubmitted: (_) => _busy ? null : _verify(),
-      );
-
-  Widget _errorBanner(ThemeData theme, String message) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.errorContainer,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.error_outline, size: 20, color: theme.colorScheme.onErrorContainer),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                message,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onErrorContainer,
-                ),
-              ),
-            ),
-          ],
-        ),
       );
 }

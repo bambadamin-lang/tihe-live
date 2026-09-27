@@ -4,201 +4,214 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/models.dart';
 import '../../core/providers.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_icons.dart';
 import '../../core/theme/jalali.dart';
+import '../../core/theme/tokens.dart';
 import '../../l10n/l10n.dart';
-import '../shared/error_view.dart';
+import '../../ui/ui.dart';
+import 'course_row.dart';
 
-/// The student's course library, and search across it.
-class LibraryScreen extends ConsumerStatefulWidget {
+/// The student's home: what they were in the middle of, then every course they are enrolled in.
+///
+/// Search lives in its own destination (sidebar, rail or bottom bar, and Ctrl+K), so this page can
+/// be about the library alone.
+class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
 
   @override
-  ConsumerState<LibraryScreen> createState() => _LibraryScreenState();
-}
-
-class _LibraryScreenState extends ConsumerState<LibraryScreen> {
-  final _searchController = TextEditingController();
-  String _query = '';
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final searching = _query.trim().length >= 2;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.libraryTitle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.devices_outlined),
-            tooltip: l10n.devicesTitle,
-            onPressed: () => context.push('/devices'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => ref.read(authControllerProvider.notifier).signOut(),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (value) => setState(() => _query = value),
-              decoration: InputDecoration(
-                hintText: l10n.searchHint,
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _query.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _query = '');
-                        },
-                      ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: searching ? _searchResults(l10n) : _courseList(l10n),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _courseList(AppLocalizations l10n) {
     final courses = ref.watch(coursesProvider);
+    Future<void> refresh() async => ref.invalidate(coursesProvider);
 
     return courses.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => ErrorView(
-        error: error,
-        onRetry: () => ref.invalidate(coursesProvider),
+      skipLoadingOnRefresh: true,
+      loading: () => const _LibrarySkeleton(),
+      error: (error, _) => AppPage(
+        header: PageHeader(title: l10n.libraryTitle),
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: ErrorView(error: error, onRetry: () => ref.invalidate(coursesProvider)),
+          ),
+        ],
       ),
       data: (items) {
         if (items.isEmpty) {
-          return _EmptyState(
-            icon: Icons.menu_book_outlined,
-            title: l10n.libraryEmpty,
-            hint: l10n.libraryEmptyHint,
+          return AppPage(
+            onRefresh: refresh,
+            header: PageHeader(title: l10n.libraryTitle),
+            slivers: [
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: EmptyState(
+                  icon: AppIcons.course,
+                  title: l10n.libraryEmpty,
+                  hint: l10n.libraryEmptyHint,
+                ),
+              ),
+            ],
           );
         }
-        return RefreshIndicator(
-          onRefresh: () async => ref.invalidate(coursesProvider),
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (_, index) => _CourseCard(course: items[index]),
+
+        final inProgress = items.where((c) => c.progress > 0 && c.progress < 1).take(3).toList();
+        final sessions = items.fold<int>(0, (sum, c) => sum + c.videoCount);
+
+        return AppPage(
+          onRefresh: refresh,
+          header: PageHeader(
+            title: l10n.libraryTitle,
+            subtitle: l10n.librarySummary(
+              JalaliFormat.toPersianDigits('${items.length}'),
+              JalaliFormat.toPersianDigits('$sessions'),
+            ),
           ),
-        );
-      },
-    );
-  }
-
-  Widget _searchResults(AppLocalizations l10n) {
-    final results = ref.watch(searchProvider(_query));
-
-    return results.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => ErrorView(error: error),
-      data: (hits) {
-        if (hits.isEmpty) {
-          return _EmptyState(icon: Icons.search_off, title: l10n.searchEmpty);
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          itemCount: hits.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (_, index) {
-            final hit = hits[index];
-            if (hit.kind == 'course' && hit.course != null) {
-              return _CourseCard(course: hit.course!);
-            }
-            if (hit.video != null) {
-              return _VideoTile(video: hit.video!, showCourseHint: true);
-            }
-            return const SizedBox.shrink();
-          },
+          slivers: [
+            if (inProgress.isNotEmpty) ...[
+              SliverToBoxAdapter(
+                child: SectionHeader(
+                  title: l10n.continueLearning,
+                  padding: const EdgeInsets.only(top: AppSpace.x6, bottom: AppSpace.x3),
+                ),
+              ),
+              SliverToBoxAdapter(child: _ContinueStrip(courses: inProgress)),
+            ],
+            SliverToBoxAdapter(
+              child: SectionHeader(
+                title: l10n.allCourses,
+                meta: JalaliFormat.toPersianDigits('${items.length}'),
+                padding: EdgeInsets.only(
+                  top: inProgress.isEmpty ? AppSpace.x6 : AppSpace.x10,
+                  bottom: AppSpace.x2,
+                ),
+              ),
+            ),
+            BleedSliver(
+              sliver: SliverList.builder(
+                itemCount: items.length,
+                itemBuilder: (_, index) => CourseRow(course: items[index]),
+              ),
+            ),
+          ],
         );
       },
     );
   }
 }
 
-class _CourseCard extends StatelessWidget {
-  const _CourseCard({required this.course});
+/// Courses in progress, as the one place in the library that earns a card: they are the next
+/// thing to do.
+class _ContinueStrip extends StatelessWidget {
+  const _ContinueStrip({required this.courses});
+
+  final List<Course> courses;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = context.windowSize;
+
+    if (size.isCompact) {
+      // A horizontal strip on a phone, with the next card peeking in to show there is more.
+      return SizedBox(
+        height: _ContinueCard.height,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
+          itemCount: courses.length,
+          separatorBuilder: (_, __) => const SizedBox(width: AppSpace.x3),
+          itemBuilder: (context, index) => SizedBox(
+            width: courses.length == 1
+                ? MediaQuery.sizeOf(context).width - context.pageGutter * 2
+                : MediaQuery.sizeOf(context).width * 0.78,
+            child: _ContinueCard(course: courses[index]),
+          ),
+        ),
+      );
+    }
+
+    final columns = size.isExpanded ? 3 : 2;
+    final visible = courses.take(columns).toList();
+    return Row(
+      children: [
+        for (var i = 0; i < columns; i++) ...[
+          if (i > 0) const SizedBox(width: AppSpace.x3),
+          Expanded(
+            child: i < visible.length ? _ContinueCard(course: visible[i]) : const SizedBox.shrink(),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ContinueCard extends StatelessWidget {
+  const _ContinueCard({required this.course});
+
+  // Fits a two-line title; the strip needs a fixed height to scroll horizontally.
+  static const height = 150.0;
 
   final Course course;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final theme = Theme.of(context);
     final l10n = context.l10n;
+    final percent = JalaliFormat.toPersianDigits('${(course.progress * 100).round()}');
 
-    return Card(
-      child: InkWell(
-        onTap: () => context.push('/course/${course.id}'),
+    return Pressable(
+      onTap: () => context.push('/course/${course.id}'),
+      semanticLabel: course.title,
+      color: colors.surface,
+      hoverColor: colors.surfaceRaised,
+      pressedColor: colors.surfaceHover,
+      borderRadius: AppRadius.lgAll,
+      border: Border.all(color: colors.border),
+      builder: (context, state) => SizedBox(
+        height: height,
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
+          padding: const EdgeInsets.all(AppSpace.x4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _ProgressRing(value: course.progress),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      course.title,
-                      style: theme.textTheme.titleMedium,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      [
-                        if (course.teacherName != null) course.teacherName!,
-                        l10n.videoCount(JalaliFormat.toPersianDigits('${course.videoCount}')),
-                      ].join(' · '),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    if (!course.policy.allowDownload) ...[
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.cloud_off_outlined,
-                            size: 14,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            l10n.downloadNotAllowed,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
+              Text(
+                course.title,
+                style: theme.textTheme.titleSmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              // Chevron points left: in an RTL layout, forward is leftward.
-              const Icon(Icons.chevron_left),
+              const SizedBox(height: 2),
+              MetaLine(
+                items: [
+                  if (course.teacherName != null) course.teacherName!,
+                  l10n.videoCount(JalaliFormat.toPersianDigits('${course.videoCount}')),
+                ],
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  Expanded(child: AppProgressBar(value: course.progress)),
+                  const SizedBox(width: AppSpace.x3),
+                  Text('$percent٪', style: theme.textTheme.labelSmall),
+                ],
+              ),
+              const SizedBox(height: AppSpace.x3),
+              Row(
+                children: [
+                  Text(
+                    l10n.continueAction,
+                    style: theme.textTheme.labelMedium?.copyWith(color: colors.accentText),
+                  ),
+                  const SizedBox(width: AppSpace.x1),
+                  AnimatedSlide(
+                    duration: AppMotion.fast,
+                    offset: Offset(state.hovered ? -0.15 : 0, 0) *
+                        (Directionality.of(context) == TextDirection.rtl ? 1 : -1),
+                    child: Icon(AppIcons.forward, size: 14, color: colors.accentText),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -207,95 +220,51 @@ class _CourseCard extends StatelessWidget {
   }
 }
 
-/// A course's watched fraction as a ring with the percentage inside.
-class _ProgressRing extends StatelessWidget {
-  const _ProgressRing({required this.value});
-
-  final double value;
+class _LibrarySkeleton extends StatelessWidget {
+  const _LibrarySkeleton();
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SizedBox(
-      width: 48,
-      height: 48,
-      child: Stack(
-        alignment: Alignment.center,
+    final compact = context.windowSize.isCompact;
+    return AppPage(
+      header: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircularProgressIndicator(
-            value: value,
-            strokeWidth: 4,
-            backgroundColor: theme.colorScheme.surfaceContainerHighest,
-          ),
-          Text(
-            JalaliFormat.toPersianDigits('${(value * 100).round()}'),
-            style: theme.textTheme.labelSmall,
-          ),
+          Skeleton(width: 160, height: 22),
+          SizedBox(height: AppSpace.x3),
+          Skeleton(width: 120, height: 12),
         ],
       ),
-    );
-  }
-}
-
-class _VideoTile extends StatelessWidget {
-  const _VideoTile({required this.video, this.showCourseHint = false});
-
-  final Video video;
-  final bool showCourseHint;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final l10n = context.l10n;
-
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-      leading: Icon(
-        video.downloaded ? Icons.download_done : Icons.play_circle_outline,
-        color: video.isReady ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
-      ),
-      title: Text(video.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        video.isProcessing ? l10n.processing : JalaliFormat.duration(video.duration),
-      ),
-      enabled: video.isReady,
-      onTap: video.isReady ? () => context.push('/watch/${video.id}') : null,
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.icon, required this.title, this.hint});
-
-  final IconData icon;
-  final String title;
-  final String? hint;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 56, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(height: 16),
-            Text(title, style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
-            if (hint != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                hint!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ],
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(top: AppSpace.x10, bottom: AppSpace.x3),
+            child: Row(
+              children: [
+                for (var i = 0; i < (compact ? 1 : 3); i++) ...[
+                  if (i > 0) const SizedBox(width: AppSpace.x3),
+                  const Expanded(
+                    child: Skeleton(height: _ContinueCard.height, radius: AppRadius.lg),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
-      ),
+        const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.only(top: AppSpace.x8, bottom: AppSpace.x2),
+            child: Skeleton(width: 96, height: 14),
+          ),
+        ),
+        BleedSliver(
+          sliver: SliverList.list(
+            children: [
+              for (var i = 0; i < 6; i++) SkeletonRow(leadingSize: 40, titleWidth: 160.0 + (i % 3) * 40),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
