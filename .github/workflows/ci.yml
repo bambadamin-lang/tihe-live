@@ -40,9 +40,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The version comes from packageManager in package.json.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
@@ -70,21 +69,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The crate arrives with the protection-core work; until then there is nothing to check.
       - uses: dtolnay/rust-toolchain@stable
+        if: hashFiles('packages/secure-core/Cargo.toml') != ''
         with:
           components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@v2
+        if: hashFiles('packages/secure-core/Cargo.toml') != ''
         with:
           workspaces: packages/secure-core
 
       - name: Format
+        if: hashFiles('packages/secure-core/Cargo.toml') != ''
         run: cargo fmt --manifest-path packages/secure-core/Cargo.toml --check
 
       - name: Clippy
+        if: hashFiles('packages/secure-core/Cargo.toml') != ''
         run: cargo clippy --manifest-path packages/secure-core/Cargo.toml --all-targets -- -D warnings
 
       - name: Test
+        if: hashFiles('packages/secure-core/Cargo.toml') != ''
         run: cargo test --manifest-path packages/secure-core/Cargo.toml
 
   flutter:
@@ -105,8 +110,9 @@ jobs:
       - name: Format, analyze and test each Flutter project
         run: |
           set -euo pipefail
-          roots=$(ls -d apps packages 2>/dev/null)
-          mapfile -t projects < <(find $roots -name pubspec.yaml -not -path '*/example/*' \
+          roots=()
+          for d in apps packages; do if [ -d "$d" ]; then roots+=("$d"); fi; done
+          mapfile -t projects < <(find "${roots[@]}" -name pubspec.yaml -not -path '*/example/*' \
             -not -path '*/.dart_tool/*' -not -path '*/build/*' -printf '%h\n' | sort)
           for dir in "${projects[@]}"; do
             echo "::group::$dir"
