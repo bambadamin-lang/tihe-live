@@ -30,6 +30,59 @@ export type Shape = z.infer<typeof shapeSchema>;
 export const BOARD_TOOLS = [...PEN_TOOLS, ...SHAPES, 'text', 'eraser', 'laser'] as const;
 export type BoardTool = (typeof BOARD_TOOLS)[number];
 
+/**
+ * How each pen is drawn: perfect-freehand options plus opacity. The Flutter board
+ * (`perfect_freehand`) and the Egress template (`perfect-freehand`) both read these, so a stroke
+ * in the recording looks exactly as it did live. Sizes are multiples of the item's `width`.
+ */
+export interface PenStyle {
+  thinning: number;
+  smoothing: number;
+  streamline: number;
+  simulatePressure: boolean;
+  opacity: number;
+  /** Drawn beneath ink, multiplied, like a real highlighter over print. */
+  underlay: boolean;
+}
+export const PEN_STYLES: Readonly<Record<PenTool, PenStyle>> = {
+  pen: {
+    thinning: 0.55,
+    smoothing: 0.5,
+    streamline: 0.45,
+    simulatePressure: true,
+    opacity: 1,
+    underlay: false,
+  },
+  marker: {
+    thinning: 0,
+    smoothing: 0.6,
+    streamline: 0.5,
+    simulatePressure: false,
+    opacity: 1,
+    underlay: false,
+  },
+  highlighter: {
+    thinning: 0,
+    smoothing: 0.7,
+    streamline: 0.6,
+    simulatePressure: false,
+    opacity: 0.35,
+    underlay: true,
+  },
+};
+
+/** Default widths in page units for each tool, what the marker tray starts with. */
+export const DEFAULT_TOOL_WIDTH: Readonly<Record<PenTool | Shape | 'laser', number>> = {
+  pen: 28,
+  marker: 70,
+  highlighter: 240,
+  line: 28,
+  arrow: 28,
+  rect: 28,
+  ellipse: 28,
+  laser: 60,
+};
+
 /** Marker-tray colours: ink black, blue, red, green, orange, purple, highlighter yellow, white. */
 export const BOARD_PALETTE = [
   '#1B1B1F',
@@ -97,6 +150,7 @@ export const textItemSchema = z.object({
   kind: z.literal('text'),
   /** Font size in page units (the page is 9000 high). */
   size: z.number().int().min(80).max(2000),
+  /** The top corner on the text's start side — top-right for Persian. Lines break on `\n`. */
   at: pointSchema,
   text: z.string().min(1).max(MAX_TEXT_LENGTH),
 });

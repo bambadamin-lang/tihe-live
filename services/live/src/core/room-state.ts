@@ -80,6 +80,34 @@ export function createRoomState(room: NewRoom): RoomState {
   };
 }
 
+/**
+ * A room rebuilt from what a client receives in its welcome. Used by the Egress template, which
+ * applies events with the very same `applyEvent` the server uses, so the recording cannot
+ * drift from the live stage.
+ */
+export function roomStateFromSnapshot(snapshot: ClassroomSnapshot, seq: number): RoomState {
+  return {
+    sessionId: snapshot.sessionId,
+    classId: snapshot.classId,
+    title: snapshot.title,
+    startedAt: snapshot.startedAt,
+    policy: snapshot.policy,
+    layout: snapshot.layout,
+    participants: new Map(snapshot.participants.map((p) => [p.userId, p])),
+    chat: [...snapshot.chat],
+    board: {
+      pages: [...snapshot.board.pages],
+      activePageId: snapshot.board.activePageId,
+      items: new Map(snapshot.board.items.map((i) => [i.id, i])),
+    },
+    tombstones: new Map(),
+    recording: snapshot.recording,
+    removed: new Set(),
+    ended: false,
+    seq,
+  };
+}
+
 function bury(state: RoomState, item: BoardItem): void {
   state.board.items.delete(item.id);
   state.tombstones.set(item.id, item);

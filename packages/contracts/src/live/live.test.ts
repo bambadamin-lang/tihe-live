@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+  BOARD_PALETTE,
   CAPABILITIES,
+  DEFAULT_TOOL_WIDTH,
+  PEN_STYLES,
   LAYOUT_PRESETS,
   POLICY_CAPABILITY,
   ROLE_PRESETS,
@@ -65,6 +68,14 @@ describe('fixtures', () => {
 
   it('layout-presets.json matches LAYOUT_PRESETS exactly', () => {
     expect(fixture('layout-presets.json')).toEqual(LAYOUT_PRESETS);
+  });
+
+  it('board-styles.json matches the pen styles, widths and palette', () => {
+    expect(fixture('board-styles.json')).toEqual({
+      penStyles: PEN_STYLES,
+      defaultWidths: DEFAULT_TOOL_WIDTH,
+      palette: BOARD_PALETTE,
+    });
   });
 
   it('watermark vectors match watermarkShortId', () => {

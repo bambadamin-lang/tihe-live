@@ -1,0 +1,48 @@
+{
+  "penStyles": {
+    "pen": {
+      "thinning": 0.55,
+      "smoothing": 0.5,
+      "streamline": 0.45,
+      "simulatePressure": true,
+      "opacity": 1,
+      "underlay": false
+    },
+    "marker": {
+      "thinning": 0,
+      "smoothing": 0.6,
+      "streamline": 0.5,
+      "simulatePressure": false,
+      "opacity": 1,
+      "underlay": false
+    },
+    "highlighter": {
+      "thinning": 0,
+      "smoothing": 0.7,
+      "streamline": 0.6,
+      "simulatePressure": false,
+      "opacity": 0.35,
+      "underlay": true
+    }
+  },
+  "defaultWidths": {
+    "pen": 28,
+    "marker": 70,
+    "highlighter": 240,
+    "line": 28,
+    "arrow": 28,
+    "rect": 28,
+    "ellipse": 28,
+    "laser": 60
+  },
+  "palette": [
+    "#1B1B1F",
+    "#1F4FD8",
+    "#D32F2F",
+    "#2E7D32",
+    "#F57C00",
+    "#7B1FA2",
+    "#FFD600",
+    "#FFFFFF"
+  ]
+}
