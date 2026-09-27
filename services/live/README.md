@@ -34,6 +34,10 @@ curl -X POST localhost:3100/v1/live/classes -H "authorization: Bearer $TOKEN" \
 Without `LIVE_DATABASE_URL`, `REDIS_URL` or `S3_ENDPOINT` it runs fully in memory, which is
 enough to drive the Flutter example app against it.
 
+`pnpm install` generates the Prisma client into `src/generated/`. It happens once there, not
+in every task, so parallel turbo tasks never rewrite it under each other. After editing
+`prisma/schema.prisma`, run `pnpm --filter @tihe/live prisma:migrate`, which regenerates it.
+
 ## Test it
 
 ```bash
