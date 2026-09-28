@@ -58,6 +58,11 @@ jobs:
           pnpm --filter @tihe/api prisma generate
           pnpm --filter @tihe/live prisma:generate
 
+      # The API's integration tests run against the real schema: normalize_fa() and the generated
+      # search_text columns exist only once the migrations have run.
+      - name: Apply API migrations
+        run: pnpm --filter @tihe/api prisma migrate deploy
+
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
