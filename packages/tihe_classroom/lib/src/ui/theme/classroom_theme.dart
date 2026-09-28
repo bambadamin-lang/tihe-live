@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 ///
 /// Glass because a classroom is layers — pods over the stage, bars and sheets over pods — and
 /// translucency keeps each layer's place in the stack readable without heavy borders or
-/// shadows. The canvas behind it is only a few soft glows, so the blur has something to refract
-/// but nothing competes with the class itself.
+/// shadows. The canvas behind it is only a few soft glows, so nothing competes with the class
+/// itself — and panes on it need no blur to look frosted (see [Glass.overlay]).
 ///
 /// The neutrals, accent and status colours match the video player's design system, so the two
 /// apps read as one product. Every colour and depth the classroom widgets use comes from here,
@@ -117,7 +117,7 @@ class ClassroomTheme extends ThemeExtension<ClassroomTheme> {
 
   bool get isDark => brightness == Brightness.dark;
 
-  /// Blur behind glass, in logical pixels of sigma.
+  /// Blur behind glass that floats over the class (toasts, dialogs), in logical pixels of sigma.
   double get blur => 24;
 
   static const dark = ClassroomTheme(
@@ -261,8 +261,8 @@ class ClassroomTheme extends ThemeExtension<ClassroomTheme> {
     fontFallback: fontFallback,
   );
 
-  // Switching theme mid-class is a cut, not a cross-fade: the glass blur would have to be
-  // recomputed every frame of a lerp for no benefit.
+  // Switching theme mid-class is a cut, not a cross-fade: every pane, the canvas and the rims
+  // would repaint on every frame of a lerp for no benefit.
   @override
   ClassroomTheme lerp(ClassroomTheme? other, double t) =>
       t < 0.5 ? this : (other ?? this);

@@ -74,9 +74,6 @@ abstract final class ClassroomIcons {
 }
 
 /// The canvas behind everything: a near-flat colour with three soft glows, painted once.
-///
-/// Also establishes the [BackdropGroup] that the stage's panes share, so a stage of seven pods
-/// costs one blur, not seven.
 class GlassBackdrop extends StatelessWidget {
   const GlassBackdrop({super.key, required this.child});
 
@@ -89,7 +86,7 @@ class GlassBackdrop extends StatelessWidget {
       painter: _GlowPainter(t),
       isComplex: true,
       willChange: false,
-      child: BackdropGroup(child: child),
+      child: child,
     );
   }
 }
@@ -149,8 +146,12 @@ class Glass extends StatelessWidget {
   /// Replaces the fill, e.g. a tint for a state.
   final Color? fill;
 
-  /// Floats over other glass (toasts, sheets). Grouped blurs must not overlap, so an overlay
-  /// blurs on its own.
+  /// Floats over the class itself (toasts, dialogs), so it frosts what moves behind it.
+  ///
+  /// Only overlays blur. A blur is redone over everything behind the pane on every frame, and
+  /// the class draws frames all the time (video, the live lamp), so a blurred stage costs most
+  /// of the frame. Panes on the canvas lose nothing without it: the canvas is a few soft glows,
+  /// and blurring them looks the same as not.
   final bool overlay;
   final bool shadow;
 
@@ -158,11 +159,6 @@ class Glass extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
     final shape = BorderRadius.circular(radius);
-    final filter = ui.ImageFilter.blur(
-      sigmaX: strong ? t.blur * 1.5 : t.blur,
-      sigmaY: strong ? t.blur * 1.5 : t.blur,
-    );
-    final grouped = !overlay && BackdropGroup.of(context) != null;
     final body = DecoratedBox(
       decoration: BoxDecoration(
         color: fill ?? (strong ? t.glassStrong : t.glass),
@@ -180,9 +176,15 @@ class Glass extends StatelessWidget {
         foregroundPainter: _RimPainter(t.rim, radius),
         child: ClipRRect(
           borderRadius: shape,
-          child: grouped
-              ? BackdropFilter.grouped(filter: filter, child: body)
-              : BackdropFilter(filter: filter, child: body),
+          child: overlay
+              ? BackdropFilter(
+                  filter: ui.ImageFilter.blur(
+                    sigmaX: strong ? t.blur * 1.5 : t.blur,
+                    sigmaY: strong ? t.blur * 1.5 : t.blur,
+                  ),
+                  child: body,
+                )
+              : body,
         ),
       ),
     );
@@ -388,7 +390,8 @@ class StatusDot extends StatelessWidget {
   }
 }
 
-/// A dot that breathes — for "live" and "recording".
+/// A dot that breathes — for "live" and "recording". Holds still when motion is reduced: it
+/// is the one thing in the class that would otherwise ask for a frame all the time.
 class PulsingDot extends StatefulWidget {
   const PulsingDot({super.key, required this.color, this.size = 8});
 
@@ -404,7 +407,18 @@ class _PulsingDotState extends State<PulsingDot>
   late final _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),
-  )..repeat(reverse: true);
+  );
+  late final _opacity = Tween(begin: 0.4, end: 1.0).animate(_controller);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (Motion.reduced(context)) {
+      _controller.value = 1;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {
@@ -414,7 +428,7 @@ class _PulsingDotState extends State<PulsingDot>
 
   @override
   Widget build(BuildContext context) => FadeTransition(
-    opacity: Tween(begin: 0.4, end: 1.0).animate(_controller),
+    opacity: _opacity,
     child: StatusDot(color: widget.color, size: widget.size),
   );
 }

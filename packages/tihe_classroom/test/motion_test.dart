@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tihe_classroom/demo.dart';
 import 'package:tihe_classroom/src/ui/pods/chat_pod.dart';
 import 'package:tihe_classroom/src/ui/pods/media_pods.dart';
 import 'package:tihe_classroom/src/ui/whiteboard/board_painter.dart';
@@ -152,6 +154,39 @@ void main() {
     await tester.pump(Motion.medium);
     await tester.pump();
     expect(find.byType(Opacity), findsNothing);
+  });
+
+  group('frame cost', () {
+    testWidgets('nothing on the stage or the bars blurs', (tester) async {
+      await pumpClassroom(tester);
+      await tester.pump(const Duration(seconds: 1));
+      // A blur is redone over everything behind it on every frame; the stage cannot afford it.
+      expect(find.byType(BackdropFilter), findsNothing);
+    });
+
+    testWidgets('glass over the class itself still frosts it', (tester) async {
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.rtl,
+          child: Glass(overlay: true, child: SizedBox.square(dimension: 40)),
+        ),
+      );
+      expect(find.byType(BackdropFilter), findsOneWidget);
+    });
+
+    testWidgets('with reduced motion, an idle class asks for no frames', (
+      tester,
+    ) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await pumpClassroom(tester, as: DemoClassroom.ali);
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump();
+      expect(SchedulerBinding.instance.transientCallbackCount, 0);
+    });
   });
 
   testWidgets('maximise zooms a pod over the stage and restores it', (

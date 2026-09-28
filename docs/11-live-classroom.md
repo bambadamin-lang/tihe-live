@@ -258,11 +258,12 @@ Ordering that matters for the pipeline:
 - **Glass, in light and dark.** The classroom is layers — pods over the stage, the dock and
   sheets over pods — and frosted glass keeps each layer's place readable without heavy borders
   or shadows:
-  - Canvas: a near-flat colour with three soft glows, painted once, so the blur has something to
-    refract but nothing competes with the class.
-  - Panes: every pod, the top bar and the dock are frosted glass with a lit one-pixel rim. The
-    stage's panes share one `BackdropGroup`, so seven pods cost one blur; overlays (toasts,
-    sheets) blur on their own.
+  - Canvas: a near-flat colour with three soft glows, painted once, so nothing competes with
+    the class.
+  - Panes: every pod, the top bar and the dock are translucent glass with a lit one-pixel rim.
+    Only glass that floats over the class itself (toasts, dialogs) is blurred. A backdrop blur
+    is redone over everything behind it on every frame, and ten of them made up about two
+    thirds of each frame's raster time; over the soft canvas a blur looks the same as none.
   - Media: video and screen share sit on an inset dark screen in both themes. The whiteboard page
     stays near-white in both — ink colours are chosen for it and it is what Egress records.
   - Controls: a centred dock of glass keys. A muted microphone or camera is red and crossed out,
@@ -300,7 +301,9 @@ Ordering that matters for the pipeline:
     frame on its own. Drawing on a full page costs one stroke per frame, not the whole page.
   - Other people's strokes arrive in 40 ms batches (§6). Each batch is revealed across the next
     40 ms at the display's rate, so remote ink glides instead of stepping 25 times a second.
-  - Frames stop when nothing moves.
+  - Nothing on the stage or the bars is blurred (see Glass above).
+  - Frames stop when nothing moves, except for the live and recording lamps, which breathe.
+    With reduce-motion on they hold still, and an idle class draws no frames at all.
   - Android phones often hold apps at 60 Hz unless they ask for more, so the app asks for the
     display's fastest mode. iOS allows ProMotion through `CADisableMinimumFrameDurationOnPhone`.
 - The theme lives in `tihe_classroom/lib/src/ui/theme/`: tokens in one `ClassroomTheme` object
