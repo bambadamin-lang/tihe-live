@@ -214,13 +214,6 @@ class ClassroomTheme extends ThemeExtension<ClassroomTheme> {
     ),
   ];
 
-  /// The rim of a glass surface: lit along the top, fading towards the bottom.
-  Gradient get rim => LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [edgeHigh, edgeLow],
-  );
-
   @override
   ClassroomTheme copyWith({String? fontFamily}) => ClassroomTheme(
     brightness: brightness,

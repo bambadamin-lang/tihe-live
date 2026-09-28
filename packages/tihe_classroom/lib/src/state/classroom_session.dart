@@ -172,6 +172,7 @@ class ClassroomSession {
       ..add(gateway.closures.listen(_onBye))
       ..add(
         media.changes.listen((m) {
+          if (m == _v.media) return;
           _v = _v.copyWith(media: m);
           capture?.ownShareActive = m.local?.screenOn ?? false;
         }),
@@ -237,6 +238,12 @@ class ClassroomSession {
       case EphemeralMessage(:final from, :final progress):
         if (from == _v.userId) return;
         final existing = _v.previews[progress.strokeId];
+        // Points are appended to the stroke's one growing list rather than copied into a new
+        // one per message: a long stroke arrives as hundreds of messages, and copying made each
+        // one cost the whole stroke so far. The preview object is still new, so the change is
+        // seen; the list is only ever read by the painter.
+        final points = existing?.points ?? <int>[];
+        points.addAll(progress.points);
         _v = _v.copyWith(
           previews: {
             ..._v.previews,
@@ -247,7 +254,7 @@ class ClassroomSession {
               tool: progress.tool,
               color: progress.color,
               width: progress.width,
-              points: [...?existing?.points, ...progress.points],
+              points: points,
               updatedAt: _clock(),
             ),
           },

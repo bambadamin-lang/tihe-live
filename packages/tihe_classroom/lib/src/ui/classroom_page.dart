@@ -45,6 +45,10 @@ class ClassroomPage extends StatefulWidget {
 }
 
 class _ClassroomPageState extends State<ClassroomPage> {
+  /// Built once per brightness. A new ThemeData on every build is not free to construct, and
+  /// every themed widget below has to compare it with the last one.
+  static final _themes = <Brightness, ThemeData>{};
+
   Brightness? _chosen;
 
   @override
@@ -75,7 +79,9 @@ class _ClassroomPageState extends State<ClassroomPage> {
     return ProviderScope(
       overrides: [classroomSessionProvider.overrideWithValue(widget.session)],
       child: Theme(
-        data: buildClassroomThemeData(ClassroomTheme.forBrightness(brightness)),
+        data: _themes[brightness] ??= buildClassroomThemeData(
+          ClassroomTheme.forBrightness(brightness),
+        ),
         child: ClassroomAppearance(
           brightness: brightness,
           onToggle: () => _toggle(brightness),
@@ -164,8 +170,12 @@ class _Classroom extends ConsumerWidget {
                               children: [
                                 const Positioned.fill(child: StageView()),
                                 // Over every pod, under nothing: see docs/11 §9.
+                                // Its own layer: it repaints every second, and should
+                                // not take the stage with it.
                                 Positioned.fill(
-                                  child: WatermarkOverlay(spec: watermark),
+                                  child: RepaintBoundary(
+                                    child: WatermarkOverlay(spec: watermark),
+                                  ),
                                 ),
                               ],
                             )

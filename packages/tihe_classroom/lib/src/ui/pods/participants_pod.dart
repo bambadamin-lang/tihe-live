@@ -16,14 +16,33 @@ class ParticipantsPod extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ClassroomTheme.of(context);
-    final view = ref.watch(classroomViewProvider);
-    final room = view.room;
-    if (room == null) return const SizedBox.shrink();
-    final people = room.participants.values.toList()
-      ..sort((a, b) {
-        if (a.online != b.online) return a.online ? -1 : 1;
-        return b.role.rank.compareTo(a.role.rank);
-      });
+    // People and their mic and camera — not who is speaking this instant, which changes many
+    // times a second and is not shown here.
+    final slice = ref.watch(
+      classroomViewProvider.select((v) {
+        final room = v.room;
+        if (room == null) return null;
+        final people = room.participants.values.toList()
+          ..sort((a, b) {
+            if (a.online != b.online) return a.online ? -1 : 1;
+            return b.role.rank.compareTo(a.role.rank);
+          });
+        return (
+          people: ListSlice([
+            for (final p in people)
+              (
+                participant: p,
+                micOn: v.media.of(p.userId).micOn,
+                cameraOn: v.media.of(p.userId).cameraOn,
+              ),
+          ]),
+          me: v.me,
+          userId: v.userId,
+        );
+      }),
+    );
+    if (slice == null) return const SizedBox.shrink();
+    final people = slice.people.items;
     return ListView.separated(
       padding: const EdgeInsets.all(2),
       itemCount: people.length,
@@ -31,24 +50,38 @@ class ParticipantsPod extends ConsumerWidget {
         padding: const EdgeInsetsDirectional.only(start: 48),
         child: Divider(color: t.hairline),
       ),
-      itemBuilder: (context, i) => _Card(participant: people[i], view: view),
+      itemBuilder: (context, i) => _Card(
+        participant: people[i].participant,
+        micOn: people[i].micOn,
+        cameraOn: people[i].cameraOn,
+        me: slice.me,
+        userId: slice.userId,
+      ),
     );
   }
 }
 
-class _Card extends ConsumerWidget {
-  const _Card({required this.participant, required this.view});
+class _Card extends StatelessWidget {
+  const _Card({
+    required this.participant,
+    required this.micOn,
+    required this.cameraOn,
+    required this.me,
+    required this.userId,
+  });
 
   final ParticipantState participant;
-  final ClassroomView view;
+  final bool micOn;
+  final bool cameraOn;
+  final ParticipantState? me;
+  final String userId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
     final p = participant;
-    final media = view.media.of(p.userId);
-    final me = view.me;
-    final isMe = p.userId == view.userId;
+    final me = this.me;
+    final isMe = p.userId == userId;
     final canManage =
         me != null &&
         !isMe &&
@@ -114,15 +147,15 @@ class _Card extends ConsumerWidget {
               const SizedBox(width: 8),
             ],
             Icon(
-              media.micOn ? ClassroomIcons.mic : ClassroomIcons.micOff,
+              micOn ? ClassroomIcons.mic : ClassroomIcons.micOff,
               size: 15,
-              color: media.micOn ? t.success : t.textTertiary,
+              color: micOn ? t.success : t.textTertiary,
             ),
             const SizedBox(width: 6),
             Icon(
-              media.cameraOn ? ClassroomIcons.camera : ClassroomIcons.cameraOff,
+              cameraOn ? ClassroomIcons.camera : ClassroomIcons.cameraOff,
               size: 15,
-              color: media.cameraOn ? t.success : t.textTertiary,
+              color: cameraOn ? t.success : t.textTertiary,
             ),
             if (canManage || canAssign)
               _Actions(

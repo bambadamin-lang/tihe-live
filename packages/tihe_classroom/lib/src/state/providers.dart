@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'classroom_session.dart';
@@ -29,4 +30,20 @@ class ClassroomViewNotifier extends Notifier<ClassroomView> {
     ref.onDispose(() => session.view.removeListener(listener));
     return session.view.value;
   }
+}
+
+/// A list compared by its elements, for `select`: derived lists (the hand queue, the people on
+/// camera) are rebuilt on every event, so comparing them by identity would always see a change.
+@immutable
+class ListSlice<T> {
+  const ListSlice(this.items);
+
+  final List<T> items;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ListSlice<T> && listEquals(other.items, items);
+
+  @override
+  int get hashCode => Object.hashAll(items);
 }

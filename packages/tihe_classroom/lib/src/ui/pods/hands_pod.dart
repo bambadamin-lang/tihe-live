@@ -16,9 +16,17 @@ class HandsPod extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ClassroomTheme.of(context);
-    final view = ref.watch(classroomViewProvider);
-    final hands = view.room?.raisedHands ?? const <ParticipantState>[];
-    final canManage = view.can(Capability.participantsManage);
+    // The queue and the right to manage it — not the rest of the class.
+    final hands = ref
+        .watch(
+          classroomViewProvider.select(
+            (v) => ListSlice(v.room?.raisedHands ?? const <ParticipantState>[]),
+          ),
+        )
+        .items;
+    final canManage = ref.watch(
+      classroomViewProvider.select((v) => v.can(Capability.participantsManage)),
+    );
     final session = ref.read(classroomSessionProvider);
     return Column(
       children: [

@@ -35,25 +35,44 @@ String? pickSpeaker(ClassroomView view) {
   return ranked.isEmpty ? null : ranked.first.userId;
 }
 
+/// One person as a video tile shows them. Value-equal, so a tile rebuilds only when what it
+/// draws changes — not on every event in the class.
+typedef _Person = ({
+  String userId,
+  String name,
+  bool hand,
+  ParticipantMedia media,
+});
+
 class SpeakerPod extends ConsumerWidget {
   const SpeakerPod({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final view = ref.watch(classroomViewProvider);
     final session = ref.watch(classroomSessionProvider);
-    final userId = pickSpeaker(view);
-    if (userId == null) return const _Empty(text: 'هنوز کسی در کلاس نیست');
-    final p = view.room!.participants[userId];
-    final media = view.media.of(userId);
+    final _Person? speaker = ref.watch(
+      classroomViewProvider.select((v) {
+        final userId = pickSpeaker(v);
+        if (userId == null) return null;
+        final p = v.room!.participants[userId];
+        return (
+          userId: userId,
+          name: p?.name ?? '',
+          hand: p?.hand != null,
+          media: v.media.of(userId),
+        );
+      }),
+    );
+    if (speaker == null) return const _Empty(text: 'هنوز کسی در کلاس نیست');
+    final media = speaker.media;
     return Stack(
       fit: StackFit.expand,
       children: [
         if (media.cameraOn)
-          session.media.video(userId, VideoSlot.camera)
+          session.media.video(speaker.userId, VideoSlot.camera)
         else
           Center(
-            child: Avatar(userId: userId, name: p?.name ?? '', size: 88),
+            child: Avatar(userId: speaker.userId, name: speaker.name, size: 88),
           ),
         PositionedDirectional(
           start: 10,
@@ -62,10 +81,10 @@ class SpeakerPod extends ConsumerWidget {
           child: Align(
             alignment: AlignmentDirectional.bottomStart,
             child: NameStrip(
-              name: p?.name ?? '',
+              name: speaker.name,
               micOn: media.micOn,
               speaking: media.speaking,
-              hand: p?.hand != null,
+              hand: speaker.hand,
             ),
           ),
         ),
@@ -81,17 +100,31 @@ class GalleryPod extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final view = ref.watch(classroomViewProvider);
     final session = ref.watch(classroomSessionProvider);
-    final room = view.room;
-    if (room == null) return const SizedBox.shrink();
-    final people = room.participants.values.where((p) => p.online).toList()
-      ..sort((a, b) {
-        final cam =
-            (view.media.of(b.userId).cameraOn ? 1 : 0) -
-            (view.media.of(a.userId).cameraOn ? 1 : 0);
-        return cam != 0 ? cam : b.role.rank.compareTo(a.role.rank);
-      });
+    final slice = ref.watch(
+      classroomViewProvider.select((v) {
+        final room = v.room;
+        if (room == null) return null;
+        final online = room.participants.values.where((p) => p.online).toList()
+          ..sort((a, b) {
+            final cam =
+                (v.media.of(b.userId).cameraOn ? 1 : 0) -
+                (v.media.of(a.userId).cameraOn ? 1 : 0);
+            return cam != 0 ? cam : b.role.rank.compareTo(a.role.rank);
+          });
+        return ListSlice<_Person>([
+          for (final p in online)
+            (
+              userId: p.userId,
+              name: p.name,
+              hand: p.hand != null,
+              media: v.media.of(p.userId),
+            ),
+        ]);
+      }),
+    );
+    if (slice == null) return const SizedBox.shrink();
+    final people = slice.items;
     if (people.isEmpty) return const _Empty(text: 'هنوز کسی در کلاس نیست');
     return LayoutBuilder(
       builder: (context, box) {
@@ -112,14 +145,15 @@ class GalleryPod extends ConsumerWidget {
             children: [
               for (final p in shown)
                 SizedBox(
+                  key: ValueKey(p.userId),
                   width: best.width,
                   height: best.width * 9 / 16,
                   child: Padding(
                     padding: const EdgeInsets.all(3),
-                    child: _Tile(
-                      participant: p,
-                      media: view.media.of(p.userId),
-                      session: session,
+                    // Each tile repaints on its own (video frames, the speaking ring) without
+                    // taking the rest of the gallery with it.
+                    child: RepaintBoundary(
+                      child: _Tile(person: p, session: session),
                     ),
                   ),
                 ),
@@ -132,32 +166,27 @@ class GalleryPod extends ConsumerWidget {
 }
 
 class _Tile extends StatelessWidget {
-  const _Tile({
-    required this.participant,
-    required this.media,
-    required this.session,
-  });
+  const _Tile({required this.person, required this.session});
 
-  final ParticipantState participant;
-  final ParticipantMedia media;
+  final _Person person;
   final ClassroomSession session;
 
   @override
   Widget build(BuildContext context) => SpeakingFrame(
-    speaking: media.speaking,
+    speaking: person.media.speaking,
     child: ColoredBox(
       color: const Color(0xFF16181E),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (media.cameraOn)
-            session.media.video(participant.userId, VideoSlot.camera)
+          if (person.media.cameraOn)
+            session.media.video(person.userId, VideoSlot.camera)
           else
             Center(
               child: LayoutBuilder(
                 builder: (context, box) => Avatar(
-                  userId: participant.userId,
-                  name: participant.name,
+                  userId: person.userId,
+                  name: person.name,
                   size: min(56, box.maxHeight * 0.55),
                 ),
               ),
@@ -169,10 +198,10 @@ class _Tile extends StatelessWidget {
             child: Align(
               alignment: AlignmentDirectional.bottomStart,
               child: NameStrip(
-                name: participant.name,
-                micOn: media.micOn,
-                speaking: media.speaking,
-                hand: participant.hand != null,
+                name: person.name,
+                micOn: person.media.micOn,
+                speaking: person.media.speaking,
+                hand: person.hand,
               ),
             ),
           ),
@@ -187,39 +216,49 @@ class ScreenPod extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final view = ref.watch(classroomViewProvider);
     final session = ref.watch(classroomSessionProvider);
-    final hosts =
-        view.room?.participants.values
-            .where((p) => p.role.rank >= ClassRole.presenter.rank)
-            .map((p) => p.userId) ??
-        const <String>[];
-    final sharer = view.media.screenSharer(preferred: hosts);
-    if (sharer == null) {
+    final share = ref.watch(
+      classroomViewProvider.select((v) {
+        final hosts =
+            v.room?.participants.values
+                .where((p) => p.role.rank >= ClassRole.presenter.rank)
+                .map((p) => p.userId) ??
+            const <String>[];
+        final sharer = v.media.screenSharer(preferred: hosts);
+        if (sharer == null) return null;
+        return (
+          sharer: sharer,
+          mine: sharer == v.userId,
+          name: v.room?.participants[sharer]?.name ?? '',
+          micOn: v.media.of(sharer).micOn,
+        );
+      }),
+    );
+    if (share == null) {
       return const _Empty(
         text: 'اشتراک صفحه‌ای در جریان نیست',
         icon: ClassroomIcons.screen,
       );
     }
-    if (sharer == view.userId) {
+    if (share.mine) {
       // Showing your own screen back to you only makes a hall of mirrors.
       return const _Empty(
         text: 'صفحهٔ شما در حال اشتراک است',
         icon: ClassroomIcons.screenShare,
       );
     }
-    final name = view.room?.participants[sharer]?.name ?? '';
     return Stack(
       fit: StackFit.expand,
       children: [
-        session.media.video(sharer, VideoSlot.screen, fit: BoxFit.contain),
+        session.media.video(
+          share.sharer,
+          VideoSlot.screen,
+          fit: BoxFit.contain,
+        ),
         PositionedDirectional(
           top: 8,
           start: 8,
-          child: NameStrip(
-            name: 'صفحهٔ $name',
-            micOn: view.media.of(sharer).micOn,
-          ),
+          child: NameStrip(name: 'صفحهٔ ${share.name}', micOn: share.micOn),
         ),
       ],
     );

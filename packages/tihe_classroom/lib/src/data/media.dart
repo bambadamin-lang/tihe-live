@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 /// Camera, microphone and screen share, as the classroom needs them — behind an interface so
@@ -21,6 +20,22 @@ class ParticipantMedia {
   final bool screenOn;
   final bool speaking;
   final bool isLocal;
+
+  // Value equality: the media layer reports on every room event, and most change nothing the
+  // classroom shows. Equal values let those reports be dropped instead of rebuilding the stage.
+  @override
+  bool operator ==(Object other) =>
+      other is ParticipantMedia &&
+      other.userId == userId &&
+      other.micOn == micOn &&
+      other.cameraOn == cameraOn &&
+      other.screenOn == screenOn &&
+      other.speaking == speaking &&
+      other.isLocal == isLocal;
+
+  @override
+  int get hashCode =>
+      Object.hash(userId, micOn, cameraOn, screenOn, speaking, isLocal);
 }
 
 @immutable
@@ -34,6 +49,20 @@ class MediaState {
   final bool connected;
   final Map<String, ParticipantMedia> participants;
   final String? activeSpeaker;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MediaState &&
+      other.connected == connected &&
+      other.activeSpeaker == activeSpeaker &&
+      mapEquals(other.participants, participants);
+
+  @override
+  int get hashCode => Object.hash(
+    connected,
+    activeSpeaker,
+    Object.hashAllUnordered(participants.values),
+  );
 
   ParticipantMedia of(String userId) =>
       participants[userId] ?? ParticipantMedia(userId: userId);

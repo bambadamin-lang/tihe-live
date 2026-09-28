@@ -22,6 +22,32 @@ class _ChatPodState extends ConsumerState<ChatPod> {
   final _scroll = ScrollController();
   int _lastCount = 0;
 
+  /// Each message's widget, kept while the message and the viewer's rights stay the same. A new
+  /// message then rebuilds only itself: Flutter skips a widget that is the identical instance,
+  /// where a fresh one per build would rebuild every visible message and its delete button.
+  final _built =
+      <String, ({ChatMessage message, bool canDelete, Widget widget})>{};
+
+  Widget _message(ChatMessage m, String me, bool canManage) {
+    final canDelete = m.userId == me || canManage;
+    final cached = _built[m.id];
+    if (cached != null &&
+        identical(cached.message, m) &&
+        cached.canDelete == canDelete) {
+      return cached.widget;
+    }
+    final widget = _Message(
+      key: ValueKey(m.id),
+      message: m,
+      mine: m.userId == me,
+      onDelete: canDelete
+          ? () => ref.read(classroomSessionProvider).send(DeleteChat(m.id))
+          : null,
+    );
+    _built[m.id] = (message: m, canDelete: canDelete, widget: widget);
+    return widget;
+  }
+
   @override
   void dispose() {
     _input.dispose();
@@ -53,6 +79,10 @@ class _ChatPodState extends ConsumerState<ChatPod> {
     );
 
     if (chat.length != _lastCount) {
+      if (chat.length < _lastCount) {
+        final ids = {for (final m in chat) m.id};
+        _built.removeWhere((id, _) => !ids.contains(id));
+      }
       _lastCount = chat.length;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scroll.hasClients) {
@@ -84,20 +114,11 @@ class _ChatPodState extends ConsumerState<ChatPod> {
                 )
               : ListView.builder(
                   controller: _scroll,
+                  // Messages hold no state worth keeping alive off-screen.
+                  addAutomaticKeepAlives: false,
                   padding: const EdgeInsets.fromLTRB(4, 2, 4, 8),
                   itemCount: chat.length,
-                  itemBuilder: (context, i) {
-                    final m = chat[i];
-                    return _Message(
-                      message: m,
-                      mine: m.userId == me,
-                      onDelete: (m.userId == me || canManage)
-                          ? () => ref
-                                .read(classroomSessionProvider)
-                                .send(DeleteChat(m.id))
-                          : null,
-                    );
-                  },
+                  itemBuilder: (context, i) => _message(chat[i], me, canManage),
                 ),
         ),
         Padding(
@@ -178,6 +199,7 @@ class _ChatPodState extends ConsumerState<ChatPod> {
 
 class _Message extends StatelessWidget {
   const _Message({
+    super.key,
     required this.message,
     required this.mine,
     required this.onDelete,

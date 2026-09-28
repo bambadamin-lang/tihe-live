@@ -187,11 +187,14 @@ class _LiveClockState extends State<_LiveClock> {
   }
 
   @override
-  Widget build(BuildContext context) => GlassPill(
-    leading: StatusDot(color: ClassroomTheme.of(context).success),
-    child: Text(
-      'زنده  ${elapsedClock(DateTime.now().difference(widget.startedAt))}',
-      style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()]),
+  // A layer of its own: it ticks every second.
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: GlassPill(
+      leading: StatusDot(color: ClassroomTheme.of(context).success),
+      child: Text(
+        'زنده  ${elapsedClock(DateTime.now().difference(widget.startedAt))}',
+        style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()]),
+      ),
     ),
   );
 }
@@ -226,65 +229,81 @@ class ControlBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(classroomSessionProvider);
-    final view = ref.watch(classroomViewProvider);
+    // Only what the dock shows. A stroke on the board or a chat message must not rebuild it.
+    final d = ref.watch(
+      classroomViewProvider.select((v) {
+        final local = v.media.local;
+        final me = v.me;
+        final hands = v.room?.raisedHands ?? const <ParticipantState>[];
+        final position = hands.indexWhere((p) => p.userId == v.userId);
+        return (
+          mic: local?.micOn ?? false,
+          camera: local?.cameraOn ?? false,
+          screen: local?.screenOn ?? false,
+          canAudio: v.can(Capability.publishAudio),
+          canVideo: v.can(Capability.publishVideo),
+          canScreen: v.can(Capability.publishScreen),
+          canHand: v.can(Capability.handRaise),
+          canLayout: v.can(Capability.layoutChange),
+          canManage: v.can(Capability.participantsManage),
+          canEnd: v.can(Capability.classEnd),
+          raisesHands: me == null || me.role.rank < ClassRole.cohost.rank,
+          handRaised: me?.hand != null,
+          queue: position >= 0 ? position + 1 : null,
+        );
+      }),
+    );
     final t = ClassroomTheme.of(context);
-    final local = view.media.local;
-    final me = view.me;
-    final hands = view.room?.raisedHands ?? const <ParticipantState>[];
-    final position = hands.indexWhere((p) => p.userId == view.userId);
     final narrow = MediaQuery.sizeOf(context).width < 640;
 
     final media = [
       MediaToggle(
-        on: local?.micOn ?? false,
-        locked: !view.can(Capability.publishAudio),
+        on: d.mic,
+        locked: !d.canAudio,
         icon: ClassroomIcons.mic,
         offIcon: ClassroomIcons.micOff,
         label: 'میکروفون',
         onPressed: session.toggleMicrophone,
       ),
       MediaToggle(
-        on: local?.cameraOn ?? false,
-        locked: !view.can(Capability.publishVideo),
+        on: d.camera,
+        locked: !d.canVideo,
         icon: ClassroomIcons.camera,
         offIcon: ClassroomIcons.cameraOff,
         label: 'دوربین',
         onPressed: session.toggleCamera,
       ),
-      if (!narrow || view.can(Capability.publishScreen))
+      if (!narrow || d.canScreen)
         // Sharing is a thing you start, not a thing you mute: off is neutral, not red.
         DockButton(
-          icon: (local?.screenOn ?? false)
+          icon: d.screen
               ? ClassroomIcons.screenShareOff
-              : view.can(Capability.publishScreen)
+              : d.canScreen
               ? ClassroomIcons.screenShare
               : ClassroomIcons.lock,
           label: 'اشتراک صفحه',
-          toggled: local?.screenOn ?? false,
-          tint: (local?.screenOn ?? false) ? t.accent : null,
-          tooltip: view.can(Capability.publishScreen)
+          toggled: d.screen,
+          tint: d.screen ? t.accent : null,
+          tooltip: d.canScreen
               ? 'اشتراک صفحه'
               : 'اشتراک صفحه — نیاز به اجازهٔ میزبان',
           disabledCursor: SystemMouseCursors.forbidden,
-          onPressed:
-              !(local?.screenOn ?? false) && !view.can(Capability.publishScreen)
+          onPressed: !d.screen && !d.canScreen
               ? null
-              : () => (local?.screenOn ?? false)
+              : () => d.screen
                     ? session.stopScreenShare()
                     : _pickScreen(context, ref),
         ),
-      if (me == null || me.role.rank < ClassRole.cohost.rank)
+      if (d.raisesHands)
         HandToggle(
-          raised: me?.hand != null,
-          queuePosition: position >= 0 ? position + 1 : null,
-          onPressed: (me?.hand != null || view.can(Capability.handRaise))
-              ? session.toggleHand
-              : null,
+          raised: d.handRaised,
+          queuePosition: d.queue,
+          onPressed: (d.handRaised || d.canHand) ? session.toggleHand : null,
         ),
     ];
 
     final host = [
-      if (view.can(Capability.layoutChange))
+      if (d.canLayout)
         DockButton(
           icon: ClassroomIcons.layout,
           label: 'چیدمان',
@@ -292,7 +311,7 @@ class ControlBar extends ConsumerWidget {
           onPressed: () =>
               showClassroomDialog<void>(context, const LayoutPickerSheet()),
         ),
-      if (view.can(Capability.participantsManage))
+      if (d.canManage)
         DockButton(
           icon: ClassroomIcons.settings,
           label: 'تنظیمات کلاس',
@@ -303,7 +322,7 @@ class ControlBar extends ConsumerWidget {
     ];
 
     final exits = [
-      if (view.can(Capability.classEnd))
+      if (d.canEnd)
         DockButton(
           icon: ClassroomIcons.endClass,
           label: 'پایان کلاس',

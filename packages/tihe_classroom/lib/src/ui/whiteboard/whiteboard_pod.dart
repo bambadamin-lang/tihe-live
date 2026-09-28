@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../contracts.dart';
 import '../../domain/board_model.dart';
+import '../../domain/classroom_state.dart';
 import '../../domain/persian.dart';
 import '../../state/board_controller.dart';
 import '../../state/providers.dart';
@@ -153,11 +154,21 @@ class _BoardCanvasState extends ConsumerState<BoardCanvas>
   Widget build(BuildContext context) {
     final session = ref.watch(classroomSessionProvider);
     final board = session.board;
-    final room = ref.watch(classroomViewProvider.select((v) => v.room));
+    // The page and its items — not the whole room, which also changes with every chat message
+    // and hand. Both keep their identity until the board itself changes.
+    final ink = ref.watch(
+      classroomViewProvider.select(
+        (v) => (page: v.room?.activePage, items: v.room?.items),
+      ),
+    );
     final previews = ref.watch(classroomViewProvider.select((v) => v.previews));
-    final page = room?.activePage;
-    if (room == null || page == null) return const SizedBox.expand();
+    final page = ink.page;
+    final committed = ink.items;
+    if (page == null || committed == null) return const SizedBox.expand();
     final fontFamily = ClassroomTheme.of(context).fontFamily;
+    // Pointer handlers need the whole room (hit-testing, permissions), but only when a pointer
+    // moves: read it then rather than rebuild for it.
+    ClassroomState room() => ref.read(classroomViewProvider).room!;
 
     return LayoutBuilder(
       builder: (context, box) {
@@ -172,22 +183,39 @@ class _BoardCanvasState extends ConsumerState<BoardCanvas>
             if (!hasLaser && _ticker.isActive) _ticker.stop();
 
             final items = [
-              ...room.itemsOn(page.id),
+              for (final i in committed.values)
+                if (i.pageId == page.id) i,
               ...board.pending.values.where(
-                (i) => i.pageId == page.id && !room.items.containsKey(i.id),
+                (i) => i.pageId == page.id && !committed.containsKey(i.id),
               ),
             ];
-            final canvas = CustomPaint(
-              size: Size.infinite,
-              painter: BoardPainter(
-                page: page,
-                items: items,
-                hidden: board.erasing,
-                previews: previews.values.toList(),
-                draft: board.draft,
-                now: DateTime.now(),
-                fontFamily: fontFamily,
-              ),
+            // Two layers with their own repaint boundaries: the committed board repaints only
+            // when its items change; the live layer repaints as strokes arrive.
+            final canvas = Stack(
+              fit: StackFit.expand,
+              children: [
+                RepaintBoundary(
+                  child: CustomPaint(
+                    painter: BoardPainter(
+                      page: page,
+                      items: items,
+                      hidden: {...board.erasing},
+                      fontFamily: fontFamily,
+                    ),
+                  ),
+                ),
+                RepaintBoundary(
+                  child: CustomPaint(
+                    painter: BoardLivePainter(
+                      page: page,
+                      previews: previews.values.toList(),
+                      draft: board.draft,
+                      now: DateTime.now(),
+                      fontFamily: fontFamily,
+                    ),
+                  ),
+                ),
+              ],
             );
             if (!widget.canDraw) return canvas;
             return MouseRegion(
@@ -205,12 +233,12 @@ class _BoardCanvasState extends ConsumerState<BoardCanvas>
                   }
                   board.pointerDown(
                     _toPage(e.localPosition),
-                    room,
+                    room(),
                     canManage: widget.canManage,
                   );
                 },
                 onPointerMove: (e) =>
-                    board.pointerMove(_toPage(e.localPosition), room),
+                    board.pointerMove(_toPage(e.localPosition), room()),
                 onPointerUp: (_) => board.pointerUp(),
                 onPointerCancel: (_) => board.pointerUp(),
                 child: canvas,
@@ -247,7 +275,9 @@ class MarkerTray extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(classroomSessionProvider);
     final board = session.board;
-    final room = ref.watch(classroomViewProvider.select((v) => v.room));
+    final hasRoom = ref.watch(
+      classroomViewProvider.select((v) => v.room != null),
+    );
     final t = ClassroomTheme.of(context);
     return ListenableBuilder(
       listenable: board,
@@ -299,7 +329,7 @@ class MarkerTray extends ConsumerWidget {
             onChanged: board.setWidth,
             tool: board.tool,
           ),
-          if (canManage && room != null) ...[
+          if (canManage && hasRoom) ...[
             const _PageSwitcher(),
             _TrayIcon(
               icon: ClassroomIcons.newPage,
@@ -309,7 +339,8 @@ class MarkerTray extends ConsumerWidget {
             _TrayIcon(
               icon: ClassroomIcons.clearPage,
               label: 'پاک کردن صفحه',
-              onTap: () => board.clearPage(room),
+              onTap: () =>
+                  board.clearPage(ref.read(classroomViewProvider).room!),
             ),
           ],
         ];
@@ -582,7 +613,13 @@ class _PageSwitcher extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(classroomViewProvider.select((v) => v.room));
+    final state = ref.watch(
+      classroomViewProvider.select(
+        (v) => v.room == null
+            ? null
+            : (pages: v.room!.pages, activePageId: v.room!.activePageId),
+      ),
+    );
     if (state == null) return const SizedBox.shrink();
     final board = ref.watch(classroomSessionProvider).board;
     final index = state.pages.indexWhere((p) => p.id == state.activePageId);

@@ -195,12 +195,7 @@ class MiniStage extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: t.canvas,
-          gradient: LinearGradient(
-            begin: AlignmentDirectional.topStart,
-            end: AlignmentDirectional.bottomEnd,
-            colors: [t.glows[0], t.canvas, t.glows[1]],
-          ),
+          color: Color.alphaBlend(t.glows[0].withValues(alpha: 0.25), t.canvas),
         ),
         child: LayoutBuilder(
           builder: (context, box) {

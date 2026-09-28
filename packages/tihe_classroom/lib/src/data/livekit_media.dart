@@ -67,11 +67,15 @@ class LiveKitClassroomMedia implements ClassroomMedia {
     for (final p in _room.remoteParticipants.values) {
       participants[p.identity] = _describe(p, isLocal: false);
     }
-    _state = MediaState(
+    final next = MediaState(
       connected: _room.connectionState == ConnectionState.connected,
       participants: participants,
       activeSpeaker: _room.activeSpeakers.firstOrNull?.identity,
     );
+    // Every room event lands here — connection quality, stream state, data — and most change
+    // nothing the classroom shows. Only real changes go on to rebuild the stage.
+    if (next == _state) return;
+    _state = next;
     if (!_changes.isClosed) _changes.add(_state);
   }
 

@@ -164,6 +164,9 @@ the Egress template).
 - **Rendering**: strokes are outlined with the perfect-freehand algorithm — `perfect_freehand`
   in Dart, `perfect-freehand` in the Egress template — so the recording matches the live
   board.
+  Committed items and live previews paint on separate layers. Items are immutable, so each
+  one's outline and text layout are computed once and cached, and a stroke still being drawn —
+  yours or anyone's — repaints only the live layer.
 - **Text direction**: each text item takes its direction from its first strong character, so
   a Persian note reads right to left and a formula like `f′(g(x))` reads left to right in
   both. Either way it is right-aligned at its anchor, `at`, which is the item's top-right
@@ -255,11 +258,13 @@ Ordering that matters for the pipeline:
 - **Glass, in light and dark.** The classroom is layers — pods over the stage, the dock and
   sheets over pods — and frosted glass keeps each layer's place readable without heavy borders
   or shadows:
-  - Canvas: a near-flat colour with three soft glows, painted once, so the blur has something to
-    refract but nothing competes with the class.
-  - Panes: every pod, the top bar and the dock are frosted glass with a lit one-pixel rim. The
-    stage's panes share one `BackdropGroup`, so seven pods cost one blur; overlays (toasts,
-    sheets) blur on their own.
+  - Canvas: a near-flat colour with three soft glows, baked into one small image per theme and
+    window shape and stretched to fit, so the glows cost one image draw a frame, not three
+    gradients.
+  - Panes: every pod, the top bar and the dock are glass: a translucent fill with a lit
+    one-pixel rim. Stage panes do not blur — behind them is only the smooth canvas, where a blur
+    is invisible and a full offscreen pass per pane is not. Overlays (toasts, sheets, menus)
+    float over real content, so they do blur (`Glass(overlay: true)`).
   - Media: video and screen share sit on an inset dark screen in both themes. The whiteboard page
     stays near-white in both — ink colours are chosen for it and it is what Egress records.
   - Controls: a centred dock of glass keys. A muted microphone or camera is red and crossed out,
@@ -274,6 +279,20 @@ Ordering that matters for the pipeline:
   `onBrightnessChanged`, so the host app can remember it.
 - The theme lives in `tihe_classroom/lib/src/ui/theme/`: tokens in one `ClassroomTheme` object
   (`ClassroomTheme.light` / `.dark`), and the glass controls in `glass.dart`.
+- **Rendering cost is a design constraint.** Impeller keeps no raster cache, so everything on
+  screen is re-rasterised every frame something moves, and on its OpenGL ES backend (Windows,
+  older Android) each gradient and each offscreen layer costs extra render passes. So:
+  - no blur, gradient or `Opacity` on anything that is always on screen; bake it or use a flat
+    colour;
+  - anything that animates (the live clock, pulsing dots, the watermark, the live whiteboard
+    layer) sits behind its own `RepaintBoundary`, so it does not repaint the stage;
+  - widgets watch the narrowest slice of `ClassroomView` they need (`select` with a record, or
+    `ListSlice` for lists), and media and view states compare by value, so an event rebuilds
+    only what it changed.
+
+  `test/performance_test.dart` holds rebuild budgets per event, and
+  `example/integration_test/perf_test.dart` records frame timelines (how to run it is in the
+  file).
 
 ## 12. Manual device checklist
 

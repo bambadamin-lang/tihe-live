@@ -71,25 +71,24 @@ abstract final class ClassroomIcons {
   static const nextPage = LucideIcons.chevronRightDir;
 }
 
-/// The canvas behind everything: a near-flat colour with three soft glows, painted once.
+/// The canvas behind everything: a near-flat colour with three soft glows.
 ///
-/// Also establishes the [BackdropGroup] that the stage's panes share, so a stage of seven pods
-/// costs one blur, not seven.
+/// The glows are baked once into a small image and stretched to the window. Impeller keeps no
+/// raster cache, so a painter marked "complex, never changes" is still replayed every frame — and
+/// on its OpenGL ES backend (Windows via ANGLE, older Android) each gradient draw costs extra
+/// render passes. Three window-sized radial gradients were half of the classroom's raster time;
+/// one small texture is a single cheap draw, and the glows are smooth enough that upscaling it is
+/// invisible.
 class GlassBackdrop extends StatelessWidget {
   const GlassBackdrop({super.key, required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    final t = ClassroomTheme.of(context);
-    return CustomPaint(
-      painter: _GlowPainter(t),
-      isComplex: true,
-      willChange: false,
-      child: BackdropGroup(child: child),
-    );
-  }
+  Widget build(BuildContext context) => CustomPaint(
+    painter: _GlowPainter(ClassroomTheme.of(context)),
+    child: child,
+  );
 }
 
 class _GlowPainter extends CustomPainter {
@@ -99,19 +98,65 @@ class _GlowPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    canvas.drawRect(rect, Paint()..color = theme.canvas);
+    if (size.isEmpty) return;
+    final image = _GlowCache.imageFor(theme, size.aspectRatio);
+    canvas.drawImageRect(
+      image,
+      Offset.zero & Size(image.width.toDouble(), image.height.toDouble()),
+      Offset.zero & size,
+      Paint()..filterQuality = FilterQuality.medium,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GlowPainter old) => old.theme != theme;
+}
+
+/// Baked glow images, one per theme and aspect ratio (to a tenth), 256 pixels wide.
+///
+/// Only the most recent few are kept: dragging a window's edge passes through dozens of shapes,
+/// and each would otherwise stay in memory for the life of the app. Evicting is safe because the
+/// painter asks for its image on every paint, and a frame already recorded holds its own
+/// reference to the image it drew.
+abstract final class _GlowCache {
+  static const _width = 256.0;
+  static const _keep = 4;
+  static final _images = <(ClassroomTheme, int), ui.Image>{};
+
+  static ui.Image imageFor(ClassroomTheme theme, double aspect) {
+    final key = (theme, (aspect * 10).round().clamp(3, 40));
+    // Re-inserted on every hit, so the map's order is least to most recently used.
+    final image = _images.remove(key) ?? _bake(theme, key.$2);
+    _images[key] = image;
+    while (_images.length > _keep) {
+      _images.remove(_images.keys.first)!.dispose();
+    }
+    return image;
+  }
+
+  static ui.Image _bake(ClassroomTheme theme, int bucket) {
+    final size = Size(_width, _width * 10 / bucket);
+    final recorder = ui.PictureRecorder();
+    _paintGlows(Canvas(recorder), size, theme);
+    final picture = recorder.endRecording();
+    final image = picture.toImageSync(size.width.ceil(), size.height.ceil());
+    picture.dispose();
+    return image;
+  }
+
+  static void _paintGlows(Canvas canvas, Size size, ClassroomTheme theme) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = theme.canvas);
     final longest = size.longestSide;
     void glow(Alignment at, double radius, Color color) {
       final center = at.alongSize(size);
+      final circle = Rect.fromCircle(center: center, radius: longest * radius);
       canvas.drawCircle(
         center,
         longest * radius,
         Paint()
-          ..shader = RadialGradient(colors: [color, color.withValues(alpha: 0)])
-              .createShader(
-                Rect.fromCircle(center: center, radius: longest * radius),
-              ),
+          ..shader = RadialGradient(
+            colors: [color, color.withValues(alpha: 0)],
+          ).createShader(circle),
       );
     }
 
@@ -119,12 +164,15 @@ class _GlowPainter extends CustomPainter {
     glow(const Alignment(-0.9, 0.9), 0.5, theme.glows[1]);
     glow(const Alignment(0.1, 1.1), 0.35, theme.glows[2]);
   }
-
-  @override
-  bool shouldRepaint(_GlowPainter old) => old.theme != theme;
 }
 
-/// A pane of frosted glass: blur, a translucent fill, a lit rim and one soft shadow.
+/// A pane of glass: a translucent fill, a lit rim and one soft shadow — and, for panes that
+/// float over other content, a backdrop blur.
+///
+/// Only [overlay] panes blur. The stage's panes sit on the canvas, which is already a few smooth
+/// glows: blurring it again changes nothing you can see, but costs an offscreen pass per pane on
+/// every frame. Sheets, toasts and menus float over busy content (video, the board), where the
+/// blur is what makes them read as glass — and they are on screen only briefly.
 class Glass extends StatelessWidget {
   const Glass({
     super.key,
@@ -147,8 +195,7 @@ class Glass extends StatelessWidget {
   /// Replaces the fill, e.g. a tint for a state.
   final Color? fill;
 
-  /// Floats over other glass (toasts, sheets). Grouped blurs must not overlap, so an overlay
-  /// blurs on its own.
+  /// Floats over other content, so it blurs what is behind it.
   final bool overlay;
   final bool shadow;
 
@@ -156,59 +203,76 @@ class Glass extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
     final shape = BorderRadius.circular(radius);
-    final filter = ui.ImageFilter.blur(
-      sigmaX: strong ? t.blur * 1.5 : t.blur,
-      sigmaY: strong ? t.blur * 1.5 : t.blur,
-    );
-    final grouped = !overlay && BackdropGroup.of(context) != null;
-    final body = DecoratedBox(
+    Widget body = DecoratedBox(
       decoration: BoxDecoration(
         color: fill ?? (strong ? t.glassStrong : t.glass),
         borderRadius: shape,
       ),
-      position: DecorationPosition.background,
       child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
     );
+    if (overlay) {
+      final sigma = strong ? t.blur * 1.5 : t.blur;
+      body = ClipRRect(
+        borderRadius: shape,
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+          child: body,
+        ),
+      );
+    }
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: shape,
         boxShadow: shadow ? t.floating : null,
       ),
       child: CustomPaint(
-        foregroundPainter: _RimPainter(t.rim, radius),
-        child: ClipRRect(
-          borderRadius: shape,
-          child: grouped
-              ? BackdropFilter.grouped(filter: filter, child: body)
-              : BackdropFilter(filter: filter, child: body),
+        foregroundPainter: _RimPainter(
+          high: t.edgeHigh,
+          low: t.edgeLow,
+          radius: radius,
         ),
+        child: body,
       ),
     );
   }
 }
 
-/// A one-pixel rim drawn with a gradient, lit along the top edge like real glass.
+/// The rim of a glass pane: a soft outline with a brighter arc along the top edge, like light on
+/// real glass. Two solid strokes rather than one gradient stroke — a gradient costs extra render
+/// passes on Impeller's OpenGL ES backend, and there is a rim on every pane.
 class _RimPainter extends CustomPainter {
-  _RimPainter(this.gradient, this.radius);
+  _RimPainter({required this.high, required this.low, required this.radius});
 
-  final Gradient gradient;
+  final Color high;
+  final Color low;
   final double radius;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
+    final rect = (Offset.zero & size).deflate(0.5);
+    final r = radius.clamp(0.0, rect.shortestSide / 2);
+    final stroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(rect.deflate(0.5), Radius.circular(radius)),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1
-        ..shader = gradient.createShader(rect),
+      RRect.fromRectAndRadius(rect, Radius.circular(r)),
+      stroke..color = low,
     );
+    // The top edge and its two corners.
+    final top = Path()
+      ..moveTo(rect.left, rect.top + r)
+      ..arcToPoint(Offset(rect.left + r, rect.top), radius: Radius.circular(r))
+      ..lineTo(rect.right - r, rect.top)
+      ..arcToPoint(
+        Offset(rect.right, rect.top + r),
+        radius: Radius.circular(r),
+      );
+    canvas.drawPath(top, stroke..color = high);
   }
 
   @override
   bool shouldRepaint(_RimPainter old) =>
-      old.gradient != gradient || old.radius != radius;
+      old.high != high || old.low != low || old.radius != radius;
 }
 
 /// A pod: a glass pane with a quiet header, and — for video — an inset dark screen.
@@ -357,17 +421,21 @@ class StatusDot extends StatelessWidget {
     required this.color,
     this.on = true,
     this.size = 8,
+    this.animate = true,
   });
 
   final Color color;
   final bool on;
   final double size;
 
+  /// Cross-fade state changes. Off when the colour is itself being animated.
+  final bool animate;
+
   @override
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: animate ? const Duration(milliseconds: 200) : Duration.zero,
       width: size,
       height: size,
       decoration: BoxDecoration(
@@ -410,10 +478,21 @@ class _PulsingDotState extends State<PulsingDot>
     super.dispose();
   }
 
+  // The colour's alpha animates rather than a FadeTransition's opacity: an opacity layer is an
+  // offscreen pass on every frame of a pulse that runs for the whole class. Its own repaint
+  // boundary keeps the pulse from repainting the bar it sits in.
   @override
-  Widget build(BuildContext context) => FadeTransition(
-    opacity: Tween(begin: 0.4, end: 1.0).animate(_controller),
-    child: StatusDot(color: widget.color, size: widget.size),
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) => StatusDot(
+        color: widget.color.withValues(
+          alpha: widget.color.a * (0.4 + 0.6 * _controller.value),
+        ),
+        size: widget.size,
+        animate: false,
+      ),
+    ),
   );
 }
 

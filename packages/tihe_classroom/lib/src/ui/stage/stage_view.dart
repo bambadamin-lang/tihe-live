@@ -110,7 +110,14 @@ class _StageViewState extends ConsumerState<StageView> {
     );
   }
 
-  Widget _pod(Pod pod, {bool maximised = false, bool compact = false}) {
+  // Every pod is its own layer: a new chat message or a live stroke on the board repaints that
+  // pod, not the whole stage.
+  Widget _pod(Pod pod, {bool maximised = false, bool compact = false}) =>
+      RepaintBoundary(
+        child: _podContent(pod, maximised: maximised, compact: compact),
+      );
+
+  Widget _podContent(Pod pod, {bool maximised = false, bool compact = false}) {
     final content = switch (pod.kind) {
       PodKind.speaker => const SpeakerPod(),
       PodKind.gallery => const GalleryPod(),

@@ -25,8 +25,9 @@ class Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hue = _hues[userId.hashCode.abs() % _hues.length];
-    final top = HSLColor.fromAHSL(1, hue, 0.55, 0.62).toColor();
-    final bottom = HSLColor.fromAHSL(1, (hue + 24) % 360, 0.5, 0.46).toColor();
+    // A flat fill: a gradient per avatar is extra render passes per avatar on Impeller's GLES
+    // backend, and a list of participants has many.
+    final fill = HSLColor.fromAHSL(1, hue, 0.5, 0.52).toColor();
     final initial = name.trim().isEmpty ? '؟' : name.trim().characters.first;
     return Container(
       width: size,
@@ -34,11 +35,7 @@ class Avatar extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [top, bottom],
-        ),
+        color: fill,
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.22),
           width: size >= 48 ? 1.5 : 1,
