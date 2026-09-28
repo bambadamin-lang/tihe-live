@@ -63,37 +63,40 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
       fontWeight: FontWeight.w600,
       letterSpacing: 0.4,
     );
-    return IgnorePointer(
-      child: Padding(
-        // Top corners sit below the pods' title strips, over the content, where a crop of
-        // the picture still keeps them.
-        padding: const EdgeInsets.fromLTRB(26, 44, 26, 22),
-        child: AnimatedAlign(
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeInOut,
-          alignment: alignment,
-          child: Opacity(
-            opacity: widget.spec.opacity.clamp(0.1, 0.9),
-            // White letters with a dark outline read on both video and the white board.
-            child: Stack(
-              children: [
-                Text(
-                  label,
-                  textDirection: TextDirection.ltr,
-                  style: style.copyWith(
-                    foreground: Paint()
-                      ..style = PaintingStyle.stroke
-                      ..strokeWidth = 3
-                      ..strokeJoin = StrokeJoin.round
-                      ..color = Colors.black87,
+    // Updates every second: its own layer, so the stage underneath is not repainted with it.
+    return RepaintBoundary(
+      child: IgnorePointer(
+        child: Padding(
+          // Top corners sit below the pods' title strips, over the content, where a crop of
+          // the picture still keeps them.
+          padding: const EdgeInsets.fromLTRB(26, 44, 26, 22),
+          child: AnimatedAlign(
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeInOut,
+            alignment: alignment,
+            child: Opacity(
+              opacity: widget.spec.opacity.clamp(0.1, 0.9),
+              // White letters with a dark outline read on both video and the white board.
+              child: Stack(
+                children: [
+                  Text(
+                    label,
+                    textDirection: TextDirection.ltr,
+                    style: style.copyWith(
+                      foreground: Paint()
+                        ..style = PaintingStyle.stroke
+                        ..strokeWidth = 3
+                        ..strokeJoin = StrokeJoin.round
+                        ..color = Colors.black87,
+                    ),
                   ),
-                ),
-                Text(
-                  label,
-                  textDirection: TextDirection.ltr,
-                  style: style.copyWith(color: Colors.white),
-                ),
-              ],
+                  Text(
+                    label,
+                    textDirection: TextDirection.ltr,
+                    style: style.copyWith(color: Colors.white),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

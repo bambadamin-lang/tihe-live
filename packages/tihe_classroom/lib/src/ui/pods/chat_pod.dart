@@ -6,6 +6,7 @@ import '../../domain/persian.dart';
 import '../../state/providers.dart';
 import '../theme/classroom_theme.dart';
 import '../theme/glass.dart';
+import '../theme/motion.dart';
 import 'people.dart';
 
 /// Chat, as bubbles on the pod's glass — yours tinted with the accent. Sending needs
@@ -21,6 +22,9 @@ class _ChatPodState extends ConsumerState<ChatPod> {
   final _input = TextEditingController();
   final _scroll = ScrollController();
   int _lastCount = 0;
+
+  /// Messages already on screen when the pod opened don't replay their arrival.
+  SeenSet? _seen;
 
   @override
   void dispose() {
@@ -52,11 +56,19 @@ class _ChatPodState extends ConsumerState<ChatPod> {
       classroomViewProvider.select((v) => v.can(Capability.participantsManage)),
     );
 
+    final seen = _seen ??= SeenSet(chat.map((m) => m.id));
     if (chat.length != _lastCount) {
+      // The first fill jumps to the end; later messages glide it into view.
+      final first = _lastCount == 0;
       _lastCount = chat.length;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scroll.hasClients) {
-          _scroll.jumpTo(_scroll.position.maxScrollExtent);
+        if (!mounted || !_scroll.hasClients) return;
+        final end = _scroll.position.maxScrollExtent;
+        final duration = Motion.of(context, Motion.medium);
+        if (first || duration == Duration.zero) {
+          _scroll.jumpTo(end);
+        } else {
+          _scroll.animateTo(end, duration: duration, curve: Motion.enter);
         }
       });
     }
@@ -88,14 +100,20 @@ class _ChatPodState extends ConsumerState<ChatPod> {
                   itemCount: chat.length,
                   itemBuilder: (context, i) {
                     final m = chat[i];
-                    return _Message(
-                      message: m,
-                      mine: m.userId == me,
-                      onDelete: (m.userId == me || canManage)
-                          ? () => ref
-                                .read(classroomSessionProvider)
-                                .send(DeleteChat(m.id))
-                          : null,
+                    return Appear(
+                      key: ValueKey(m.id),
+                      animate: seen.isNew(m.id),
+                      offset: const Offset(0, 12),
+                      scale: 0.98,
+                      child: _Message(
+                        message: m,
+                        mine: m.userId == me,
+                        onDelete: (m.userId == me || canManage)
+                            ? () => ref
+                                  .read(classroomSessionProvider)
+                                  .send(DeleteChat(m.id))
+                            : null,
+                      ),
                     );
                   },
                 ),

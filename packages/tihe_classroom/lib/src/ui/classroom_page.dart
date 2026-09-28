@@ -11,6 +11,7 @@ import 'stage/stage_view.dart';
 import 'theme/classroom_theme.dart';
 import 'theme/fonts.dart';
 import 'theme/glass.dart';
+import 'theme/motion.dart';
 
 /// The live classroom (docs/11-live-classroom.md). Give it a [ClassroomSession] — from
 /// `openClassroom` in production, or built from fakes in tests and the demo — and it runs the
@@ -215,39 +216,43 @@ class _Notices extends ConsumerWidget {
               child: Dismissible(
                 key: ValueKey(n.id),
                 onDismissed: (_) => session.dismissNotice(n.id),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: Glass(
-                    radius: 14,
-                    strong: true,
-                    overlay: true,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        StatusDot(
-                          color: switch (n.tone) {
-                            NoticeTone.alert => t.danger,
-                            NoticeTone.warning => t.warning,
-                            NoticeTone.success => t.success,
-                            NoticeTone.info => t.accent,
-                          },
-                        ),
-                        const SizedBox(width: 10),
-                        Flexible(
-                          child: Text(
-                            n.textFa,
-                            style: TextStyle(
-                              color: t.text,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 13.5,
+                child: Appear(
+                  offset: const Offset(0, -14),
+                  scale: 0.94,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: Glass(
+                      radius: 14,
+                      strong: true,
+                      overlay: true,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          StatusDot(
+                            color: switch (n.tone) {
+                              NoticeTone.alert => t.danger,
+                              NoticeTone.warning => t.warning,
+                              NoticeTone.success => t.success,
+                              NoticeTone.info => t.accent,
+                            },
+                          ),
+                          const SizedBox(width: 10),
+                          Flexible(
+                            child: Text(
+                              n.textFa,
+                              style: TextStyle(
+                                color: t.text,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13.5,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -276,45 +281,50 @@ class _ExitScreen extends StatelessWidget {
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 400),
-              child: Glass(
-                radius: 20,
-                padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: t.accentSubtle,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Icon(
-                          ClassroomIcons.classEnded,
-                          size: 22,
-                          color: t.accentText,
+              child: Appear(
+                duration: Motion.slow,
+                offset: const Offset(0, 18),
+                scale: 0.95,
+                child: Glass(
+                  radius: 20,
+                  padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: t.accentSubtle,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(
+                            ClassroomIcons.classEnded,
+                            size: 22,
+                            color: t.accentText,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      message,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 17,
-                        height: 1.6,
-                        fontWeight: FontWeight.w600,
-                        color: t.text,
+                      const SizedBox(height: 18),
+                      Text(
+                        message,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 17,
+                          height: 1.6,
+                          fontWeight: FontWeight.w600,
+                          color: t.text,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 22),
-                    FilledButton(
-                      onPressed: onClose,
-                      child: const Text('بازگشت'),
-                    ),
-                  ],
+                      const SizedBox(height: 22),
+                      FilledButton(
+                        onPressed: onClose,
+                        child: const Text('بازگشت'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -6,6 +6,7 @@ import '../../state/classroom_session.dart';
 import '../../state/providers.dart';
 import '../theme/classroom_theme.dart';
 import '../theme/glass.dart';
+import '../theme/transitions.dart';
 import 'people.dart';
 
 /// Everyone in the class: role tag, mic and camera state, raised hand, and —
@@ -197,7 +198,7 @@ class _Actions extends ConsumerWidget {
             child: const Text('توقف اشتراک صفحه'),
           ),
           PopupMenuItem(
-            value: () => showDialog<void>(
+            value: () => showGlassDialog<void>(
               context: context,
               builder: (_) => UncontrolledProviderScope(
                 container: ProviderScope.containerOf(context),
@@ -231,7 +232,7 @@ class _Actions extends ConsumerWidget {
     ClassroomSession session,
   ) async {
     final danger = ClassroomTheme.of(context).danger;
-    final sure = await showDialog<bool>(
+    final sure = await showGlassDialog<bool>(
       context: context,
       builder: (context) => GlassSheet(
         title: 'خارج کردن ${participant.name}',

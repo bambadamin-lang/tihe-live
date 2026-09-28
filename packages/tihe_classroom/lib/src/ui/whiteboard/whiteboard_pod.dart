@@ -9,6 +9,7 @@ import '../../state/board_controller.dart';
 import '../../state/providers.dart';
 import '../theme/classroom_theme.dart';
 import '../theme/glass.dart';
+import '../theme/transitions.dart';
 import 'board_painter.dart';
 
 /// The whiteboard pod: the board on the pod's glass, with the tool tray below it. The page stays
@@ -100,6 +101,9 @@ class BoardCanvas extends ConsumerStatefulWidget {
 class _BoardCanvasState extends ConsumerState<BoardCanvas>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker = createTicker((_) => setState(() {}));
+
+  /// The committed layer never reads the clock.
+  static final _still = DateTime.utc(2000);
   Size _size = Size.zero;
 
   @override
@@ -116,7 +120,7 @@ class _BoardCanvasState extends ConsumerState<BoardCanvas>
     String pageId,
   ) async {
     final controller = TextEditingController();
-    final text = await showDialog<String>(
+    final text = await showGlassDialog<String>(
       context: context,
       builder: (context) => GlassSheet(
         title: 'نوشتن روی تخته',
@@ -165,11 +169,14 @@ class _BoardCanvasState extends ConsumerState<BoardCanvas>
         return ListenableBuilder(
           listenable: board,
           builder: (context, _) {
-            final hasLaser =
-                previews.values.any((p) => p.isLaser) ||
+            final now = DateTime.now();
+            // Frames are needed while a laser fades or a remote stroke glides in; otherwise
+            // the board is still and costs nothing.
+            final moving =
+                previews.values.any((p) => p.isLaser || p.glidingAt(now)) ||
                 board.draft?.tool == BoardTool.laser;
-            if (hasLaser && !_ticker.isActive) _ticker.start();
-            if (!hasLaser && _ticker.isActive) _ticker.stop();
+            if (moving && !_ticker.isActive) _ticker.start();
+            if (!moving && _ticker.isActive) _ticker.stop();
 
             final items = [
               ...room.itemsOn(page.id),
@@ -177,17 +184,41 @@ class _BoardCanvasState extends ConsumerState<BoardCanvas>
                 (i) => i.pageId == page.id && !room.items.containsKey(i.id),
               ),
             ];
-            final canvas = CustomPaint(
-              size: Size.infinite,
-              painter: BoardPainter(
-                page: page,
-                items: items,
-                hidden: board.erasing,
-                previews: previews.values.toList(),
-                draft: board.draft,
-                now: DateTime.now(),
-                fontFamily: fontFamily,
-              ),
+            final canvas = Stack(
+              fit: StackFit.expand,
+              children: [
+                // Finished work: its own layer, repainted only when an item comes or goes.
+                RepaintBoundary(
+                  child: CustomPaint(
+                    size: Size.infinite,
+                    isComplex: true,
+                    painter: BoardPainter(
+                      layer: BoardLayer.committed,
+                      page: page,
+                      items: items,
+                      hidden: board.erasing,
+                      previews: const [],
+                      draft: null,
+                      now: _still,
+                      fontFamily: fontFamily,
+                    ),
+                  ),
+                ),
+                // Ink in motion: redrawn every frame, but only the strokes being drawn.
+                CustomPaint(
+                  size: Size.infinite,
+                  painter: BoardPainter(
+                    layer: BoardLayer.live,
+                    page: page,
+                    items: const [],
+                    hidden: const {},
+                    previews: previews.values.toList(),
+                    draft: board.draft,
+                    now: now,
+                    fontFamily: fontFamily,
+                  ),
+                ),
+              ],
             );
             if (!widget.canDraw) return canvas;
             return MouseRegion(
@@ -360,7 +391,7 @@ class MarkerTray extends ConsumerWidget {
     BuildContext context,
     BoardController board,
   ) async {
-    final chosen = await showDialog<BoardBackground>(
+    final chosen = await showGlassDialog<BoardBackground>(
       context: context,
       builder: (context) => GlassSheet(
         title: 'صفحهٔ تازه',

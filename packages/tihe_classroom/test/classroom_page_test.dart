@@ -58,6 +58,18 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(GalleryPod), findsOneWidget);
+    // The dropped board fades out rather than vanishing, and takes no input while it does.
+    expect(
+      find.ancestor(
+        of: find.byType(WhiteboardPod),
+        matching: find.byWidgetPredicate(
+          (w) => w is IgnorePointer && w.ignoring,
+        ),
+      ),
+      findsWidgets,
+    );
+    await tester.pump(Motion.medium);
+    await tester.pump();
     expect(find.byType(WhiteboardPod), findsNothing);
   });
 

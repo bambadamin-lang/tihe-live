@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:tihe_classroom/demo.dart';
 import 'package:tihe_classroom/tihe_classroom.dart';
@@ -15,7 +17,18 @@ import 'package:tihe_classroom/tihe_classroom.dart';
 ///
 /// Desktop development shortcut: with TIHE_LIVE_URL, TIHE_SESSION and TIHE_TOKEN set, the app
 /// joins that session straight away.
-void main() => runApp(const ClassroomExampleApp());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Many Android phones run apps at 60 Hz unless they ask for more; ask for the display's
+  // fastest mode so the class animates at 90/120 Hz where the screen can. Desktop and iOS
+  // already follow the display (iOS via CADisableMinimumFrameDurationOnPhone).
+  if (Platform.isAndroid) {
+    unawaited(
+      FlutterDisplayMode.setHighRefreshRate().catchError((Object _) {}),
+    );
+  }
+  runApp(const ClassroomExampleApp());
+}
 
 /// Follows the system's light or dark mode until the user picks one, here or in class.
 class ClassroomExampleApp extends StatefulWidget {
@@ -82,8 +95,9 @@ class _LauncherState extends State<Launcher> {
   }
 
   void _open(ClassroomSession session) => Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => ClassroomPage(
+    classroomRoute<void>(
+      context,
+      (_) => ClassroomPage(
         session: session,
         onExit: (_) => Navigator.of(context).pop(),
         // The class follows this app's theme; a switch made in class carries back here.

@@ -20,6 +20,20 @@ class LiveKitClassroomMedia implements ClassroomMedia {
   static Widget _emptyPlaceholder(String userId, VideoSlot slot) =>
       const SizedBox.expand();
 
+  /// Screen shares run at 30 fps, so scrolling, cursor moves and software demos look smooth.
+  static const screenShareFrameRate = 30;
+
+  /// 1080p at up to 30 fps, capped at 3 Mbps rather than LiveKit's 5: many teachers' uploads
+  /// cannot carry more. When bandwidth runs short, WebRTC keeps a screen share's resolution
+  /// and drops frames instead, so slide text stays sharp.
+  static const screenShareParams = VideoParameters(
+    dimensions: VideoDimensionsPresets.h1080_169,
+    encoding: VideoEncoding(
+      maxBitrate: 3000 * 1000,
+      maxFramerate: screenShareFrameRate,
+    ),
+  );
+
   final Room _room = Room(
     roomOptions: const RoomOptions(
       // Only the resolutions actually on screen are received — a 100-person gallery would
@@ -28,8 +42,8 @@ class LiveKitClassroomMedia implements ClassroomMedia {
       dynacast: true,
       defaultVideoPublishOptions: VideoPublishOptions(simulcast: true),
       defaultScreenShareCaptureOptions: ScreenShareCaptureOptions(
-        maxFrameRate: 15,
-        params: VideoParametersPresets.screenShareH1080FPS15,
+        maxFrameRate: screenShareFrameRate + 0.0,
+        params: screenShareParams,
       ),
     ),
   );
@@ -139,7 +153,8 @@ class LiveKitClassroomMedia implements ClassroomMedia {
       true,
       screenShareCaptureOptions: ScreenShareCaptureOptions(
         sourceId: source?.id,
-        maxFrameRate: 15,
+        maxFrameRate: screenShareFrameRate + 0.0,
+        params: screenShareParams,
         // iOS shares the whole device only through the Broadcast Upload Extension (docs/11 §7).
         useiOSBroadcastExtension: !kIsWeb && Platform.isIOS,
       ),

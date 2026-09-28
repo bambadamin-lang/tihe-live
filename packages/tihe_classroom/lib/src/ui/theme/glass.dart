@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../domain/persian.dart';
 import 'classroom_theme.dart';
+import 'motion.dart';
 
 /// The classroom's controls, in frosted glass. Each layer (stage, pods, bars, sheets) is a pane
 /// over the canvas; state is carried by tint and icon, never by bevels or texture.
@@ -486,9 +488,14 @@ class _GlassPressableState extends State<GlassPressable> {
         onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
         onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
         onTap: widget.onTap,
+        // Quick down, a small spring back up: the key feels pressed, not just recoloured.
         child: AnimatedScale(
-          duration: const Duration(milliseconds: 90),
-          scale: state.pressed ? 0.96 : 1,
+          duration: Motion.of(
+            context,
+            state.pressed ? const Duration(milliseconds: 90) : Motion.medium,
+          ),
+          curve: state.pressed ? Curves.easeOut : Curves.easeOutBack,
+          scale: state.pressed ? 0.95 : 1,
           child: DecoratedBox(
             position: DecorationPosition.foreground,
             decoration: BoxDecoration(
@@ -591,6 +598,7 @@ class DockButton extends StatelessWidget {
     this.toggled,
     this.badge,
     this.disabledCursor = SystemMouseCursors.basic,
+    this.wave = false,
   });
 
   final IconData icon;
@@ -603,6 +611,9 @@ class DockButton extends StatelessWidget {
   final bool? toggled;
   final String? badge;
   final MouseCursor disabledCursor;
+
+  /// Waves the icon once each time this turns true — the hand going up.
+  final bool wave;
 
   @override
   Widget build(BuildContext context) {
@@ -637,9 +648,16 @@ class DockButton extends StatelessWidget {
               clipBehavior: Clip.none,
               children: [
                 AnimatedContainer(
-                  duration: const Duration(milliseconds: 140),
+                  duration: Motion.of(context, Motion.fast),
+                  curve: Motion.enter,
                   width: 46,
                   height: 42,
+                  // Hovered keys rise a little off the dock.
+                  transform: Matrix4.translationValues(
+                    0,
+                    s.hovered && !Motion.reduced(context) ? -2 : 0,
+                    0,
+                  ),
                   decoration: BoxDecoration(
                     color: bg,
                     borderRadius: BorderRadius.circular(14),
@@ -648,15 +666,56 @@ class DockButton extends StatelessWidget {
                           ? tint!.withValues(alpha: solid ? 0 : 0.35)
                           : t.edgeLow,
                     ),
+                    boxShadow: s.hovered && s.enabled
+                        ? [
+                            BoxShadow(
+                              color: (tint ?? t.accent).withValues(alpha: 0.22),
+                              blurRadius: 14,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : const [],
                   ),
-                  child: Icon(icon, size: 19, color: fg),
+                  child: _Wave(
+                    active: wave,
+                    child: AnimatedSwitcher(
+                      duration: Motion.of(context, Motion.fast),
+                      switchInCurve: Motion.enter,
+                      switchOutCurve: Motion.exit,
+                      transitionBuilder: (child, animation) => FadeTransition(
+                        opacity: animation,
+                        child: ScaleTransition(
+                          scale: Tween(begin: 0.6, end: 1.0).animate(animation),
+                          child: child,
+                        ),
+                      ),
+                      child: Icon(
+                        icon,
+                        key: ValueKey((icon, fg)),
+                        size: 19,
+                        color: fg,
+                      ),
+                    ),
+                  ),
                 ),
-                if (badge != null)
-                  PositionedDirectional(
-                    top: -5,
-                    end: -5,
-                    child: CountBadge(text: badge!, color: tint ?? t.accent),
+                PositionedDirectional(
+                  top: -5,
+                  end: -5,
+                  child: AnimatedSwitcher(
+                    duration: Motion.of(context, Motion.medium),
+                    switchInCurve: Curves.easeOutBack,
+                    switchOutCurve: Motion.exit,
+                    transitionBuilder: (child, animation) =>
+                        ScaleTransition(scale: animation, child: child),
+                    child: badge == null
+                        ? const SizedBox.shrink()
+                        : CountBadge(
+                            key: ValueKey(badge),
+                            text: badge!,
+                            color: tint ?? t.accent,
+                          ),
                   ),
+                ),
               ],
             ),
             if (showLabel) ...[
@@ -753,8 +812,58 @@ class HandToggle extends StatelessWidget {
           : null,
       disabledCursor: SystemMouseCursors.forbidden,
       onPressed: onPressed,
+      wave: raised,
     );
   }
+}
+
+/// Plays a short wave on its child each time [active] turns true.
+class _Wave extends StatefulWidget {
+  const _Wave({required this.active, required this.child});
+
+  final bool active;
+  final Widget child;
+
+  @override
+  State<_Wave> createState() => _WaveState();
+}
+
+class _WaveState extends State<_Wave> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 700),
+  );
+
+  @override
+  void didUpdateWidget(_Wave old) {
+    super.didUpdateWidget(old);
+    if (widget.active && !old.active && !Motion.reduced(context)) {
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _controller,
+    child: widget.child,
+    builder: (context, child) {
+      final v = _controller.value;
+      if (v == 0 || v == 1) return child!;
+      // Three swings that die away, pivoting at the wrist.
+      final angle = math.sin(v * math.pi * 3) * 0.35 * (1 - v);
+      return Transform.rotate(
+        angle: angle,
+        alignment: const Alignment(0, 0.8),
+        child: child,
+      );
+    },
+  );
 }
 
 /// A small count on a control: the place in the hand queue.

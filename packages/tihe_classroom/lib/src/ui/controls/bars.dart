@@ -11,12 +11,14 @@ import '../../state/providers.dart';
 import '../classroom_page.dart';
 import '../theme/classroom_theme.dart';
 import '../theme/glass.dart';
+import '../theme/motion.dart';
+import '../theme/transitions.dart';
 import 'layout_picker.dart';
 
 /// Opens a dialog that still sees the classroom's providers (dialogs live above the page's
 /// ProviderScope in the widget tree).
 Future<T?> showClassroomDialog<T>(BuildContext context, Widget child) =>
-    showDialog<T>(
+    showGlassDialog<T>(
       context: context,
       barrierColor: ClassroomTheme.of(context).scrim,
       builder: (_) => UncontrolledProviderScope(
@@ -63,14 +65,20 @@ class TopBar extends ConsumerWidget {
     final classLamps = [
       if (startedAt != null) _LiveClock(startedAt: DateTime.parse(startedAt)),
       if (recording)
-        GlassPill(
-          leading: PulsingDot(color: t.danger),
-          child: Text(narrow ? 'ضبط' : 'در حال ضبط'),
+        Appear(
+          key: const ValueKey('recording'),
+          offset: const Offset(0, -6),
+          scale: 0.9,
+          child: GlassPill(
+            leading: PulsingDot(color: t.danger),
+            child: Text(narrow ? 'ضبط' : 'در حال ضبط'),
+          ),
         ),
     ];
     final roomLamps = [
       if (capturing > 0)
         Tooltip(
+          key: const ValueKey('capturing'),
           message:
               'شرکت‌کنندگانی که در حال ضبط صفحه‌اند؛ نمای آن‌ها سانسور شده است',
           child: GlassPill(
@@ -94,7 +102,7 @@ class TopBar extends ConsumerWidget {
             size: 14,
             color: t.textSecondary,
           ),
-          child: Text(toPersianDigits(online)),
+          child: RollingText(toPersianDigits(online)),
         ),
       ),
       _ConnectionLamp(status: status),
@@ -186,12 +194,15 @@ class _LiveClockState extends State<_LiveClock> {
     super.dispose();
   }
 
+  // Ticks every second: its own layer, so the tick repaints the clock and nothing else.
   @override
-  Widget build(BuildContext context) => GlassPill(
-    leading: StatusDot(color: ClassroomTheme.of(context).success),
-    child: Text(
-      'زنده  ${elapsedClock(DateTime.now().difference(widget.startedAt))}',
-      style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()]),
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: GlassPill(
+      leading: StatusDot(color: ClassroomTheme.of(context).success),
+      child: Text(
+        'زنده  ${elapsedClock(DateTime.now().difference(widget.startedAt))}',
+        style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()]),
+      ),
     ),
   );
 }

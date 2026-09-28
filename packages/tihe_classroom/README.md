@@ -25,8 +25,10 @@ final session = await openClassroom(
   accessToken: auth.freshAccessToken,     // the API's access token, refreshed by the app
   sessionId: 'ses_01J8Z…',
 );
-Navigator.of(context).push(MaterialPageRoute(
-  builder: (_) => ClassroomPage(session: session, onExit: (_) => Navigator.of(context).pop()),
+// classroomRoute fades the class in from slightly larger; any route works.
+Navigator.of(context).push(classroomRoute(
+  context,
+  (_) => ClassroomPage(session: session, onExit: (_) => Navigator.of(context).pop()),
 ));
 ```
 
@@ -84,9 +86,10 @@ that ship are Windows and macOS.
 `.github/workflows/windows-installer.yml` builds the app on a Windows runner and wraps it in a
 Persian setup wizard, `TIHE-Live-Setup-<version>.exe` (Inno Setup,
 [`installer/windows/tihe_live.iss`](example/installer/windows/tihe_live.iss)). The workflow
-runs on pull requests that touch the classroom, when started by hand from the Actions tab
-(**Run workflow**, with an optional version), and on `live-v*` tags, which also publish a
-GitHub release. Download the `.exe` from the run's **Artifacts**.
+runs on pull requests that touch the classroom and on `live-v*` tags, which also publish a
+GitHub release. Download the `.exe` from the run's **Artifacts**. Once the workflow is on
+`main`, it can also be started by hand from the Actions tab (**Run workflow**, with an
+optional version); GitHub only offers that for workflows on the default branch.
 
 The wizard:
 1. welcome

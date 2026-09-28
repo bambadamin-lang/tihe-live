@@ -183,6 +183,9 @@ the Egress template).
   - **Android**: MediaProjection with the required foreground service
     (`FOREGROUND_SERVICE_MEDIA_PROJECTION` on Android 14+).
   - **iOS**: a Broadcast Upload Extension (ReplayKit) sharing the app group with the app.
+  - **Quality**: 1080p at up to 30 fps, capped at 3 Mbps (LiveKit's preset allows 5; many
+    teachers' uploads cannot carry that). When bandwidth runs short, WebRTC keeps a screen
+    share's resolution and drops frames instead, so slide text stays sharp.
 - **Known gap**: native `livekit_client` does not capture system audio with a screen share. A
   teacher playing a clip must route audio through a virtual audio device into the microphone
   for now. A native loopback plugin (WASAPI on Windows, ScreenCaptureKit audio on macOS) is
@@ -272,8 +275,37 @@ Ordering that matters for the pipeline:
 - **Light and dark.** `ClassroomPage` follows the host app's theme unless given a `brightness`;
   a switch in the top bar flips it for the rest of the class and reports the choice through
   `onBrightnessChanged`, so the host app can remember it.
+- **Motion.** Things move only when something happens, never on a loop (except the live and
+  recording lamps). Short and eased: 140 ms for presses and small flips, 260 ms for arrivals,
+  380 ms for moves across the stage; arrivals start quick and settle, departures leave fast.
+  - Stage: the first layout of a class arrives pod by pod. On a layout change, pods glide to
+    their new places, new pods fade in, and dropped ones fade out. Maximise zooms a pod over the
+    stage while the rest fade, and they stay mounted, so chat scroll and video survive. On
+    phones, tabs cross-fade.
+  - Arrivals: toasts drop in under the top bar; chat messages and raised hands slide into their
+    lists; history that was already there when the pod opened does not replay.
+  - Controls: keys lift on hover and spring back after a press; mic and camera icons
+    cross-fade when they flip; the hand waves when raised, and its queue number pops in. The
+    online count rolls to its new value.
+  - Dialogs rise and sharpen into place; opening a class fades it in from slightly larger.
+  - The censor screen is the exception: it replaces the class instantly, since any frame of a
+    fade would show the class to the recorder.
+  - The operating system's reduce-motion setting turns all of this off (`Motion` in
+    `motion.dart`).
+- **Frame rate.** The classroom runs at the display's refresh rate (60, 120 or 144 Hz):
+  - Anything that updates alone gets its own layer, so its update repaints nothing else: each
+    pod, the watermark, and the live clock.
+  - The whiteboard is two layers. Finished items are drawn once, and redrawn only when an item
+    comes or goes. Ink in motion (your stroke, others' previews, the laser) is redrawn every
+    frame on its own. Drawing on a full page costs one stroke per frame, not the whole page.
+  - Other people's strokes arrive in 40 ms batches (§6). Each batch is revealed across the next
+    40 ms at the display's rate, so remote ink glides instead of stepping 25 times a second.
+  - Frames stop when nothing moves.
+  - Android phones often hold apps at 60 Hz unless they ask for more, so the app asks for the
+    display's fastest mode. iOS allows ProMotion through `CADisableMinimumFrameDurationOnPhone`.
 - The theme lives in `tihe_classroom/lib/src/ui/theme/`: tokens in one `ClassroomTheme` object
-  (`ClassroomTheme.light` / `.dark`), and the glass controls in `glass.dart`.
+  (`ClassroomTheme.light` / `.dark`), the glass controls in `glass.dart`, and motion in
+  `motion.dart` and `transitions.dart`.
 
 ## 12. Manual device checklist
 

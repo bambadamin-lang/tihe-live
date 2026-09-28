@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:perfect_freehand/perfect_freehand.dart';
 
@@ -8,6 +9,14 @@ import '../../contracts.dart';
 import '../../domain/board_model.dart';
 import '../../state/board_controller.dart';
 import '../../state/classroom_session.dart';
+
+/// Which part of a page a [BoardPainter] draws.
+///
+/// The board is two layers on screen: [committed] (background and finished items, repainted
+/// only when they change) under [live] (other people's strokes in progress, your draft and
+/// the laser, repainted every frame while something moves). Drawing a stroke then costs one
+/// stroke per frame, not the whole page.
+enum BoardLayer { all, committed, live }
 
 /// Paints one whiteboard page. The same drawing rules as the Egress template
 /// (services/live/egress-template/src/board.ts): same pen styles, backgrounds and paint order,
@@ -21,8 +30,11 @@ class BoardPainter extends CustomPainter {
     required this.draft,
     required this.now,
     required this.fontFamily,
+    this.layer = BoardLayer.all,
     super.repaint,
   });
+
+  final BoardLayer layer;
 
   final BoardPage page;
 
@@ -46,25 +58,38 @@ class BoardPainter extends CustomPainter {
     canvas.translate(viewport.page.left, viewport.page.top);
     canvas.scale(viewport.scale);
 
-    _background(canvas);
-    final visible = items.where((i) => !hidden.contains(i.id)).toList();
-    bool underlay(BoardItem i) =>
-        i is StrokeItem && penStyles[i.tool]!.underlay;
-    for (final item in visible.where(underlay)) {
-      _item(canvas, item);
-    }
-    for (final item in visible.where((i) => !underlay(i))) {
-      _item(canvas, item);
-    }
-    for (final p in previews.where((p) => p.pageId == page.id)) {
-      if (p.isLaser) {
-        _laser(canvas, p.points, p.color, p.width, now.difference(p.updatedAt));
-      } else {
-        _pen(canvas, PenTool.fromWire(p.tool), p.color, p.width, p.points);
+    if (layer != BoardLayer.live) {
+      _background(canvas);
+      final visible = items.where((i) => !hidden.contains(i.id)).toList();
+      bool underlay(BoardItem i) =>
+          i is StrokeItem && penStyles[i.tool]!.underlay;
+      for (final item in visible.where(underlay)) {
+        _item(canvas, item);
+      }
+      for (final item in visible.where((i) => !underlay(i))) {
+        _item(canvas, item);
       }
     }
-    final d = draft;
-    if (d != null && d.pageId == page.id) _draft(canvas, d);
+    if (layer != BoardLayer.committed) {
+      for (final p in previews.where((p) => p.pageId == page.id)) {
+        if (p.isLaser) {
+          _laser(
+            canvas,
+            p.points,
+            p.color,
+            p.width,
+            now.difference(p.updatedAt),
+          );
+        } else {
+          final points = p.revealedAt(now);
+          if (points.length >= 2) {
+            _pen(canvas, PenTool.fromWire(p.tool), p.color, p.width, points);
+          }
+        }
+      }
+      final d = draft;
+      if (d != null && d.pageId == page.id) _draft(canvas, d);
+    }
     canvas.restore();
   }
 
@@ -293,13 +318,26 @@ class BoardPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(BoardPainter old) =>
-      old.page != page ||
-      !identical(old.items, items) ||
-      old.hidden.length != hidden.length ||
-      !identical(old.previews, previews) ||
-      old.draft != draft ||
-      old.now != now;
+  bool shouldRepaint(BoardPainter old) {
+    // Items are immutable and reused between rebuilds, so comparing the lists element by
+    // element is cheap and keeps the committed layer still while a stroke is being drawn.
+    bool committedChanged() =>
+        old.page != page ||
+        old.fontFamily != fontFamily ||
+        !listEquals(old.items, items) ||
+        !setEquals(old.hidden, hidden);
+    bool liveChanged() =>
+        old.page != page ||
+        !identical(old.previews, previews) ||
+        old.draft != draft ||
+        old.now != now;
+    return old.layer != layer ||
+        switch (layer) {
+          BoardLayer.committed => committedChanged(),
+          BoardLayer.live => liveChanged(),
+          BoardLayer.all => committedChanged() || liveChanged(),
+        };
+  }
 }
 
 final _rtlChar = RegExp('[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]');

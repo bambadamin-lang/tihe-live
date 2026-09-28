@@ -6,18 +6,30 @@ import '../../domain/persian.dart';
 import '../../state/providers.dart';
 import '../theme/classroom_theme.dart';
 import '../theme/glass.dart';
+import '../theme/motion.dart';
 import 'people.dart';
 
 /// The raised-hand queue, numbered in the order the server received them. Managers
 /// give the floor (with or without camera) or lower hands from here.
-class HandsPod extends ConsumerWidget {
+class HandsPod extends ConsumerStatefulWidget {
   const HandsPod({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HandsPod> createState() => _HandsPodState();
+}
+
+class _HandsPodState extends ConsumerState<HandsPod> {
+  /// Hands already up when the pod opened don't replay their arrival.
+  SeenSet? _seen;
+
+  @override
+  Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
     final view = ref.watch(classroomViewProvider);
     final hands = view.room?.raisedHands ?? const <ParticipantState>[];
+    // A hand is one raise, not one person: lowering and raising again arrives again.
+    String raise(ParticipantState p) => '${p.userId}:${p.hand!.raisedSeq}';
+    final seen = _seen ??= SeenSet(hands.map(raise));
     final canManage = view.can(Capability.participantsManage);
     final session = ref.read(classroomSessionProvider);
     return Column(
@@ -46,57 +58,68 @@ class HandsPod extends ConsumerWidget {
                   itemCount: hands.length,
                   itemBuilder: (context, i) {
                     final p = hands[i];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 4),
-                      padding: const EdgeInsetsDirectional.fromSTEB(8, 6, 4, 6),
-                      decoration: BoxDecoration(
-                        color: t.glassHover,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: t.hairline),
-                      ),
-                      child: Row(
-                        children: [
-                          _Ticket(number: i + 1),
-                          const SizedBox(width: 10),
-                          Avatar(userId: p.userId, name: p.name, size: 28),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              p.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13.5,
-                                color: t.text,
+                    return Appear(
+                      key: ValueKey(raise(p)),
+                      animate: seen.isNew(raise(p)),
+                      offset: const Offset(0, 10),
+                      scale: 0.96,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                          8,
+                          6,
+                          4,
+                          6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: t.glassHover,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: t.hairline),
+                        ),
+                        child: Row(
+                          children: [
+                            _Ticket(number: i + 1),
+                            const SizedBox(width: 10),
+                            Avatar(userId: p.userId, name: p.name, size: 28),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                p.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13.5,
+                                  color: t.text,
+                                ),
                               ),
                             ),
-                          ),
-                          if (canManage) ...[
-                            GlassIconButton(
-                              tooltip: 'اجازهٔ صحبت',
-                              icon: ClassroomIcons.mic,
-                              color: t.success,
-                              onPressed: () => session.send(
-                                GiveFloor(p.userId, video: false),
+                            if (canManage) ...[
+                              GlassIconButton(
+                                tooltip: 'اجازهٔ صحبت',
+                                icon: ClassroomIcons.mic,
+                                color: t.success,
+                                onPressed: () => session.send(
+                                  GiveFloor(p.userId, video: false),
+                                ),
                               ),
-                            ),
-                            GlassIconButton(
-                              tooltip: 'اجازهٔ صحبت با تصویر',
-                              icon: ClassroomIcons.camera,
-                              color: t.accentText,
-                              onPressed: () => session.send(
-                                GiveFloor(p.userId, video: true),
+                              GlassIconButton(
+                                tooltip: 'اجازهٔ صحبت با تصویر',
+                                icon: ClassroomIcons.camera,
+                                color: t.accentText,
+                                onPressed: () => session.send(
+                                  GiveFloor(p.userId, video: true),
+                                ),
                               ),
-                            ),
-                            GlassIconButton(
-                              tooltip: 'پایین آوردن دست',
-                              icon: ClassroomIcons.close,
-                              onPressed: () =>
-                                  session.send(LowerHand(p.userId)),
-                            ),
+                              GlassIconButton(
+                                tooltip: 'پایین آوردن دست',
+                                icon: ClassroomIcons.close,
+                                onPressed: () =>
+                                    session.send(LowerHand(p.userId)),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     );
                   },

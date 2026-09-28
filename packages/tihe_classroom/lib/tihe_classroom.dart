@@ -22,3 +22,5 @@ export 'src/ui/classroom_page.dart';
 export 'src/ui/theme/classroom_theme.dart';
 export 'src/ui/theme/fonts.dart';
 export 'src/ui/theme/glass.dart';
+export 'src/ui/theme/motion.dart';
+export 'src/ui/theme/transitions.dart';

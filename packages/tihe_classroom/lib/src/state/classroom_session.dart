@@ -34,6 +34,7 @@ class RemotePreview {
     required this.width,
     required this.points,
     required this.updatedAt,
+    this.revealFrom,
   });
 
   final String strokeId;
@@ -45,7 +46,34 @@ class RemotePreview {
   final List<int> points;
   final DateTime updatedAt;
 
+  /// How much of [points] was already on screen before the latest batch. Batches arrive about
+  /// every [BoardController.previewInterval]; the board reveals each one across that interval
+  /// so the stroke glides at the display's rate instead of jumping 25 times a second. Null
+  /// shows everything at once.
+  final int? revealFrom;
+
   bool get isLaser => tool == 'laser';
+
+  /// Still revealing its latest batch at [now].
+  bool glidingAt(DateTime now) =>
+      !isLaser &&
+      revealFrom != null &&
+      revealFrom! < points.length &&
+      now.difference(updatedAt) < BoardController.previewInterval;
+
+  /// The part of [points] to draw at [now].
+  List<int> revealedAt(DateTime now) {
+    final from = revealFrom;
+    if (isLaser || from == null || from >= points.length) return points;
+    final elapsed = now.difference(updatedAt).inMicroseconds;
+    final f = (elapsed / BoardController.previewInterval.inMicroseconds).clamp(
+      0.0,
+      1.0,
+    );
+    var n = from + ((points.length - from) * f).round();
+    n -= n % 2; // whole points only: x and y travel together
+    return n >= points.length ? points : points.sublist(0, n);
+  }
 }
 
 /// Everything the classroom UI draws, in one immutable value.
@@ -249,6 +277,7 @@ class ClassroomSession {
               width: progress.width,
               points: [...?existing?.points, ...progress.points],
               updatedAt: _clock(),
+              revealFrom: existing?.points.length ?? 0,
             ),
           },
         );
