@@ -184,7 +184,7 @@ describe('a live class from start to end', () => {
     expect(res.status).toBe(200);
     aliJoin = joinResponseSchema.parse(res.body);
     expect(aliJoin.you.role).toBe('participant');
-    expect(aliJoin.watermark.text).toMatch(/^0912•••4503 · #\d{5}$/);
+    expect(aliJoin.watermark.text).toMatch(/^09121234503 · #\d{5}$/);
     expect(aliJoin.watermark.movement).toBe('corners');
     expect(aliJoin.capturePolicy).toMatchObject({
       block: true,

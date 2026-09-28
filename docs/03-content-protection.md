@@ -226,8 +226,9 @@ unreleased content too. Full design in [11-live-classroom.md](11-live-classroom.
   - iOS uses capture-state detection plus a secure layer.
   - On detection the student's classroom is replaced by a censor screen, remote audio is muted,
     and the host is alerted.
-- An identity watermark (masked phone · short id · time) hops between the corners of the
-  stage.
+- An identity watermark (full phone · short id · time) hops between the corners of the
+  stage. Unlike playback, the live mark shows the student's own number unmasked
+  (docs/11 §9).
 - **There is no client-side recording path at all.** Recording happens only server-side via
   Egress. The app ships without the capability.
 

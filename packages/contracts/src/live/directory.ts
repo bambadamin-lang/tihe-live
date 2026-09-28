@@ -26,8 +26,11 @@ export const directoryEnrollmentSchema = z.object({
 export const directoryProfileSchema = z.object({
   id: id('user'),
   displayName: z.string().nullable(),
-  /** Masked, e.g. 0912•••6789. Used for this user's own watermark only. */
-  phoneMasked: z.string(),
+  /**
+   * The full number in E.164, e.g. +989121234567. Used for this user's own watermark only
+   * (docs/11 §9): never logged, never sent to anyone else, never put in LiveKit metadata.
+   */
+  phone: z.string().regex(/^\+989\d{9}$/),
   role: roleSchema,
 });
 export type DirectoryProfile = z.infer<typeof directoryProfileSchema>;

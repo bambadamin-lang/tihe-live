@@ -12,7 +12,11 @@ import { id, platformSchema } from '../common.js';
  * Rendered in the native view layer, never as a Dart widget. See docs/03-content-protection.md.
  */
 export const watermarkSchema = z.object({
-  /** Already masked, e.g. "0912•••6789 · #48213". The API never sends a full number. */
+  /**
+   * For playback, already masked, e.g. "0912•••6789 · #48213": the API never sends a full
+   * number. In a live class, the owner's own full number, e.g. "09121234567 · #48213"
+   * (docs/11 §9).
+   */
   text: z.string(),
   opacity: z.number().min(0.05).max(1),
   fontSize: z.number().int().min(8).max(48),

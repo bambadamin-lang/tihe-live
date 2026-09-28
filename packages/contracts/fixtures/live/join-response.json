@@ -26,9 +26,9 @@
     "ticketExpiresAt": "2026-09-27T06:32:00.000Z"
   },
   "watermark": {
-    "text": "0912•••6789 · #13794",
+    "text": "09121234567 · #13794",
     "opacity": 0.32,
-    "fontSize": 13,
+    "fontSize": 20,
     "movement": "corners",
     "periodSeconds": 37,
     "seed": 918273

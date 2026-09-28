@@ -71,8 +71,8 @@ export type LiveSession = z.infer<typeof liveSessionSchema>;
  * Everything a client needs to enter a class. Minted per user per session, after the
  * enrollment check.
  *
- * `watermark.text` carries this user's own masked phone. It goes to its owner only — never
- * into LiveKit metadata, which every participant can read.
+ * `watermark.text` carries this user's own full phone number. It goes to its owner only —
+ * never into LiveKit metadata, which every participant can read, and never into a log.
  */
 export const joinResponseSchema = z.object({
   session: liveSessionSchema,

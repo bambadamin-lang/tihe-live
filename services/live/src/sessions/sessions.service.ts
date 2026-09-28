@@ -146,10 +146,12 @@ export class SessionsService {
       },
       watermark: {
         text: profile
-          ? liveWatermarkText(profile.phoneMasked, caller.userId)
+          ? liveWatermarkText(profile.phone, caller.userId)
           : `#${watermarkShortId(caller.userId)}`,
         opacity: 0.32,
-        fontSize: 13,
+        // Large enough to survive a phone camera pointed at the screen; the client scales it
+        // with the stage.
+        fontSize: 20,
         movement: 'corners',
         // A different rhythm and path per join, so the corner sequence cannot be predicted
         // and cropped around in a long recording.

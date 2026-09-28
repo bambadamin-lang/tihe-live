@@ -6,9 +6,10 @@ import '../../contracts.dart';
 import '../../domain/persian.dart';
 import '../../domain/watermark_hopper.dart';
 
-/// The identity watermark over the stage (docs/11 §9): masked phone, short account id and the
-/// time, in a corner that changes at seeded random intervals. It sits above every pod and
-/// ignores the pointer. The digits stay ASCII so OCR on a leaked copy reads them reliably.
+/// The identity watermark over the stage (docs/11 §9): the owner's full phone number, short
+/// account id and the time, in a corner that changes at seeded random intervals. It sits above
+/// every pod and ignores the pointer. The digits stay ASCII so OCR on a leaked copy reads them
+/// reliably, and heavy so they survive a phone camera pointed at the screen.
 class WatermarkOverlay extends StatefulWidget {
   const WatermarkOverlay({
     super.key,
@@ -58,47 +59,64 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
       StageCorner.bottomEnd => AlignmentDirectional.bottomEnd,
     };
     final label = '${widget.spec.text} · $time';
-    final style = TextStyle(
-      fontSize: widget.spec.fontSize.toDouble() + 1,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.4,
-    );
     // Updates every second: its own layer, so the stage underneath is not repainted with it.
     return RepaintBoundary(
       child: IgnorePointer(
-        child: Padding(
-          // Top corners sit below the pods' title strips, over the content, where a crop of
-          // the picture still keeps them.
-          padding: const EdgeInsets.fromLTRB(26, 44, 26, 22),
-          child: AnimatedAlign(
-            duration: const Duration(milliseconds: 600),
-            curve: Curves.easeInOut,
-            alignment: alignment,
-            child: Opacity(
-              opacity: widget.spec.opacity.clamp(0.1, 0.9),
-              // White letters with a dark outline read on both video and the white board.
-              child: Stack(
-                children: [
-                  Text(
-                    label,
-                    textDirection: TextDirection.ltr,
-                    style: style.copyWith(
-                      foreground: Paint()
-                        ..style = PaintingStyle.stroke
-                        ..strokeWidth = 3
-                        ..strokeJoin = StrokeJoin.round
-                        ..color = Colors.black87,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // The server's size is for a desktop stage; a phone's stage gets a smaller mark, a
+            // large monitor a larger one, so it reads the same share of the picture.
+            final scale = (constraints.biggest.shortestSide / 720).clamp(
+              0.75,
+              1.3,
+            );
+            final fontSize = widget.spec.fontSize * scale;
+            final style = TextStyle(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.6,
+            );
+            return Padding(
+              // Top corners sit below the pods' title strips, over the content, where a crop
+              // of the picture still keeps them.
+              padding: const EdgeInsets.fromLTRB(26, 44, 26, 22),
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.easeInOut,
+                alignment: alignment,
+                // One line always: on a narrow stage it shrinks rather than wraps.
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Opacity(
+                    opacity: widget.spec.opacity.clamp(0.1, 0.9),
+                    // White letters with a dark outline read on both video and the board.
+                    child: Stack(
+                      children: [
+                        Text(
+                          label,
+                          textDirection: TextDirection.ltr,
+                          maxLines: 1,
+                          style: style.copyWith(
+                            foreground: Paint()
+                              ..style = PaintingStyle.stroke
+                              ..strokeWidth = fontSize * 0.22
+                              ..strokeJoin = StrokeJoin.round
+                              ..color = Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          label,
+                          textDirection: TextDirection.ltr,
+                          maxLines: 1,
+                          style: style.copyWith(color: Colors.white),
+                        ),
+                      ],
                     ),
                   ),
-                  Text(
-                    label,
-                    textDirection: TextDirection.ltr,
-                    style: style.copyWith(color: Colors.white),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

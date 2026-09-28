@@ -62,7 +62,8 @@ class WatermarkSpec {
     seed: j['seed'] as int,
   );
 
-  /// Masked phone and short id, e.g. `0912•••6789 · #48213`. The time is added when drawn.
+  /// The owner's full phone and short id, e.g. `09121234567 · #48213`. The time is added
+  /// when drawn.
   final String text;
   final double opacity;
   final int fontSize;

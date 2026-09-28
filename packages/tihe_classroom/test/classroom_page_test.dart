@@ -44,7 +44,59 @@ void main() {
       expect(find.byType(ChatPod), findsOneWidget);
       expect(find.byType(WatermarkOverlay), findsOneWidget);
       // Outline and fill are two layers of the same text.
-      expect(find.textContaining('0912•••0001 · #'), findsNWidgets(2));
+      expect(find.textContaining('09120000001 · #'), findsNWidgets(2));
+    },
+  );
+
+  testWidgets(
+    'the watermark shows the full number in heavy type, on one line, sized to the stage',
+    (tester) async {
+      tester.view.physicalSize = const Size(1600, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      const spec = WatermarkSpec(
+        text: '09121234567 · #48213',
+        opacity: 0.32,
+        fontSize: 20,
+        movement: 'corners',
+        periodSeconds: 30,
+        seed: 7,
+      );
+      Future<Text> markOn(Size stage) async {
+        await tester.pumpWidget(
+          Directionality(
+            textDirection: TextDirection.rtl,
+            child: Center(
+              child: SizedBox.fromSize(
+                size: stage,
+                child: WatermarkOverlay(
+                  spec: spec,
+                  clock: () => DateTime.utc(2026, 9, 28, 10, 5),
+                ),
+              ),
+            ),
+          ),
+        );
+        return tester
+            .widgetList<Text>(find.textContaining('09121234567 · #48213'))
+            .last;
+      }
+
+      final desktop = await markOn(const Size(1500, 780));
+      expect(desktop.maxLines, 1);
+      expect(desktop.style!.fontWeight, FontWeight.w800);
+      expect(desktop.style!.fontSize, closeTo(20 * 780 / 720, 0.01));
+
+      final phone = await markOn(const Size(300, 560));
+      expect(phone.style!.fontSize, 15);
+      // Too long for a narrow stage at that size: it shrinks to fit instead of wrapping.
+      final drawn = tester.getRect(
+        find.textContaining('09121234567 · #48213').last,
+      );
+      expect(drawn.width, lessThanOrEqualTo(300 - 52));
+      expect(drawn.height, lessThan(15 * 2));
+
+      await tester.pumpWidget(const SizedBox());
     },
   );
 

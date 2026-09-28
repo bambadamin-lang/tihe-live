@@ -40,7 +40,8 @@ infra/                  compose, nginx, scripts
 1. **No secret in Dart.** Content keys, licence verification and decryption live in
    `packages/secure-core` (Rust) only. If you find yourself putting a key in Dart, stop.
 2. **Never log a key, a token, an OTP code, or a full phone number.** Mask phone numbers as
-   `0912••••567`.
+   `0912••••567`. The one place a full number appears is the live-class watermark, on its
+   owner's own screen (docs/11 §9).
 3. **Segments are encrypted before upload.** No plaintext video in MinIO, and manifests carry
    no `#EXT-X-KEY` line.
 4. **Never proxy media bytes through the API.** Clients fetch from MinIO by presigned URL.

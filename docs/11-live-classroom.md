@@ -219,10 +219,15 @@ be tuned without an app release.
 
 ## 9. Watermark
 
-- **Text**: masked phone and short account id, plus the current time — `0912•••6789 ·
-  #48213 · 14:32`. The id and time use ASCII digits so OCR on a leaked copy is reliable.
-  `watermarkShortId` in contracts derives the short id, and the M6 leak-lookup tool uses the
-  same function.
+- **Text**: the owner's full phone number and short account id, plus the current time —
+  `09121234567 · #48213 · 14:32`. The number is not masked, by the institute's decision: a
+  student who films the class films their own number, so a leaked copy names its source
+  without a lookup, and seeing it on screen deters the attempt. The digits are ASCII so OCR on
+  a leaked copy is reliable. `watermarkShortId` in contracts derives the short id, and the M6
+  leak-lookup tool uses the same function.
+- **Size**: heavy type (ExtraBold) with a dark outline, 20 px on a desktop stage from the
+  server's `fontSize`, scaled with the stage (×0.75 on a phone up to ×1.3 on a large monitor)
+  and kept to one line.
 - **Placement**: a corner of the **stage** (not the window, since a camera aimed at the slides
   would crop the window corners). It jumps to another corner at seeded random intervals (the
   existing `watermarkSchema` with `movement: 'corners'`), so cropping one corner never removes
@@ -230,7 +235,8 @@ be tuned without an app release.
 - **Rendering**: a Flutter overlay above the stage. In the classroom the video is a Flutter
   texture, so a Dart overlay sits above it exactly as a native layer would (ADR-0011).
 - **Privacy**: the phone number is never placed in LiveKit metadata or attributes, which
-  every participant can read. It goes only to its owner, in their own join response.
+  every participant can read, and never logged. It goes only to its owner, in their own join
+  response; services/api hands it to services/live over the internal directory API.
 - **Recordings** carry an institute mark instead. Viewer identity is added by the player when
   a recording is watched.
 
@@ -328,7 +334,7 @@ These cannot run in CI. Run them before each release on real hardware.
 | 10 | iOS 17+ | Control Centre recording; AirPlay mirror | censor screen + host alert |
 | 11 | iOS | Presenter broadcast extension | no self-alert while sharing |
 | 12 | all | Revoke mic from a speaking student | track muted within 1 s; re-publish refused |
-| 13 | all | Watermark | visible on the stage and changing corners; masked phone correct |
+| 13 | all | Watermark | visible on the stage and changing corners; full phone number correct |
 | 14 | all | Kill network for 10 s, restore | gateway resumes and the board, hands and chat are intact |
 
 ## 13. What it looks like

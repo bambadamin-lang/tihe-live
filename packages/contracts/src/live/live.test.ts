@@ -16,6 +16,7 @@ import {
   classroomSnapshotSchema,
   clientMessageSchema,
   deriveRecordingLayout,
+  directoryProfileSchema,
   joinResponseSchema,
   layoutProblems,
   layoutSchema,
@@ -249,8 +250,21 @@ describe('watermark', () => {
     expect(watermarkShortId('usr_01J8ZB00000000000000000001')).toMatch(/^\d{5}$/);
   });
 
-  it('formats masked phone and short id', () => {
+  it('shows the full phone as written locally, then the short id', () => {
     const id = 'usr_01J8ZB00000000000000000001';
-    expect(liveWatermarkText('0912•••6789', id)).toBe(`0912•••6789 · #${watermarkShortId(id)}`);
+    expect(liveWatermarkText('+989121234567', id)).toBe(`09121234567 · #${watermarkShortId(id)}`);
+  });
+
+  it('carries the directory profile only with a full number in E.164', () => {
+    const profile = {
+      id: 'usr_01J8ZB00000000000000000001',
+      displayName: null,
+      role: 'student',
+    };
+    expect(directoryProfileSchema.parse({ ...profile, phone: '+989121234567' }).phone).toBe(
+      '+989121234567',
+    );
+    expect(() => directoryProfileSchema.parse({ ...profile, phone: '0912•••4567' })).toThrow();
+    expect(() => directoryProfileSchema.parse({ ...profile, phone: '09121234567' })).toThrow();
   });
 });

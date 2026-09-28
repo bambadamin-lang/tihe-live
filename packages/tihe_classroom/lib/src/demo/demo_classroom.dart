@@ -328,9 +328,9 @@ abstract final class DemoClassroom {
       ticketExpiresAt: '2026-09-27T06:32:00.000Z',
       watermark: WatermarkSpec(
         text:
-            '0912•••${as.substring(as.length - 4)} · #${watermarkShortId(as)}',
+            '0912000${as.substring(as.length - 4)} · #${watermarkShortId(as)}',
         opacity: 0.32,
-        fontSize: 13,
+        fontSize: 20,
         movement: 'corners',
         periodSeconds: 30,
         seed: 918273,
