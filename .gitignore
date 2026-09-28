@@ -1,0 +1,71 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+target/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+!**/public.key
+secrets/
+
+# flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+apps/player/build/
+apps/player/android/app/debug/
+apps/player/android/app/profile/
+apps/player/android/app/release/
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+**/ios/Flutter/ephemeral/
+**/android/.gradle/
+**/android/local.properties
+**/ios/Pods/
+**/macos/Pods/
+**/test/failures/
+pubspec_overrides.yaml
+*.iml
+# Generated from lib/l10n/*.arb by `flutter gen-l10n`, which `flutter pub get` runs.
+apps/player/lib/l10n/app_localizations*.dart
+
+# tooling caches
+.turbo/
+coverage/
+.nyc_output/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# local data
+infra/docker/data/
+*.tihex
+tmp/
+scratch/
+
+# os / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# rust
+packages/secure-core/target/
+
+# prisma
+services/api/prisma/*.db
+
+services/live/src/generated/

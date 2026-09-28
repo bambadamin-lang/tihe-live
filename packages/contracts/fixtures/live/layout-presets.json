@@ -1,0 +1,212 @@
+{
+  "lecture": {
+    "id": "lecture",
+    "name": "سخنرانی",
+    "preset": "lecture",
+    "pods": [
+      {
+        "id": "speaker",
+        "kind": "speaker",
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 12
+      },
+      {
+        "id": "chat",
+        "kind": "chat",
+        "x": 8,
+        "y": 0,
+        "w": 4,
+        "h": 7
+      },
+      {
+        "id": "participants",
+        "kind": "participants",
+        "x": 8,
+        "y": 7,
+        "w": 4,
+        "h": 5
+      }
+    ]
+  },
+  "presentation": {
+    "id": "presentation",
+    "name": "ارائه",
+    "preset": "presentation",
+    "pods": [
+      {
+        "id": "screen",
+        "kind": "screen",
+        "x": 0,
+        "y": 0,
+        "w": 9,
+        "h": 12
+      },
+      {
+        "id": "speaker",
+        "kind": "speaker",
+        "x": 9,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      {
+        "id": "chat",
+        "kind": "chat",
+        "x": 9,
+        "y": 4,
+        "w": 3,
+        "h": 8
+      }
+    ]
+  },
+  "whiteboard": {
+    "id": "whiteboard",
+    "name": "تخته سفید",
+    "preset": "whiteboard",
+    "pods": [
+      {
+        "id": "whiteboard",
+        "kind": "whiteboard",
+        "x": 0,
+        "y": 0,
+        "w": 9,
+        "h": 12
+      },
+      {
+        "id": "speaker",
+        "kind": "speaker",
+        "x": 9,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      {
+        "id": "chat",
+        "kind": "chat",
+        "x": 9,
+        "y": 4,
+        "w": 3,
+        "h": 8
+      }
+    ]
+  },
+  "discussion": {
+    "id": "discussion",
+    "name": "گفتگو",
+    "preset": "discussion",
+    "pods": [
+      {
+        "id": "gallery",
+        "kind": "gallery",
+        "x": 0,
+        "y": 0,
+        "w": 9,
+        "h": 12
+      },
+      {
+        "id": "chat",
+        "kind": "chat",
+        "x": 9,
+        "y": 0,
+        "w": 3,
+        "h": 7
+      },
+      {
+        "id": "hands",
+        "kind": "hands",
+        "x": 9,
+        "y": 7,
+        "w": 3,
+        "h": 5
+      }
+    ]
+  },
+  "split": {
+    "id": "split",
+    "name": "ترکیبی",
+    "preset": "split",
+    "pods": [
+      {
+        "id": "screen",
+        "kind": "screen",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 8
+      },
+      {
+        "id": "whiteboard",
+        "kind": "whiteboard",
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 8
+      },
+      {
+        "id": "speaker",
+        "kind": "speaker",
+        "x": 0,
+        "y": 8,
+        "w": 3,
+        "h": 4
+      },
+      {
+        "id": "gallery",
+        "kind": "gallery",
+        "x": 3,
+        "y": 8,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "id": "chat",
+        "kind": "chat",
+        "x": 9,
+        "y": 8,
+        "w": 3,
+        "h": 4
+      }
+    ]
+  },
+  "qa": {
+    "id": "qa",
+    "name": "پرسش و پاسخ",
+    "preset": "qa",
+    "pods": [
+      {
+        "id": "speaker",
+        "kind": "speaker",
+        "x": 0,
+        "y": 0,
+        "w": 7,
+        "h": 8
+      },
+      {
+        "id": "gallery",
+        "kind": "gallery",
+        "x": 0,
+        "y": 8,
+        "w": 7,
+        "h": 4
+      },
+      {
+        "id": "hands",
+        "kind": "hands",
+        "x": 7,
+        "y": 0,
+        "w": 5,
+        "h": 5
+      },
+      {
+        "id": "chat",
+        "kind": "chat",
+        "x": 7,
+        "y": 5,
+        "w": 5,
+        "h": 7
+      }
+    ]
+  }
+}

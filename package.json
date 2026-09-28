@@ -1,0 +1,48 @@
+{
+  "name": "tihe-live",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Live virtual classroom and protected video library for an educational institute",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check": "turbo run lint typecheck test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,yml,yaml}\"",
+    "core:test": "cargo test --manifest-path packages/secure-core/Cargo.toml",
+    "core:fmt": "cargo fmt --manifest-path packages/secure-core/Cargo.toml",
+    "stack:up": "docker compose -f infra/docker/compose.dev.yml up -d",
+    "stack:down": "docker compose -f infra/docker/compose.dev.yml down",
+    "stack:logs": "docker compose -f infra/docker/compose.dev.yml logs -f"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.2",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.1",
+    "vitest": "^2.1.8"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@prisma/client",
+      "prisma",
+      "argon2",
+      "@prisma/engines",
+      "@swc/core"
+    ]
+  }
+}
