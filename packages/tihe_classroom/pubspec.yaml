@@ -1,0 +1,42 @@
+name: tihe_classroom
+description: The TIHE Live classroom — stage, whiteboard, hands, layouts, capture censoring and watermark — in Persian, in a glass theme with light and dark modes.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.10.0
+  flutter: '>=3.38.0'
+
+dependencies:
+  capture_guard:
+    path: ../capture_guard
+  collection: ^1.19.0
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_riverpod: ^3.0.0
+  # Desktop screen/window sources for the share picker; version pinned by livekit_client.
+  flutter_webrtc: any
+  http: ^1.2.0
+  livekit_client: ^2.13.0
+  # The same line-icon set as the player, so the two apps read as one product.
+  lucide_icons_flutter: ^3.1.20
+  meta: ^1.15.0
+  perfect_freehand: ^2.5.0
+  shamsi_date: ^1.1.0
+  stream_channel: ^2.1.0
+  web_socket_channel: ^3.0.0
+
+dev_dependencies:
+  fake_async: ^1.3.0
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    # Peyda goes here (see assets/fonts/README.md). Registered at runtime by PeydaFonts, so the
+    # package builds before the files exist.
+    - assets/fonts/

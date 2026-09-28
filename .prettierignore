@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+target
+coverage
+.turbo
+pnpm-lock.yaml
+apps/player
+packages/tihe_classroom
+packages/capture_guard
+services/live/prisma/migrations
+*.md

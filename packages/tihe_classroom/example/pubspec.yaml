@@ -1,0 +1,22 @@
+name: tihe_classroom_example
+description: Runs the TIHE Live classroom on its own — offline with a demo class, or against services/live.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_displaymode: ^0.7.0
+  flutter_localizations:
+    sdk: flutter
+  tihe_classroom:
+    path: ../
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
