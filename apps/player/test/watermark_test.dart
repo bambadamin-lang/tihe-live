@@ -57,6 +57,47 @@ void main() {
     expect(tester.hasRunningAnimations, isTrue);
   });
 
+  testWidgets('drifts without rebuilding a widget on every frame', (tester) async {
+    // The mark moves every frame for as long as a video is open. Rebuilding for it would mean a
+    // build, a text layout and a semantics pass per frame for the whole viewing session.
+    await tester.pumpWidget(harness(watermark));
+    await tester.pump();
+
+    final rebuilt = <String>[];
+    final previous = debugOnRebuildDirtyWidget;
+    debugOnRebuildDirtyWidget = (element, _) => rebuilt.add(element.widget.runtimeType.toString());
+    addTearDown(() => debugOnRebuildDirtyWidget = previous);
+
+    final paint = tester.renderObject(
+      find.descendant(of: find.byType(WatermarkOverlay), matching: find.byType(CustomPaint)),
+    );
+    for (var i = 0; i < 30; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    expect(rebuilt, isEmpty);
+    expect(paint.debugNeedsPaint, isFalse);
+    expect(tester.hasRunningAnimations, isTrue);
+  });
+
+  testWidgets('a static watermark does not tick', (tester) async {
+    // Nothing moves, so nothing should be scheduling frames.
+    await tester.pumpWidget(
+      harness(
+        const Watermark(
+          text: 'x',
+          opacity: 0.3,
+          fontSize: 12,
+          movement: 'static',
+          period: Duration(seconds: 47),
+          seed: 1,
+        ),
+      ),
+    );
+
+    expect(tester.hasRunningAnimations, isFalse);
+  });
+
   testWidgets('survives a degenerate size without throwing', (tester) async {
     // Happens during layout transitions and on a collapsed window; a crash here would take the
     // player down with it.

@@ -35,26 +35,81 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> with SingleTickerPr
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: widget.watermark.period,
-  )..repeat();
+  );
+
+  /// Laid out once per watermark, not once per frame: the text never changes while it drifts.
+  TextPainter? _text;
+
+  @override
+  void initState() {
+    super.initState();
+    _animate();
+  }
+
+  @override
+  void didUpdateWidget(WatermarkOverlay old) {
+    super.didUpdateWidget(old);
+    final a = old.watermark;
+    final b = widget.watermark;
+    if (a.text != b.text || a.opacity != b.opacity || a.fontSize != b.fontSize) {
+      _text?.dispose();
+      _text = null;
+    }
+    if (a.period != b.period) _controller.duration = b.period;
+    _animate();
+  }
+
+  /// A static mark has nothing to animate, so it does not tick.
+  void _animate() {
+    if (widget.watermark.movement == 'static') {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  TextPainter _layout() => _text ??= TextPainter(
+        text: TextSpan(
+          text: widget.watermark.text,
+          style: TextStyle(
+            fontSize: widget.watermark.fontSize,
+            fontWeight: FontWeight.w500,
+            color: Colors.white.withValues(alpha: widget.watermark.opacity),
+            // A dark shadow under light text keeps the mark legible on both a bright lecture slide
+            // and a dark video frame. Without it the mark disappears on white backgrounds, which is
+            // most of a slide deck.
+            shadows: [
+              Shadow(
+                color: Colors.black.withValues(alpha: widget.watermark.opacity * 0.9),
+                blurRadius: 3,
+              ),
+            ],
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
 
   @override
   void dispose() {
     _controller.dispose();
+    _text?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     // Never intercepts input: the mark must not swallow a tap meant for the player controls.
+    //
+    // The painter repaints from the controller directly, with no rebuild: the mark moves every
+    // frame for as long as a video is open, so a per-frame build, text layout and semantics pass
+    // here is a per-frame cost of the whole viewing session. Its own layer keeps the controls and
+    // the video frame under it from being repainted with it.
     return IgnorePointer(
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) => CustomPaint(
+      child: RepaintBoundary(
+        child: CustomPaint(
           painter: _WatermarkPainter(
-            text: widget.watermark.text,
-            opacity: widget.watermark.opacity,
-            fontSize: widget.watermark.fontSize,
-            progress: _controller.value,
+            text: _layout(),
+            progress: _controller,
             seed: widget.watermark.seed,
             static: widget.watermark.movement == 'static',
           ),
@@ -68,47 +123,21 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> with SingleTickerPr
 class _WatermarkPainter extends CustomPainter {
   _WatermarkPainter({
     required this.text,
-    required this.opacity,
-    required this.fontSize,
     required this.progress,
     required this.seed,
     required this.static,
-  });
+  }) : super(repaint: progress);
 
-  final String text;
-  final double opacity;
-  final double fontSize;
+  final TextPainter text;
 
   /// 0–1 through one movement cycle.
-  final double progress;
+  final Animation<double> progress;
   final int seed;
   final bool static;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final painter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(
-          fontSize: fontSize,
-          fontWeight: FontWeight.w500,
-          color: Colors.white.withValues(alpha: opacity),
-          // A dark shadow under light text keeps the mark legible on both a bright lecture slide and
-          // a dark video frame. Without it the mark disappears on white backgrounds, which is most
-          // of a slide deck.
-          shadows: [
-            Shadow(
-              color: Colors.black.withValues(alpha: opacity * 0.9),
-              blurRadius: 3,
-            ),
-          ],
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    final position = _position(size, painter.size);
-    painter.paint(canvas, position);
+    text.paint(canvas, _position(size, text.size));
   }
 
   /// A Lissajous-style path from the session seed.
@@ -128,7 +157,7 @@ class _WatermarkPainter extends CustomPainter {
     final phaseX = random.nextDouble() * 2 * pi;
     final phaseY = random.nextDouble() * 2 * pi;
 
-    final t = progress * 2 * pi;
+    final t = progress.value * 2 * pi;
     // 2:3 frequency ratio: the path closes slowly and sweeps most of the frame.
     final x = (sin(t * 2 + phaseX) + 1) / 2;
     final y = (sin(t * 3 + phaseY) + 1) / 2;
@@ -138,9 +167,5 @@ class _WatermarkPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WatermarkPainter old) =>
-      old.progress != progress ||
-      old.text != text ||
-      old.opacity != opacity ||
-      old.seed != seed ||
-      old.static != static;
+      old.text != text || old.progress != progress || old.seed != seed || old.static != static;
 }
