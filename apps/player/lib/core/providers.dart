@@ -115,10 +115,18 @@ final devicesProvider = FutureProvider<List<Device>>(
 );
 
 /// Debounced search results.
-final searchProvider = FutureProvider.family<List<SearchHit>, String>((ref, query) async {
+///
+/// Auto-disposed, so a query the student has typed past is dropped: without that, every
+/// intermediate query ("مش", "مشت", …) kept its provider alive, its debounce timer still fired,
+/// and a word cost one request per letter.
+final searchProvider =
+    FutureProvider.autoDispose.family<List<SearchHit>, String>((ref, query) async {
   if (query.trim().length < 2) return const [];
-  // Debounced here rather than in the widget so every caller gets it, and a cancelled query does not
-  // reach the server at all.
+  var superseded = false;
+  ref.onDispose(() => superseded = true);
+  // Debounced here rather than in the widget so every caller gets it, and a superseded query
+  // never reaches the server.
   await Future<void>.delayed(const Duration(milliseconds: 350));
+  if (superseded) return const [];
   return ref.watch(catalogRepositoryProvider).search(query);
 });
