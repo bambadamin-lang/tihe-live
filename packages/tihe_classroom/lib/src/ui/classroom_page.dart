@@ -59,7 +59,7 @@ class _ClassroomPageState extends State<ClassroomPage> {
   @override
   void initState() {
     super.initState();
-    PeydaFonts.ensureLoaded();
+    ClassroomFonts.ensureLoaded();
     widget.session.open();
   }
 

@@ -252,10 +252,13 @@ Ordering that matters for the pipeline:
 
 - Persian, right-to-left, everywhere in the classroom: Persian digits in the UI, Jalali dates,
   and Persian error messages from `messageFa`.
-- **Font: Peyda.** Drop the TTF/OTF files into `packages/tihe_classroom/assets/fonts/` (see the
-  README there). They are discovered and registered at runtime, so the build works before the
-  files exist; until then the classroom falls back to the platform font. Flutter cannot load
-  WOFF/WOFF2.
+- **Font: Modam** (مُدام, by Naser Khadem, FontIran), all eight weights of its standard cut, in
+  `packages/tihe_classroom/assets/fonts/`. They are registered at runtime as the family `Modam`
+  (`ClassroomFonts`), which the example app does before its first frame. The standard cut keeps
+  Latin digits, which addresses, ids and board formulas need; the UI turns its own numbers into
+  Persian digits. The few characters Modam lacks ("…", "·", "²", emoji) come from the fallback
+  fonts and the platform. The recording template uses the same files, so recordings match.
+  Modam is commercial: the institute's FontIran licence must cover embedding it in the app.
 - **Navy glass, in dark and light.** The classroom is layers — pods over the stage, the dock and
   sheets over pods — and frosted glass keeps each layer's place readable without heavy borders
   or shadows:
@@ -367,7 +370,7 @@ These cannot run in CI. Run them before each release on real hardware.
 ## 13. What it looks like
 
 These are rendered by the opt-in screenshot tests in `packages/tihe_classroom` and its
-example app, using Vazirmatn in place of Peyda until the Peyda files are added.
+example app, in Modam from the package's own assets.
 
 | | |
 |---|---|

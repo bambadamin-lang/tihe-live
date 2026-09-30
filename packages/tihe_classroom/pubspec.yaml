@@ -37,6 +37,6 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    # Peyda goes here (see assets/fonts/README.md). Registered at runtime by PeydaFonts, so the
-    # package builds before the files exist.
+    # Modam, the classroom's typeface (see assets/fonts/README.md). Registered at runtime by
+    # ClassroomFonts, so the family is plain "Modam" in every app that uses the package.
     - assets/fonts/

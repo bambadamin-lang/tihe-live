@@ -56,7 +56,7 @@ class ClassroomTheme extends ThemeExtension<ClassroomTheme> {
     required this.inverse,
     required this.onInverse,
     required this.scrim,
-    this.fontFamily = 'Peyda',
+    this.fontFamily = 'Modam',
     this.fontFallback = const [
       'Vazirmatn',
       'Noto Sans Arabic',

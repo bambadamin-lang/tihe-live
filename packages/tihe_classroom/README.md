@@ -8,7 +8,7 @@ The TIHE Live classroom as a Flutter package. It covers:
 - capture censoring
 - the identity watermark
 
-The UI is in Persian, right to left, in Peyda: navy glass over a night sky with lit planets,
+The UI is in Persian, right to left, in Modam: navy glass over a night sky with lit planets,
 in dark and light. It follows the host app's theme unless given `brightness:`, and a switch in
 the class's top bar flips it (reported through `onBrightnessChanged:`). The pointer is the TIHE
 glow cursor. Design and rules: [docs/11-live-classroom.md](../../docs/11-live-classroom.md) §11.
@@ -53,7 +53,7 @@ lib/src/domain/      ClassroomState and its reducer, board model, stage geometry
                      hopper, Persian digits and Jalali dates
 lib/src/state/       ClassroomSession (gateway + media + capture guard), BoardController, providers
 lib/src/ui/          theme (tokens, sky and glass controls, mark and window frame, menus,
-                     cursor, Peyda loader), stage and pods, whiteboard, bars and layout editor,
+                     cursor, Modam loader), stage and pods, whiteboard, bars and layout editor,
                      censor screen, watermark
 lib/src/demo/        an in-process gateway and a fixture class, for the demo and the tests
 ```
@@ -62,11 +62,12 @@ The server is authoritative, so the client never decides a rule on its own. It s
 commands and applies the events the gateway sends back. Where the UI acts before the server
 confirms (whiteboard strokes), the action is marked pending until the matching event arrives.
 
-## Peyda
+## Modam
 
-Put the TTF/OTF files in [`assets/fonts/`](assets/fonts/README.md). They are found and
-registered at runtime, so the package builds before the files are there. Until then it uses
-the platform's Persian font.
+The typeface is Modam, in [`assets/fonts/`](assets/fonts/README.md), registered at runtime as
+the family `Modam` by `ClassroomFonts`. `ClassroomPage` loads it on its own; an app can call
+`ClassroomFonts.ensureLoaded()` before `runApp` so its first frame is already in Modam, as the
+example does. Modam is a commercial font (FontIran): the institute's licence must cover it.
 
 ## Run the example
 
@@ -147,11 +148,12 @@ flutter test                # contracts conformance, reducers, gateway client, s
 ```
 
 The screenshots in `docs/images/classroom/` come from opt-in tests, here and in the example.
-They need a Persian TTF (Peyda, or Vazirmatn as a stand-in) registered as the Peyda family:
+They are set in Modam from the package's assets. Tests have no platform fonts, so give a
+fallback (Vazirmatn) for the few characters Modam lacks ("…", "·", "²"):
 
 ```bash
-TIHE_SCREENSHOTS=1 TIHE_FONT_DIR=/path/to/ttf flutter test test/screenshots --update-goldens
-(cd example && TIHE_SCREENSHOTS=1 TIHE_FONT_DIR=/path/to/ttf flutter test --update-goldens)
+TIHE_SCREENSHOTS=1 TIHE_FONT_DIR=/path/to/vazirmatn flutter test test/screenshots --update-goldens
+(cd example && TIHE_SCREENSHOTS=1 TIHE_FONT_DIR=/path/to/vazirmatn flutter test --update-goldens)
 # PNGs land in test/screenshots/goldens/ and example/test/goldens/ (git-ignored); convert to
 # JPEG for docs/images/classroom/
 ```

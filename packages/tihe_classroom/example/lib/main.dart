@@ -35,6 +35,8 @@ Future<void> main() async {
     await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
     await windowManager.setMinimumSize(const Size(960, 620));
   }
+  // Modam before the first frame, so no text is ever drawn in a fallback font first.
+  await ClassroomFonts.ensureLoaded();
   runApp(const ClassroomExampleApp());
 }
 
@@ -162,7 +164,6 @@ class _LauncherState extends State<Launcher> {
   @override
   void initState() {
     super.initState();
-    PeydaFonts.ensureLoaded();
     final installed = _installedServer();
     if (installed != null) _server.text = installed;
     final env = Platform.environment;

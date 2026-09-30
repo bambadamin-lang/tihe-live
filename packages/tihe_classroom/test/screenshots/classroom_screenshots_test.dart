@@ -15,24 +15,27 @@ import 'package:tihe_classroom/src/ui/controls/layout_picker.dart';
 import 'package:tihe_classroom/tihe_classroom.dart';
 
 /// Screenshots of the classroom for review (docs/images/classroom). Not a regression test:
-/// they depend on fonts loaded from the machine, so they run only on request:
+/// they depend on the machine's font rendering, so they run only on request:
 ///
-///   TIHE_SCREENSHOTS=1 TIHE_FONT_DIR=/path/to/ttf flutter test test/screenshots --update-goldens
+///   TIHE_SCREENSHOTS=1 TIHE_FONT_DIR=/path/to/vazirmatn flutter test test/screenshots --update-goldens
 ///
-/// TIHE_FONT_DIR should hold a Persian font (Peyda once provided; Vazirmatn meanwhile), which is
-/// registered as the Peyda family so the theme picks it up.
+/// Text is in Modam, loaded from the package's own assets as the app loads it. TIHE_FONT_DIR,
+/// optional, holds a fallback (Vazirmatn) for the few characters Modam lacks.
 final _enabled = Platform.environment['TIHE_SCREENSHOTS'] == '1';
 
 Future<void> _loadFonts() async {
-  final dir = Platform.environment['TIHE_FONT_DIR'];
-  if (dir != null) {
-    final peyda = FontLoader('Peyda');
+  expect(await ClassroomFonts.ensureLoaded(), isTrue, reason: 'Modam assets');
+  // Modam has no "…", "·" or "²"; on a device the platform's fonts fill them in, here a
+  // fallback in the theme's list does, if given.
+  final fallback = Platform.environment['TIHE_FONT_DIR'];
+  if (fallback != null) {
+    final loader = FontLoader('Vazirmatn');
     for (final f in Directory(
-      dir,
+      fallback,
     ).listSync().whereType<File>().where((f) => f.path.endsWith('.ttf'))) {
-      peyda.addFont(Future.value(ByteData.sublistView(f.readAsBytesSync())));
+      loader.addFont(Future.value(ByteData.sublistView(f.readAsBytesSync())));
     }
-    await peyda.load();
+    await loader.load();
   }
   // Icon fonts (Lucide, Material) come from the test bundle's font manifest.
   final manifest =
