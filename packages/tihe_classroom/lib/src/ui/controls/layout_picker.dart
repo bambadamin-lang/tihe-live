@@ -20,6 +20,7 @@ class LayoutPickerSheet extends ConsumerWidget {
     final session = ref.read(classroomSessionProvider);
     return GlassSheet(
       title: 'چیدمان کلاس',
+      icon: ClassroomIcons.layout,
       width: 720,
       child: SingleChildScrollView(
         child: Column(

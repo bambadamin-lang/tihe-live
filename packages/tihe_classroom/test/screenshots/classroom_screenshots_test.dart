@@ -70,7 +70,38 @@ class _RecordingPlatform implements CaptureGuardPlatform {
   Stream<CaptureEvent> get events => const Stream.empty();
 }
 
+/// Tests draw shadows hard-edged unless told otherwise; screenshots show them as the app does.
+/// The flag must be back on by the end of each test.
 Future<void> _shoot(
+  WidgetTester tester,
+  String name, {
+  required Size size,
+  String as = DemoClassroom.host,
+  Layout? layout,
+  bool hostSharing = false,
+  CaptureMonitor? capture,
+  Brightness brightness = Brightness.dark,
+  Future<void> Function(WidgetTester tester)? then,
+}) async {
+  debugDisableShadows = false;
+  try {
+    await _render(
+      tester,
+      name,
+      size: size,
+      as: as,
+      layout: layout,
+      hostSharing: hostSharing,
+      capture: capture,
+      brightness: brightness,
+      then: then,
+    );
+  } finally {
+    debugDisableShadows = true;
+  }
+}
+
+Future<void> _render(
   WidgetTester tester,
   String name, {
   required Size size,
@@ -138,6 +169,27 @@ void main() {
       'host-discussion',
       size: desktop,
       layout: layoutPresets[LayoutPreset.discussion],
+    );
+  });
+
+  testWidgets('host in questions and answers', skip: !_enabled, (tester) async {
+    await _shoot(
+      tester,
+      'host-qa',
+      size: desktop,
+      layout: layoutPresets[LayoutPreset.qa],
+    );
+  });
+
+  testWidgets('host in questions and answers, light', skip: !_enabled, (
+    tester,
+  ) async {
+    await _shoot(
+      tester,
+      'host-qa-light',
+      size: desktop,
+      layout: layoutPresets[LayoutPreset.qa],
+      brightness: Brightness.light,
     );
   });
 

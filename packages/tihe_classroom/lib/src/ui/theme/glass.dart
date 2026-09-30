@@ -7,10 +7,11 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../domain/persian.dart';
 import 'classroom_theme.dart';
+import 'cursor.dart';
 import 'motion.dart';
 
 /// The classroom's controls, in frosted glass. Each layer (stage, pods, bars, sheets) is a pane
-/// over the canvas; state is carried by tint and icon, never by bevels or texture.
+/// over the sky; state is carried by tint and icon, never by bevels or texture.
 
 /// Every icon the classroom uses: one family (Lucide, as in the player), one weight.
 abstract final class ClassroomIcons {
@@ -24,8 +25,8 @@ abstract final class ClassroomIcons {
   static const lowerHand = LucideIcons.handMetal;
   static const layout = LucideIcons.layoutDashboard;
   static const settings = LucideIcons.slidersHorizontal;
-  static const endClass = LucideIcons.circleStop;
-  static const leave = LucideIcons.logOutDir;
+  static const endClass = LucideIcons.circleDot;
+  static const leave = LucideIcons.phoneOff;
   static const people = LucideIcons.usersRound;
   static const person = LucideIcons.userRound;
   static const gallery = LucideIcons.layoutGrid;
@@ -38,6 +39,7 @@ abstract final class ClassroomIcons {
   static const maximise = LucideIcons.maximize2;
   static const restore = LucideIcons.minimize2;
   static const more = LucideIcons.ellipsisVertical;
+  static const moreHorizontal = LucideIcons.ellipsis;
   static const lock = LucideIcons.lock;
   static const check = LucideIcons.check;
   static const edit = LucideIcons.pencilRuler;
@@ -49,7 +51,24 @@ abstract final class ClassroomIcons {
   static const classEnded = LucideIcons.doorOpen;
   static const resize = LucideIcons.moveDiagonal;
   static const play = LucideIcons.play;
-  static const join = LucideIcons.logInDir;
+  static const join = LucideIcons.cornerDownLeft;
+  static const course = LucideIcons.bookOpen;
+  static const signal = LucideIcons.signalHigh;
+  static const pin = LucideIcons.pin;
+  static const reactions = LucideIcons.smile;
+  static const emoji = LucideIcons.smilePlus;
+  static const chevronDown = LucideIcons.chevronDown;
+  static const previous = LucideIcons.chevronLeftDir;
+  static const next = LucideIcons.chevronRightDir;
+  static const server = LucideIcons.database;
+  static const link = LucideIcons.link;
+  static const hash = LucideIcons.hash;
+  static const key = LucideIcons.keyRound;
+  static const assistant = LucideIcons.usersRound;
+  static const minimiseWindow = LucideIcons.minus;
+  static const maximiseWindow = LucideIcons.square;
+  static const closeWindow = LucideIcons.x;
+  static const alert = LucideIcons.circleAlert;
 
   // Whiteboard.
   static const pen = LucideIcons.pen;
@@ -73,7 +92,8 @@ abstract final class ClassroomIcons {
   static const nextPage = LucideIcons.chevronRightDir;
 }
 
-/// The canvas behind everything: a near-flat colour with three soft glows, painted once.
+/// The sky behind everything, painted once: a navy gradient, a few soft glows, two planets lit
+/// along their inner rims at the edges and faint orbits around them.
 ///
 /// Also establishes the [BackdropGroup] that the stage's panes share, so a stage of seven pods
 /// costs one blur, not seven.
@@ -86,7 +106,7 @@ class GlassBackdrop extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
     return CustomPaint(
-      painter: _GlowPainter(t),
+      painter: SkyPainter(t),
       isComplex: true,
       willChange: false,
       child: BackdropGroup(child: child),
@@ -94,36 +114,156 @@ class GlassBackdrop extends StatelessWidget {
   }
 }
 
-class _GlowPainter extends CustomPainter {
-  _GlowPainter(this.theme);
+class SkyPainter extends CustomPainter {
+  SkyPainter(this.theme);
 
   final ClassroomTheme theme;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final t = theme;
     final rect = Offset.zero & size;
-    canvas.drawRect(rect, Paint()..color = theme.canvas);
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          rect.topCenter,
+          rect.bottomCenter,
+          [t.canvasTop, t.canvas],
+          const [0, 0.55],
+        ),
+    );
     final longest = size.longestSide;
-    void glow(Alignment at, double radius, Color color) {
-      final center = at.alongSize(size);
+    void glow(Offset center, double radius, Color color) {
       canvas.drawCircle(
         center,
-        longest * radius,
+        radius,
         Paint()
-          ..shader = RadialGradient(colors: [color, color.withValues(alpha: 0)])
-              .createShader(
-                Rect.fromCircle(center: center, radius: longest * radius),
-              ),
+          ..shader = ui.Gradient.radial(center, radius, [
+            color,
+            color.withValues(alpha: 0),
+          ]),
       );
     }
 
-    glow(const Alignment(0.85, -0.95), 0.55, theme.glows[0]);
-    glow(const Alignment(-0.9, 0.9), 0.5, theme.glows[1]);
-    glow(const Alignment(0.1, 1.1), 0.35, theme.glows[2]);
+    glow(
+      Offset(size.width * 0.5, -size.height * 0.1),
+      longest * 0.5,
+      t.glows[0],
+    );
+    glow(Offset(0, size.height * 1.02), longest * 0.42, t.glows[1]);
+    glow(Offset(size.width, size.height * 0.9), longest * 0.36, t.glows[2]);
+
+    final r = (size.shortestSide * 0.34).clamp(90.0, 460.0);
+    final left = Offset(-r * 0.1, size.height * 0.56);
+    final right = Offset(size.width + r * 0.14, size.height * 0.66);
+    _orbits(canvas, left, r, const Offset(0.8, -0.6));
+    _orbits(canvas, right, r, const Offset(-0.8, -0.6));
+    _planet(canvas, left, r, const Offset(0.86, -0.5));
+    _planet(canvas, right, r * 1.02, const Offset(-0.86, -0.5));
+    // A small moon low on the start side, out of focus.
+    final moon = Offset(size.width * 0.19, size.height * 0.86);
+    canvas.drawCircle(
+      moon,
+      r * 0.14,
+      Paint()
+        ..shader = ui.Gradient.radial(
+          moon + Offset(r * 0.05, -r * 0.05),
+          r * 0.2,
+          [
+            t.planet[2].withValues(alpha: 0.5),
+            t.planet[1].withValues(alpha: 0),
+          ],
+        )
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.03),
+    );
+  }
+
+  /// A planet lit from [light] (a unit vector): a halo, a body brightening towards the light,
+  /// and a thin rim where the light grazes it.
+  void _planet(Canvas canvas, Offset center, double r, Offset light) {
+    final t = theme;
+    final [shade, body, lit, rim] = t.planet;
+    canvas
+      ..drawCircle(
+        center,
+        r * 1.3,
+        Paint()
+          ..shader = ui.Gradient.radial(
+            center,
+            r * 1.3,
+            [
+              rim.withValues(alpha: t.isDark ? 0.26 : 0.22),
+              rim.withValues(alpha: 0),
+            ],
+            const [0.72, 1],
+          ),
+      )
+      ..drawCircle(
+        center,
+        r,
+        Paint()
+          ..shader = ui.Gradient.radial(
+            center + light * r * 0.62,
+            r * 1.7,
+            [lit, body, shade],
+            const [0, 0.42, 0.95],
+          ),
+      );
+    final stroke = math.max(1.4, r * 0.012);
+    final rimShader = ui.Gradient.linear(
+      center - light * r,
+      center + light * r,
+      [rim.withValues(alpha: 0), rim.withValues(alpha: 0.15), rim],
+      const [0, 0.55, 1],
+    );
+    canvas
+      ..drawCircle(
+        center,
+        r - stroke,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = r * 0.06
+          ..shader = rimShader
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.03),
+      )
+      ..drawCircle(
+        center,
+        r - stroke / 2,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..shader = rimShader,
+      );
+  }
+
+  /// Two orbit arcs around a planet, bright where they face [towards] and fading behind it.
+  void _orbits(Canvas canvas, Offset center, double r, Offset towards) {
+    for (final (scale, tilt) in [(1.5, 0.0), (2.25, 0.28)]) {
+      final radius = r * scale;
+      final bounds = Rect.fromCircle(center: center, radius: radius);
+      canvas
+        ..save()
+        ..translate(center.dx, center.dy)
+        ..rotate(tilt)
+        ..translate(-center.dx, -center.dy)
+        ..drawOval(
+          bounds,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1
+            ..shader = ui.Gradient.linear(
+              center - towards * radius,
+              center + towards * radius,
+              [theme.orbit.withValues(alpha: 0), theme.orbit],
+            ),
+        )
+        ..restore();
+    }
   }
 
   @override
-  bool shouldRepaint(_GlowPainter old) => old.theme != theme;
+  bool shouldRepaint(SkyPainter old) => old.theme != theme;
 }
 
 /// A pane of frosted glass: blur, a translucent fill, a lit rim and one soft shadow.
@@ -131,7 +271,7 @@ class Glass extends StatelessWidget {
   const Glass({
     super.key,
     required this.child,
-    this.radius = 16,
+    this.radius = 20,
     this.padding,
     this.strong = false,
     this.fill,
@@ -213,21 +353,26 @@ class _RimPainter extends CustomPainter {
       old.gradient != gradient || old.radius != radius;
 }
 
-/// A pod: a glass pane with a quiet header, and — for video — an inset dark screen.
+/// A pod: a glass pane with a header — icon, title, an optional count — and, for video, an
+/// inset dark screen.
 class GlassPanel extends StatelessWidget {
   const GlassPanel({
     super.key,
     required this.child,
     this.title,
     this.icon,
+    this.count,
     this.trailing,
     this.inset = false,
-    this.padding = 8,
+    this.padding = 12,
   });
 
   final Widget child;
   final String? title;
   final IconData? icon;
+
+  /// Shown after the title, in parentheses: how many people or hands.
+  final int? count;
   final Widget? trailing;
 
   /// Show the content on an inset dark screen (video) rather than on the glass itself.
@@ -244,29 +389,42 @@ class GlassPanel extends StatelessWidget {
         children: [
           if (title != null)
             SizedBox(
-              height: 30,
+              height: 34,
               child: Padding(
-                padding: const EdgeInsetsDirectional.only(
-                  start: 6,
-                  end: 2,
-                  bottom: 4,
-                ),
+                padding: const EdgeInsetsDirectional.only(start: 4, bottom: 6),
                 child: Row(
                   children: [
                     if (icon != null) ...[
-                      Icon(icon, size: 14, color: t.textTertiary),
-                      const SizedBox(width: 7),
+                      Icon(icon, size: 18, color: t.textSecondary),
+                      const SizedBox(width: 9),
                     ],
                     Expanded(
-                      child: Text(
-                        title!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: t.textSecondary,
-                        ),
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              title!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w600,
+                                color: t.text,
+                              ),
+                            ),
+                          ),
+                          if (count != null) ...[
+                            const SizedBox(width: 6),
+                            RollingText(
+                              '(${toPersianDigits(count!)})',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w500,
+                                color: t.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                     ?trailing,
@@ -277,7 +435,7 @@ class GlassPanel extends StatelessWidget {
           Expanded(
             child: inset
                 ? ClipRRect(
-                    borderRadius: BorderRadius.circular(11),
+                    borderRadius: BorderRadius.circular(14),
                     child: ColoredBox(color: t.screen, child: child),
                   )
                 : child,
@@ -293,7 +451,7 @@ class GlassBar extends StatelessWidget {
   const GlassBar({
     super.key,
     required this.child,
-    this.radius = 18,
+    this.radius = 22,
     this.padding,
   });
 
@@ -309,42 +467,47 @@ class GlassBar extends StatelessWidget {
   );
 }
 
-/// A small glass capsule: the class title, status, counts.
+/// A small glass chip: the class title, the clock, status lamps.
 class GlassPill extends StatelessWidget {
   const GlassPill({
     super.key,
     required this.child,
     this.leading,
+    this.trailing,
     this.padding,
     this.fill,
+    this.radius = 14,
   });
 
   final Widget child;
   final Widget? leading;
+  final Widget? trailing;
   final EdgeInsetsGeometry? padding;
   final Color? fill;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
     return Glass(
-      radius: 999,
+      radius: radius,
       shadow: false,
       fill: fill,
       padding:
-          padding ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding ?? const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       child: DefaultTextStyle.merge(
         style: TextStyle(
           color: t.text,
-          fontSize: 12.5,
+          fontSize: 13.5,
           fontWeight: FontWeight.w600,
           height: 1.3,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (leading != null) ...[leading!, const SizedBox(width: 7)],
+            if (leading != null) ...[leading!, const SizedBox(width: 8)],
             Flexible(child: child),
+            if (trailing != null) ...[const SizedBox(width: 8), trailing!],
           ],
         ),
       ),
@@ -378,8 +541,8 @@ class StatusDot extends StatelessWidget {
         boxShadow: on
             ? [
                 BoxShadow(
-                  color: color.withValues(alpha: 0.55),
-                  blurRadius: size,
+                  color: color.withValues(alpha: 0.6),
+                  blurRadius: size * 1.2,
                 ),
               ]
             : null,
@@ -431,7 +594,7 @@ class GlassPressable extends StatefulWidget {
     this.toggled,
     this.selected,
     this.radius = 12,
-    this.disabledCursor = SystemMouseCursors.basic,
+    this.disabledCursor = GlowCursors.basic,
   });
 
   /// Null disables.
@@ -479,7 +642,7 @@ class _GlassPressableState extends State<GlassPressable> {
         SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
         SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
       },
-      mouseCursor: enabled ? SystemMouseCursors.click : widget.disabledCursor,
+      mouseCursor: enabled ? GlowCursors.click : widget.disabledCursor,
       onShowHoverHighlight: (v) => setState(() => _hovered = v),
       onShowFocusHighlight: (v) => setState(() => _focused = v),
       child: GestureDetector(
@@ -534,6 +697,8 @@ class GlassIconButton extends StatelessWidget {
     this.iconSize = 16,
     this.selected = false,
     this.color,
+    this.fill,
+    this.radius = 9,
   });
 
   final IconData icon;
@@ -544,6 +709,10 @@ class GlassIconButton extends StatelessWidget {
   final bool selected;
   final Color? color;
 
+  /// A resting background, for buttons that float over video.
+  final Color? fill;
+  final double radius;
+
   @override
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
@@ -552,20 +721,22 @@ class GlassIconButton extends StatelessWidget {
       tooltip: tooltip,
       semanticLabel: tooltip,
       selected: selected,
-      radius: 8,
+      radius: radius,
       builder: (context, s) => AnimatedContainer(
         duration: const Duration(milliseconds: 120),
         width: size,
         height: size,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(radius),
           color: selected
               ? t.accentSubtle
               : s.pressed
               ? t.glassPressed
               : s.hovered
-              ? t.glassHover
-              : Colors.transparent,
+              ? (fill != null
+                    ? Color.alphaBlend(t.glassHover, fill!)
+                    : t.glassHover)
+              : fill ?? Colors.transparent,
         ),
         child: Icon(
           icon,
@@ -581,10 +752,173 @@ class GlassIconButton extends StatelessWidget {
   }
 }
 
-/// A dock button: a rounded glass key with its label beneath.
+/// The primary action: the accent as a gradient with a soft glow, full width by default.
+class GlowButton extends StatelessWidget {
+  const GlowButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.height = 50,
+    this.color,
+    this.busy = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+  final double height;
+
+  /// A flat colour instead of the accent gradient (red for a destructive confirm).
+  final Color? color;
+
+  /// Shows a spinner in place of the icon.
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = ClassroomTheme.of(context);
+    final direction = Directionality.of(context);
+    return GlassPressable(
+      onTap: onPressed,
+      semanticLabel: label,
+      radius: 14,
+      builder: (context, s) {
+        final enabled = s.enabled;
+        return AnimatedContainer(
+          duration: Motion.of(context, Motion.fast),
+          height: height,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: !enabled
+                ? t.field
+                : color == null
+                ? null
+                : (s.hovered ? Color.lerp(color, Colors.white, 0.1) : color),
+            gradient: enabled && color == null
+                ? t.accentGradient(direction)
+                : null,
+            border: enabled
+                ? Border.all(color: Colors.white.withValues(alpha: 0.14))
+                : Border.all(color: t.fieldBorder),
+            boxShadow: enabled
+                ? (color == null
+                      ? t.accentGlow(strength: s.hovered ? 1.4 : 1)
+                      : [
+                          BoxShadow(
+                            color: color!.withValues(alpha: 0.35),
+                            blurRadius: 18,
+                            offset: const Offset(0, 6),
+                          ),
+                        ])
+                : null,
+          ),
+          foregroundDecoration: enabled && s.hovered && color == null
+              ? BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  color: Colors.white.withValues(alpha: 0.07),
+                )
+              : null,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (busy)
+                SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: enabled ? t.onAccent : t.textDisabled,
+                  ),
+                )
+              else if (icon != null)
+                Icon(
+                  icon,
+                  size: 20,
+                  color: enabled ? t.onAccent : t.textDisabled,
+                ),
+              if (busy || icon != null) const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                    color: enabled ? t.onAccent : t.textDisabled,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// An icon on a small rounded tile of deep accent: the mark of a card or a sheet.
+class IconTile extends StatelessWidget {
+  const IconTile({
+    super.key,
+    required this.icon,
+    this.size = 52,
+    this.color,
+    this.solid = false,
+  });
+
+  final IconData icon;
+  final double size;
+
+  /// Tints the tile for a state (red for an alert); the accent otherwise.
+  final Color? color;
+
+  /// Filled with the accent gradient, for the brand's own mark.
+  final bool solid;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = ClassroomTheme.of(context);
+    final tint = color ?? t.accent;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(size * 0.28),
+        gradient: solid
+            ? t.accentGradient(Directionality.of(context))
+            : LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  tint.withValues(alpha: t.isDark ? 0.3 : 0.16),
+                  tint.withValues(alpha: t.isDark ? 0.14 : 0.08),
+                ],
+              ),
+        border: Border.all(
+          color: solid
+              ? Colors.white.withValues(alpha: 0.18)
+              : tint.withValues(alpha: 0.32),
+        ),
+        boxShadow: solid ? t.accentGlow(strength: 0.8) : null,
+      ),
+      child: Icon(
+        icon,
+        size: size * 0.46,
+        color: solid
+            ? t.onAccent
+            : color ?? (t.isDark ? t.accentText : t.accent),
+      ),
+    );
+  }
+}
+
+/// A dock key: an icon with its label beneath, flat on the dock until hovered.
 ///
-/// [tint] colours the key for a state (off, raised hand) or a role (end class). A [solid] key is
-/// filled with its tint, for the one destructive action in the dock.
+/// [tint] colours the key for a state (off, raised hand, open panel). A [solid] key is a filled
+/// tile of its tint, for the one destructive action in the dock.
 class DockButton extends StatelessWidget {
   const DockButton({
     super.key,
@@ -597,8 +931,9 @@ class DockButton extends StatelessWidget {
     this.tooltip,
     this.toggled,
     this.badge,
-    this.disabledCursor = SystemMouseCursors.basic,
+    this.disabledCursor = GlowCursors.basic,
     this.wave = false,
+    this.width = 78,
   });
 
   final IconData icon;
@@ -614,6 +949,7 @@ class DockButton extends StatelessWidget {
 
   /// Waves the icon once each time this turns true — the hand going up.
   final bool wave;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
@@ -626,113 +962,218 @@ class DockButton extends StatelessWidget {
       radius: 14,
       disabledCursor: disabledCursor,
       builder: (context, s) {
-        final Color bg;
         final Color fg;
+        final Color keyColor;
         if (!s.enabled) {
-          bg = t.glass;
           fg = t.textDisabled;
+          keyColor = Colors.transparent;
         } else if (solid && tint != null) {
-          bg = s.hovered ? Color.lerp(tint, Colors.white, 0.12)! : tint!;
           fg = Colors.white;
+          keyColor = s.hovered ? Color.lerp(tint, Colors.white, 0.12)! : tint!;
         } else if (tint != null) {
-          bg = tint!.withValues(alpha: s.hovered ? 0.3 : 0.2);
           fg = tint!;
+          keyColor = tint!.withValues(alpha: s.hovered ? 0.26 : 0.16);
         } else {
-          bg = s.hovered ? t.glassHover : t.glass;
           fg = t.text;
+          keyColor = s.hovered ? t.glassHover : Colors.transparent;
         }
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                AnimatedContainer(
-                  duration: Motion.of(context, Motion.fast),
-                  curve: Motion.enter,
-                  width: 46,
-                  height: 42,
-                  // Hovered keys rise a little off the dock.
-                  transform: Matrix4.translationValues(
-                    0,
-                    s.hovered && !Motion.reduced(context) ? -2 : 0,
-                    0,
-                  ),
-                  decoration: BoxDecoration(
-                    color: bg,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: tint != null && s.enabled
-                          ? tint!.withValues(alpha: solid ? 0 : 0.35)
-                          : t.edgeLow,
+        final key = AnimatedContainer(
+          duration: Motion.of(context, Motion.fast),
+          curve: Motion.enter,
+          width: solid ? 46 : 44,
+          height: solid ? 40 : 36,
+          // Hovered keys rise a little off the dock.
+          transform: Matrix4.translationValues(
+            0,
+            s.hovered && !Motion.reduced(context) ? -2 : 0,
+            0,
+          ),
+          decoration: BoxDecoration(
+            color: keyColor,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: solid && s.enabled && tint != null
+                ? [
+                    BoxShadow(
+                      color: tint!.withValues(alpha: s.hovered ? 0.5 : 0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
                     ),
-                    boxShadow: s.hovered && s.enabled
-                        ? [
-                            BoxShadow(
-                              color: (tint ?? t.accent).withValues(alpha: 0.22),
-                              blurRadius: 14,
-                              offset: const Offset(0, 4),
-                            ),
-                          ]
-                        : const [],
-                  ),
-                  child: _Wave(
-                    active: wave,
-                    child: AnimatedSwitcher(
-                      duration: Motion.of(context, Motion.fast),
-                      switchInCurve: Motion.enter,
-                      switchOutCurve: Motion.exit,
-                      transitionBuilder: (child, animation) => FadeTransition(
-                        opacity: animation,
-                        child: ScaleTransition(
-                          scale: Tween(begin: 0.6, end: 1.0).animate(animation),
-                          child: child,
-                        ),
-                      ),
-                      child: Icon(
-                        icon,
-                        key: ValueKey((icon, fg)),
-                        size: 19,
-                        color: fg,
-                      ),
-                    ),
-                  ),
+                  ]
+                : const [],
+          ),
+          child: _Wave(
+            active: wave,
+            child: AnimatedSwitcher(
+              duration: Motion.of(context, Motion.fast),
+              switchInCurve: Motion.enter,
+              switchOutCurve: Motion.exit,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: ScaleTransition(
+                  scale: Tween(begin: 0.6, end: 1.0).animate(animation),
+                  child: child,
                 ),
-                PositionedDirectional(
-                  top: -5,
-                  end: -5,
-                  child: AnimatedSwitcher(
-                    duration: Motion.of(context, Motion.medium),
-                    switchInCurve: Curves.easeOutBack,
-                    switchOutCurve: Motion.exit,
-                    transitionBuilder: (child, animation) =>
-                        ScaleTransition(scale: animation, child: child),
-                    child: badge == null
-                        ? const SizedBox.shrink()
-                        : CountBadge(
-                            key: ValueKey(badge),
-                            text: badge!,
-                            color: tint ?? t.accent,
-                          ),
+              ),
+              child: Icon(
+                icon,
+                key: ValueKey((icon, fg)),
+                size: solid ? 21 : 23,
+                color: fg,
+              ),
+            ),
+          ),
+        );
+        return SizedBox(
+          width: showLabel ? width : 46,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  key,
+                  PositionedDirectional(
+                    top: -5,
+                    end: -6,
+                    child: AnimatedSwitcher(
+                      duration: Motion.of(context, Motion.medium),
+                      switchInCurve: Curves.easeOutBack,
+                      switchOutCurve: Motion.exit,
+                      transitionBuilder: (child, animation) =>
+                          ScaleTransition(scale: animation, child: child),
+                      child: badge == null
+                          ? const SizedBox.shrink()
+                          : CountBadge(
+                              key: ValueKey(badge),
+                              text: badge!,
+                              color: tint ?? t.accent,
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+              if (showLabel) ...[
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.25,
+                    fontWeight: FontWeight.w500,
+                    color: s.enabled
+                        ? (tint != null && !solid ? tint : t.textSecondary)
+                        : t.textDisabled,
                   ),
                 ),
               ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The dock's leave key: a red slab with the icon and word on it, at the start of the dock.
+class LeaveButton extends StatelessWidget {
+  const LeaveButton({super.key, required this.onPressed, this.compact = false});
+
+  final VoidCallback onPressed;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = ClassroomTheme.of(context);
+    return GlassPressable(
+      onTap: onPressed,
+      tooltip: 'خروج از کلاس',
+      semanticLabel: 'خروج',
+      radius: 16,
+      builder: (context, s) => AnimatedContainer(
+        duration: Motion.of(context, Motion.fast),
+        width: compact ? 50 : 84,
+        height: compact ? 42 : 60,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color.lerp(t.danger, Colors.white, s.hovered ? 0.16 : 0.08)!,
+              t.danger,
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: t.danger.withValues(alpha: s.hovered ? 0.5 : 0.32),
+              blurRadius: 18,
+              offset: const Offset(0, 5),
             ),
-            if (showLabel) ...[
-              const SizedBox(height: 5),
-              Text(
-                label,
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(ClassroomIcons.leave, size: 20, color: Colors.white),
+            if (!compact) ...[
+              const SizedBox(height: 4),
+              const Text(
+                'خروج',
                 style: TextStyle(
-                  fontSize: 11,
+                  color: Colors.white,
+                  fontSize: 12.5,
                   height: 1.2,
-                  fontWeight: FontWeight.w500,
-                  color: s.enabled ? t.textSecondary : t.textDisabled,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ],
-        );
-      },
+        ),
+      ),
+    );
+  }
+}
+
+/// A key and a small chevron beside it in one outlined group — microphone and camera, whose
+/// chevron picks the device.
+class SplitDockButton extends StatelessWidget {
+  const SplitDockButton({
+    super.key,
+    required this.main,
+    required this.onMore,
+    required this.moreTooltip,
+  });
+
+  final Widget main;
+  final VoidCallback? onMore;
+  final String moreTooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = ClassroomTheme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: t.field,
+        border: Border.all(color: t.fieldBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          main,
+          if (onMore != null)
+            GlassIconButton(
+              icon: ClassroomIcons.chevronDown,
+              tooltip: moreTooltip,
+              size: 26,
+              iconSize: 15,
+              onPressed: onMore,
+            ),
+        ],
+      ),
     );
   }
 }
@@ -771,6 +1212,7 @@ class MediaToggle extends StatelessWidget {
       label: label,
       showLabel: showLabel,
       toggled: on,
+      width: 66,
       tooltip: blocked ? '$label — نیاز به اجازهٔ میزبان' : label,
       tint: blocked || on ? null : t.danger,
       disabledCursor: SystemMouseCursors.forbidden,
@@ -907,8 +1349,9 @@ class RoleBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1.5),
     decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.16),
+      color: color.withValues(alpha: 0.14),
       borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: color.withValues(alpha: 0.35)),
     ),
     child: Text(
       label,
@@ -929,11 +1372,17 @@ class GlassSheet extends StatelessWidget {
     required this.title,
     required this.child,
     this.width = 460,
+    this.icon,
+    this.iconColor,
   });
 
   final String title;
   final Widget child;
   final double width;
+
+  /// A tile beside the title, for sheets that confirm something.
+  final IconData? icon;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -944,22 +1393,26 @@ class GlassSheet extends StatelessWidget {
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: width),
         child: Glass(
-          radius: 20,
+          radius: 24,
           strong: true,
           overlay: true,
-          padding: const EdgeInsets.fromLTRB(20, 14, 14, 20),
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
+                  if (icon != null) ...[
+                    IconTile(icon: icon!, size: 40, color: iconColor),
+                    const SizedBox(width: 12),
+                  ],
                   Expanded(
                     child: Text(
                       title,
                       style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
                         color: t.text,
                       ),
                     ),
@@ -967,22 +1420,20 @@ class GlassSheet extends StatelessWidget {
                   GlassIconButton(
                     icon: ClassroomIcons.close,
                     tooltip: 'بستن',
+                    fill: t.field,
                     onPressed: () => Navigator.of(context).maybePop(),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               Flexible(
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.only(end: 6),
-                  child: DefaultTextStyle.merge(
-                    style: TextStyle(
-                      color: t.textSecondary,
-                      fontSize: 14,
-                      height: 1.6,
-                    ),
-                    child: child,
+                child: DefaultTextStyle.merge(
+                  style: TextStyle(
+                    color: t.textSecondary,
+                    fontSize: 14,
+                    height: 1.6,
                   ),
+                  child: child,
                 ),
               ),
             ],
@@ -993,80 +1444,119 @@ class GlassSheet extends StatelessWidget {
   }
 }
 
-/// A segmented switch between a few options — the phone stage's pod tabs.
+/// A segmented switch between a few options — the phone stage's pod tabs, the launcher's roles.
+/// The chosen segment is filled with the accent.
 class GlassTabs<T> extends StatelessWidget {
   const GlassTabs({
     super.key,
     required this.options,
     required this.selected,
     required this.onSelected,
+    this.expand = false,
   });
 
   final List<({T value, String label, IconData? icon})> options;
   final T selected;
   final ValueChanged<T> onSelected;
 
+  /// Share the width equally rather than scroll.
+  final bool expand;
+
   @override
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
+    final direction = Directionality.of(context);
+    Widget segment(({T value, String label, IconData? icon}) o) =>
+        GlassPressable(
+          onTap: () => onSelected(o.value),
+          semanticLabel: o.label,
+          selected: o.value == selected,
+          radius: 12,
+          builder: (context, s) {
+            final on = o.value == selected;
+            return AnimatedContainer(
+              duration: Motion.of(context, Motion.fast),
+              padding: EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: expand ? 12 : 9,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                gradient: on ? t.accentGradient(direction) : null,
+                color: on
+                    ? null
+                    : s.hovered
+                    ? t.glassHover
+                    : Colors.transparent,
+                boxShadow: on ? t.accentGlow(strength: 0.6) : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (o.icon != null) ...[
+                    Icon(
+                      o.icon,
+                      size: 17,
+                      color: on ? t.onAccent : t.textSecondary,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(
+                    child: Text(
+                      o.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.2,
+                        fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+                        color: on ? t.onAccent : t.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+    final box = BoxDecoration(
+      borderRadius: BorderRadius.circular(15),
+      color: t.field,
+      border: Border.all(color: t.fieldBorder),
+    );
+    if (expand) {
+      return Container(
+        padding: const EdgeInsets.all(3),
+        decoration: box,
+        child: Row(
+          children: [
+            for (final (i, o) in options.indexed) ...[
+              if (i > 0)
+                // A hairline between two unchosen segments only.
+                Container(
+                  width: 1,
+                  height: 22,
+                  color: o.value == selected || options[i - 1].value == selected
+                      ? Colors.transparent
+                      : t.hairline,
+                ),
+              Expanded(child: segment(o)),
+            ],
+          ],
+        ),
+      );
+    }
     return Glass(
-      radius: 14,
+      radius: 15,
       shadow: false,
       padding: const EdgeInsets.all(3),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final o in options)
-              GlassPressable(
-                onTap: () => onSelected(o.value),
-                semanticLabel: o.label,
-                selected: o.value == selected,
-                radius: 11,
-                builder: (context, s) {
-                  final on = o.value == selected;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 160),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(11),
-                      color: on
-                          ? (t.isDark ? t.glassPressed : Colors.white)
-                          : s.hovered
-                          ? t.glassHover
-                          : Colors.transparent,
-                      boxShadow: on && !t.isDark ? t.lifted : null,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (o.icon != null) ...[
-                          Icon(
-                            o.icon,
-                            size: 15,
-                            color: on ? t.accentText : t.textTertiary,
-                          ),
-                          const SizedBox(width: 6),
-                        ],
-                        Text(
-                          o.label,
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.2,
-                            fontWeight: FontWeight.w600,
-                            color: on ? t.text : t.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-          ],
+          children: [for (final o in options) segment(o)],
         ),
       ),
     );
@@ -1083,7 +1573,7 @@ class BarDivider extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: 1,
     height: height,
-    margin: const EdgeInsets.symmetric(horizontal: 6),
+    margin: const EdgeInsets.symmetric(horizontal: 8),
     color: ClassroomTheme.of(context).hairline,
   );
 }

@@ -174,8 +174,9 @@ the Egress template).
 ## 7. Webcam, microphone and screen share
 
 - Camera and mic via `livekit_client` with simulcast and adaptive streaming, so a 100-person
-  gallery only receives the resolutions actually on screen. Device pickers on desktop; front
-  and back cameras on mobile.
+  gallery only receives the resolutions actually on screen. On desktop the chevron beside the
+  microphone and camera keys picks the device (`ClassroomMedia.devices` / `selectDevice`); on
+  mobile the operating system chooses, front and back cameras included.
 - **Screen share**:
   - **Windows / macOS**: a picker listing screens and windows, with thumbnails. The classroom's
     own window is left out of the list. On macOS the picker defaults to "window", because a
@@ -255,23 +256,56 @@ Ordering that matters for the pipeline:
   README there). They are discovered and registered at runtime, so the build works before the
   files exist; until then the classroom falls back to the platform font. Flutter cannot load
   WOFF/WOFF2.
-- **Glass, in light and dark.** The classroom is layers — pods over the stage, the dock and
+- **Navy glass, in dark and light.** The classroom is layers — pods over the stage, the dock and
   sheets over pods — and frosted glass keeps each layer's place readable without heavy borders
   or shadows:
-  - Canvas: a near-flat colour with three soft glows, painted once, so the blur has something to
-    refract but nothing competes with the class.
-  - Panes: every pod, the top bar and the dock are frosted glass with a lit one-pixel rim. The
-    stage's panes share one `BackdropGroup`, so seven pods cost one blur; overlays (toasts,
-    sheets) blur on their own.
+  - Sky: a deep navy gradient with a few soft glows, two planets lit along their inner rims at
+    the left and right edges, and faint orbit lines between them. It is painted once; the planets
+    give the blur something to refract, and they sit at the edges, where the class never is.
+  - Panes: every pod, the top bar's chips and the dock are frosted navy glass with a lit
+    one-pixel rim. The stage's panes share one `BackdropGroup`, so seven pods cost one blur;
+    overlays (toasts, sheets, menus) blur on their own.
+  - Accent: one electric blue, as a gradient with a soft glow on the few things that start
+    something (join, send, the chosen segment) and flat everywhere else.
+  - Pods: a header of icon, title and — for people pods — a count; video pods (speaker, screen)
+    have none and run edge to edge, with their tags floating on the video: "ارائه‌دهنده" in one
+    top corner, the name and microphone in the bottom one, maximise and a manager's "⋯" in the
+    others. In a short, wide pod the gallery becomes a film strip with arrows and a
+    "+N نفر دیگر" chip that opens it over the stage.
+  - Lists: chat messages, raised hands and people are cards sunk into the pod, each with its
+    avatar; the teachers' messages are lit with the accent.
   - Media: video and screen share sit on an inset dark screen in both themes. The whiteboard page
     stays near-white in both — ink colours are chosen for it and it is what Egress records.
-  - Controls: a centred dock of glass keys. A muted microphone or camera is red and crossed out,
-    so it is never mistaken for a live one; a locked control shows a padlock; a raised hand turns
-    amber with its place in the queue; "end class" is the one solid red key.
-  - Status: pills with a dot — green for live, pulsing red for recording, amber while
-    reconnecting.
-  - Icons: Lucide, the same set as the video player; the accent, neutrals and status colours
-    match the player too, so the two apps read as one product.
+- **Top bar.** The class at the start edge — title, a "live" lamp with the connection's signal,
+  the class clock, the recording lamp, and a red count of anyone caught recording — and the app
+  at the end: the light/dark switch, the connection lamp and the TIHE Live mark.
+- **Dock.** From the start edge: leave (a red key with its word on it); camera and microphone,
+  each with a chevron for its device; then "more" (layout and class settings for those allowed,
+  the theme), reactions, screen share, the hand — or, for the host, "end class", the one solid
+  red key — and the chat and people keys. Those two bring their pod forward (maximised; on a
+  phone, its tab), or open it as a side panel when the layout has none. On a phone they move
+  under "more" so the dock fits one row. A muted microphone or camera is red and crossed out, so
+  it is never mistaken for a live one; a locked control shows a padlock; a raised hand turns
+  amber with its place in the queue.
+- **Reactions** are chat messages of a single emoji from the dock's tray (👍 👏 ❤️ 😂 😮 🎉 🙏 🤔),
+  so they need nothing new from the gateway and obey `chat.send`. Each one that arrives floats
+  up over the stage on every screen.
+- **Menus** (more, device pickers, a person's actions, the layout field) are glass popovers
+  anchored to their control (`menu.dart`), not Material popups.
+- **Cursor.** A navy arrow with a glowing blue rim is the pointer everywhere (`cursor.dart`),
+  a brighter one over anything clickable. On Windows it is a real system cursor: the arrow is
+  drawn once per display scale and handed to the embedder (`createCustomCursor/windows` on
+  `flutter/mousecursor`), so it moves with the hardware. macOS and Linux embedders have no such
+  call, so there the app-wide `GlowCursorScope` hides the system pointer and draws the arrow;
+  without that scope they keep the system arrow — the pointer is never left invisible. Text
+  fields keep the I-beam and the whiteboard its crosshair.
+- **Window frame (Windows).** The app draws its own title bar — the mark, the server lamp and
+  the window buttons (`window_manager`) — and passes the buttons and dragging to the classroom
+  through `WindowChrome`, so the class's top bar is also the window's title bar. Elsewhere the
+  platform's own frame stays.
+- **Welcome.** The launcher is two cards on the same sky: a demo class (role, starting layout)
+  and a real one (server address, session id, token), under a lamp that checks the server's
+  `/health` so "آنلاین" means the classes can actually be reached.
 - **Light and dark.** `ClassroomPage` follows the host app's theme unless given a `brightness`;
   a switch in the top bar flips it for the rest of the class and reports the choice through
   `onBrightnessChanged`, so the host app can remember it.
@@ -286,7 +320,8 @@ Ordering that matters for the pipeline:
     lists; history that was already there when the pod opened does not replay.
   - Controls: keys lift on hover and spring back after a press; mic and camera icons
     cross-fade when they flip; the hand waves when raised, and its queue number pops in. The
-    online count rolls to its new value.
+    counts in pod headers roll to their new values; menus drop from their control; reactions
+    rise and fade.
   - Dialogs rise and sharpen into place; opening a class fades it in from slightly larger.
   - The censor screen is the exception: it replaces the class instantly, since any frame of a
     fade would show the class to the recorder.
@@ -304,7 +339,8 @@ Ordering that matters for the pipeline:
   - Android phones often hold apps at 60 Hz unless they ask for more, so the app asks for the
     display's fastest mode. iOS allows ProMotion through `CADisableMinimumFrameDurationOnPhone`.
 - The theme lives in `tihe_classroom/lib/src/ui/theme/`: tokens in one `ClassroomTheme` object
-  (`ClassroomTheme.light` / `.dark`), the glass controls in `glass.dart`, and motion in
+  (`ClassroomTheme.light` / `.dark`), the sky and glass controls in `glass.dart`, the mark and
+  window frame in `brand.dart`, menus in `menu.dart`, the cursor in `cursor.dart`, and motion in
   `motion.dart` and `transitions.dart`.
 
 ## 12. Manual device checklist
@@ -330,11 +366,15 @@ These cannot run in CI. Run them before each release on real hardware.
 
 ## 13. What it looks like
 
-These are rendered by the opt-in screenshot test in `packages/tihe_classroom`, using
-Vazirmatn in place of Peyda until the Peyda files are added.
+These are rendered by the opt-in screenshot tests in `packages/tihe_classroom` and its
+example app, using Vazirmatn in place of Peyda until the Peyda files are added.
 
 | | |
 |---|---|
+| ![Welcome](images/classroom/welcome.jpg) | ![Questions and answers, host](images/classroom/host-qa.jpg) |
+| The welcome screen: a demo class or a real one, and the server lamp | Q&A: speaker and film strip, hands and chat |
+| ![Welcome, light](images/classroom/welcome-light.jpg) | ![Questions and answers, light](images/classroom/host-qa-light.jpg) |
+| The welcome screen in light | Q&A in light |
 | ![Whiteboard layout, host](images/classroom/host-whiteboard.jpg) | ![Split layout, host](images/classroom/host-split.jpg) |
 | Whiteboard layout: the marker tray, pages, and a raised-hand alert | Split: screen share next to the board |
 | ![Discussion layout, host](images/classroom/host-discussion.jpg) | ![Presentation, student](images/classroom/student-presentation.jpg) |
@@ -347,6 +387,8 @@ Vazirmatn in place of Peyda until the Peyda files are added.
 | The light theme: the same glass over a pale canvas | A student's view in light |
 | ![Layout picker, light](images/classroom/host-layout-picker-light.jpg) | ![Phone, light](images/classroom/student-phone-light.jpg) |
 | The layout picker in light | Phone width in light |
+| ![Welcome, phone](images/classroom/welcome-phone.jpg) | ![The cursor](images/classroom/cursor.png) |
+| The welcome screen on a phone | The cursor, plain and over something clickable, on dark and light |
 
 ## 14. Running it end to end
 

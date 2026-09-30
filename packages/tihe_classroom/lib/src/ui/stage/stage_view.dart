@@ -13,6 +13,7 @@ import '../pods/participants_pod.dart';
 import '../theme/glass.dart';
 import '../theme/motion.dart';
 import '../whiteboard/whiteboard_pod.dart';
+import 'stage_focus.dart';
 
 /// The icon each pod kind wears in its header, its tab and the layout picker.
 const podIcons = {
@@ -42,8 +43,11 @@ class StageView extends ConsumerStatefulWidget {
 typedef _Placed = ({Pod pod, Rect rect});
 
 class _StageViewState extends ConsumerState<StageView> {
-  String? _maximised;
-  String? _tab;
+  /// Used when no page above provides one (a stage on its own, in tests).
+  StageFocus? _ownFocus;
+
+  StageFocus get _focus =>
+      StageFocusScope.maybeOf(context) ?? (_ownFocus ??= StageFocus());
 
   /// Where each pod was last drawn, to fade out the ones a new layout drops.
   Map<PodKind, _Placed> _last = {};
@@ -58,6 +62,7 @@ class _StageViewState extends ConsumerState<StageView> {
     for (final t in _leaveTimers.values) {
       t.cancel();
     }
+    _ownFocus?.dispose();
     super.dispose();
   }
 
@@ -73,7 +78,8 @@ class _StageViewState extends ConsumerState<StageView> {
     return LayoutBuilder(
       builder: (context, box) {
         final size = box.biggest;
-        if (StageGeometry.isCompact(size)) return _compact(layout);
+        final focus = _focus..compact = StageGeometry.isCompact(size);
+        if (focus.compact) return _compact(layout);
         final rects = StageGeometry.grid(
           layout,
           size,
@@ -82,7 +88,7 @@ class _StageViewState extends ConsumerState<StageView> {
         _trackLeaving(layout, rects);
 
         final maximised = layout.pods
-            .where((p) => p.id == _maximised)
+            .where((p) => p.id == focus.maximised)
             .firstOrNull;
         final full = (Offset.zero & size).deflate(4);
         final move = Motion.of(context, Motion.slow);
@@ -160,7 +166,7 @@ class _StageViewState extends ConsumerState<StageView> {
   Widget _compact(Layout layout) {
     final tabs = StageGeometry.tabs(layout);
     final current = tabs.firstWhere(
-      (p) => p.id == _tab,
+      (p) => p.id == _focus.tab,
       orElse: () => tabs.first,
     );
     return Column(
@@ -197,7 +203,7 @@ class _StageViewState extends ConsumerState<StageView> {
           padding: const EdgeInsets.fromLTRB(4, 6, 4, 2),
           child: GlassTabs<String>(
             selected: current.id,
-            onSelected: (id) => setState(() => _tab = id),
+            onSelected: _focus.selectTab,
             options: [
               for (final pod in tabs)
                 (
@@ -226,33 +232,50 @@ class _StageViewState extends ConsumerState<StageView> {
         ? null
         : _MaximiseButton(
             maximised: maximised,
-            onPressed: () =>
-                setState(() => _maximised = maximised ? null : pod.id),
+            floating: !pod.kind.hasHeader,
+            onPressed: () => _focus.maximise(maximised ? null : pod.id),
           );
     // Each pod is its own layer: a video frame or a new message repaints that pod only.
     return RepaintBoundary(child: _panel(pod, content, maximise));
   }
 
   Widget _panel(Pod pod, Widget content, Widget? maximise) {
-    // The board is its own surface: no header, the maximise control floats on its corner.
-    if (pod.kind == PodKind.whiteboard) {
+    // Video and the board are their own surfaces: no header, the maximise control floats on
+    // the corner at the end of the reading direction.
+    if (!pod.kind.hasHeader) {
       return GlassPanel(
-        padding: 6,
+        padding: 8,
+        inset: pod.kind != PodKind.whiteboard,
         child: Stack(
           children: [
             Positioned.fill(child: content),
             if (maximise != null)
-              PositionedDirectional(top: 8, end: 8, child: maximise),
+              PositionedDirectional(top: 10, end: 10, child: maximise),
           ],
         ),
       );
     }
-    return GlassPanel(
-      title: pod.kind.labelFa,
-      icon: podIcons[pod.kind],
-      inset: pod.kind.isMedia,
-      trailing: maximise,
-      child: content,
+    return Consumer(
+      builder: (context, ref, _) {
+        final count = ref.watch(
+          classroomViewProvider.select(
+            (v) => switch (pod.kind) {
+              PodKind.hands => v.room?.raisedHands.length,
+              PodKind.gallery || PodKind.participants => v.room?.online.length,
+              _ => null,
+            },
+          ),
+        );
+        return GlassPanel(
+          title: pod.kind == PodKind.gallery
+              ? 'تصاویر شرکت‌کنندگان'
+              : pod.kind.labelFa,
+          icon: podIcons[pod.kind],
+          count: count,
+          trailing: maximise,
+          child: content,
+        );
+      },
     );
   }
 }
@@ -277,19 +300,37 @@ class _Leave extends StatelessWidget {
 }
 
 class _MaximiseButton extends StatelessWidget {
-  const _MaximiseButton({required this.maximised, required this.onPressed});
+  const _MaximiseButton({
+    required this.maximised,
+    required this.floating,
+    required this.onPressed,
+  });
 
   final bool maximised;
+
+  /// Over video or the board rather than in a header: it needs a backing to be seen.
+  final bool floating;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) => GlassIconButton(
     icon: maximised ? ClassroomIcons.restore : ClassroomIcons.maximise,
     tooltip: maximised ? 'بازگشت به چیدمان' : 'بزرگ کردن',
-    size: 26,
-    iconSize: 14,
+    size: floating ? 34 : 30,
+    iconSize: 15,
+    radius: 10,
+    fill: floating ? const Color(0x990A1122) : null,
+    color: floating ? Colors.white.withValues(alpha: 0.85) : null,
     onPressed: onPressed,
   );
+}
+
+extension on PodKind {
+  /// Video and the board fill their pod edge to edge; people pods have a titled header.
+  bool get hasHeader =>
+      this != PodKind.whiteboard &&
+      this != PodKind.speaker &&
+      this != PodKind.screen;
 }
 
 extension<T> on Iterable<T> {

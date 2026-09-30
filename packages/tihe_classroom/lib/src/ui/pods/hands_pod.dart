@@ -6,11 +6,13 @@ import '../../domain/persian.dart';
 import '../../state/providers.dart';
 import '../theme/classroom_theme.dart';
 import '../theme/glass.dart';
+import '../theme/menu.dart';
 import '../theme/motion.dart';
 import 'people.dart';
+import 'person_actions.dart';
 
-/// The raised-hand queue, numbered in the order the server received them. Managers
-/// give the floor (with or without camera) or lower hands from here.
+/// The raised-hand queue, in the order the server received them. Managers give the floor
+/// (with or without camera) or lower hands from here.
 class HandsPod extends ConsumerStatefulWidget {
   const HandsPod({super.key});
 
@@ -42,7 +44,7 @@ class _HandsPodState extends ConsumerState<HandsPod> {
                     children: [
                       Icon(
                         ClassroomIcons.hand,
-                        size: 22,
+                        size: 24,
                         color: t.textTertiary,
                       ),
                       const SizedBox(height: 8),
@@ -63,24 +65,19 @@ class _HandsPodState extends ConsumerState<HandsPod> {
                       animate: seen.isNew(raise(p)),
                       offset: const Offset(0, 10),
                       scale: 0.96,
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 4),
-                        padding: const EdgeInsetsDirectional.fromSTEB(
-                          8,
-                          6,
-                          4,
-                          6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: t.glassHover,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: t.hairline),
-                        ),
+                      child: PersonRow(
                         child: Row(
                           children: [
-                            _Ticket(number: i + 1),
+                            Tooltip(
+                              message: 'نفر ${toPersianDigits(i + 1)} در صف',
+                              child: Icon(
+                                ClassroomIcons.hand,
+                                size: 20,
+                                color: t.warning,
+                              ),
+                            ),
                             const SizedBox(width: 10),
-                            Avatar(userId: p.userId, name: p.name, size: 28),
+                            Avatar(userId: p.userId, name: p.name, size: 34),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -88,8 +85,8 @@ class _HandsPodState extends ConsumerState<HandsPod> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
                                   color: t.text,
                                 ),
                               ),
@@ -99,6 +96,8 @@ class _HandsPodState extends ConsumerState<HandsPod> {
                                 tooltip: 'اجازهٔ صحبت',
                                 icon: ClassroomIcons.mic,
                                 color: t.success,
+                                size: 32,
+                                iconSize: 18,
                                 onPressed: () => session.send(
                                   GiveFloor(p.userId, video: false),
                                 ),
@@ -107,16 +106,13 @@ class _HandsPodState extends ConsumerState<HandsPod> {
                                 tooltip: 'اجازهٔ صحبت با تصویر',
                                 icon: ClassroomIcons.camera,
                                 color: t.accentText,
+                                size: 32,
+                                iconSize: 18,
                                 onPressed: () => session.send(
                                   GiveFloor(p.userId, video: true),
                                 ),
                               ),
-                              GlassIconButton(
-                                tooltip: 'پایین آوردن دست',
-                                icon: ClassroomIcons.close,
-                                onPressed: () =>
-                                    session.send(LowerHand(p.userId)),
-                              ),
+                              ParticipantMenuButton(userId: p.userId),
                             ],
                           ],
                         ),
@@ -125,40 +121,70 @@ class _HandsPodState extends ConsumerState<HandsPod> {
                   },
                 ),
         ),
-        if (canManage && hands.length > 1)
-          TextButton.icon(
-            onPressed: () => session.send(const LowerAllHands()),
-            icon: const Icon(ClassroomIcons.lowerAll, size: 16),
-            label: const Text('پایین آوردن همهٔ دست‌ها'),
+        if (canManage && hands.isNotEmpty) ...[
+          Divider(height: 1, color: t.hairline),
+          const SizedBox(height: 4),
+          Builder(
+            builder: (context) => GlassPressable(
+              onTap: () async {
+                final first = hands.first.userId;
+                final command = await showGlassMenu<ClassroomCommand>(
+                  context: context,
+                  width: 260,
+                  entries: [
+                    GlassMenuItem(
+                      value: GiveFloor(first, video: false),
+                      label: 'اجازهٔ صحبت به نفر اول',
+                      icon: ClassroomIcons.mic,
+                    ),
+                    GlassMenuItem(
+                      value: GiveFloor(first, video: true),
+                      label: 'اجازهٔ صحبت با تصویر به نفر اول',
+                      icon: ClassroomIcons.camera,
+                    ),
+                    const GlassMenuDivider(),
+                    const GlassMenuItem(
+                      value: LowerAllHands(),
+                      label: 'پایین آوردن همهٔ دست‌ها',
+                      icon: ClassroomIcons.lowerAll,
+                    ),
+                  ],
+                );
+                if (command != null) await session.send(command);
+              },
+              semanticLabel: 'پاسخ دادن به دست‌ها',
+              radius: 10,
+              builder: (context, s) => AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                height: 38,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: s.hovered ? t.glassHover : Colors.transparent,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'پاسخ دادن به دست‌ها',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: t.text,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      ClassroomIcons.chevronDown,
+                      size: 16,
+                      color: t.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
+        ],
       ],
-    );
-  }
-}
-
-class _Ticket extends StatelessWidget {
-  const _Ticket({required this.number});
-  final int number;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = ClassroomTheme.of(context);
-    return Container(
-      width: 24,
-      height: 24,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: t.warningSubtle,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        toPersianDigits(number),
-        style: TextStyle(
-          fontWeight: FontWeight.w700,
-          fontSize: 12.5,
-          color: t.warning,
-        ),
-      ),
     );
   }
 }

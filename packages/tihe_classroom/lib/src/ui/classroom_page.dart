@@ -1,14 +1,21 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../contracts.dart';
 import '../state/classroom_session.dart';
 import '../state/providers.dart';
 import 'controls/bars.dart';
+import 'pods/chat_pod.dart';
+import 'pods/participants_pod.dart';
 import 'protection/censor_screen.dart';
 import 'protection/watermark_overlay.dart';
+import 'stage/stage_focus.dart';
 import 'stage/stage_view.dart';
 import 'theme/classroom_theme.dart';
+import 'theme/cursor.dart';
 import 'theme/fonts.dart';
 import 'theme/glass.dart';
 import 'theme/motion.dart';
@@ -47,6 +54,7 @@ class ClassroomPage extends StatefulWidget {
 
 class _ClassroomPageState extends State<ClassroomPage> {
   Brightness? _chosen;
+  final _focus = StageFocus();
 
   @override
   void initState() {
@@ -57,6 +65,7 @@ class _ClassroomPageState extends State<ClassroomPage> {
 
   @override
   void dispose() {
+    _focus.dispose();
     widget.session.dispose();
     super.dispose();
   }
@@ -86,7 +95,15 @@ class _ClassroomPageState extends State<ClassroomPage> {
             delegates: GlobalMaterialLocalizations.delegates,
             child: Directionality(
               textDirection: TextDirection.rtl,
-              child: _Classroom(onExit: widget.onExit),
+              // The brand cursor across the class; an app-wide GlowCursorScope also draws it
+              // where the platform cannot (see cursor.dart).
+              child: MouseRegion(
+                cursor: GlowCursors.basic,
+                child: StageFocusScope(
+                  focus: _focus,
+                  child: _Classroom(onExit: widget.onExit),
+                ),
+              ),
             ),
           ),
         ),
@@ -159,12 +176,16 @@ class _Classroom extends ConsumerWidget {
                   const TopBar(),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
                       child: ready
                           ? Stack(
                               children: [
                                 const Positioned.fill(child: StageView()),
-                                // Over every pod, under nothing: see docs/11 §9.
+                                const Positioned.fill(child: _SidePanel()),
+                                const Positioned.fill(
+                                  child: IgnorePointer(child: ReactionFloat()),
+                                ),
+                                // Over every pod and panel, under nothing: see docs/11 §9.
                                 Positioned.fill(
                                   child: WatermarkOverlay(spec: watermark),
                                 ),
@@ -205,7 +226,7 @@ class _Notices extends ConsumerWidget {
     final session = ref.read(classroomSessionProvider);
     final t = ClassroomTheme.of(context);
     return PositionedDirectional(
-      top: 62,
+      top: 66,
       start: 0,
       end: 0,
       child: Column(
@@ -286,25 +307,16 @@ class _ExitScreen extends StatelessWidget {
                 offset: const Offset(0, 18),
                 scale: 0.95,
                 child: Glass(
-                  radius: 20,
-                  padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
+                  radius: 24,
+                  padding: const EdgeInsets.fromLTRB(28, 30, 28, 26),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Center(
-                        child: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: t.accentSubtle,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Icon(
-                            ClassroomIcons.classEnded,
-                            size: 22,
-                            color: t.accentText,
-                          ),
+                      const Center(
+                        child: IconTile(
+                          icon: ClassroomIcons.classEnded,
+                          size: 56,
                         ),
                       ),
                       const SizedBox(height: 18),
@@ -319,9 +331,10 @@ class _ExitScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 22),
-                      FilledButton(
+                      GlowButton(
+                        label: 'بازگشت',
+                        height: 46,
                         onPressed: onClose,
-                        child: const Text('بازگشت'),
                       ),
                     ],
                   ),
@@ -330,6 +343,211 @@ class _ExitScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Chat or people, when the host's layout has no pod for them: a glass panel over the stage's
+/// start edge, opened and closed from the dock.
+class _SidePanel extends StatelessWidget {
+  const _SidePanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final focus = StageFocusScope.maybeOf(context);
+    final kind = focus?.drawer;
+    return LayoutBuilder(
+      builder: (context, box) {
+        final width = box.maxWidth < 600 ? box.maxWidth : 380.0;
+        return Stack(
+          children: [
+            PositionedDirectional(
+              top: 6,
+              bottom: 6,
+              start: 6,
+              width: width - 12,
+              child: AnimatedSwitcher(
+                duration: Motion.of(context, Motion.medium),
+                switchInCurve: Motion.enter,
+                switchOutCurve: Motion.exit,
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween(
+                      begin: Offset(
+                        Directionality.of(context) == TextDirection.rtl
+                            ? 0.08
+                            : -0.08,
+                        0,
+                      ),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  ),
+                ),
+                child: kind == null
+                    ? const SizedBox.shrink(key: ValueKey('none'))
+                    : KeyedSubtree(
+                        key: ValueKey(kind),
+                        child: Glass(
+                          strong: true,
+                          overlay: true,
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SizedBox(
+                                height: 34,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      kind == PodKind.chat
+                                          ? ClassroomIcons.chat
+                                          : ClassroomIcons.people,
+                                      size: 18,
+                                      color: ClassroomTheme.of(
+                                        context,
+                                      ).textSecondary,
+                                    ),
+                                    const SizedBox(width: 9),
+                                    Expanded(
+                                      child: Text(
+                                        kind.labelFa,
+                                        style: TextStyle(
+                                          fontSize: 14.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: ClassroomTheme.of(
+                                            context,
+                                          ).text,
+                                        ),
+                                      ),
+                                    ),
+                                    GlassIconButton(
+                                      icon: ClassroomIcons.close,
+                                      tooltip: 'بستن',
+                                      onPressed: focus!.closeDrawer,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Expanded(
+                                child: kind == PodKind.chat
+                                    ? const ChatPod()
+                                    : const ParticipantsPod(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Reactions floating up over the stage: each one-emoji chat message that arrives while the
+/// class runs rises from the dock and fades, drifting a little as it goes.
+class ReactionFloat extends ConsumerStatefulWidget {
+  const ReactionFloat({super.key});
+
+  @override
+  ConsumerState<ReactionFloat> createState() => _ReactionFloatState();
+}
+
+typedef _Floater = ({String id, String emoji, double lane, Duration born});
+
+class _ReactionFloatState extends ConsumerState<ReactionFloat>
+    with SingleTickerProviderStateMixin {
+  static const _life = Duration(milliseconds: 2600);
+  late final _ticker = createTicker(_tick);
+  final _floaters = <_Floater>[];
+  Set<String>? _seen;
+
+  /// Frame time since the ticker started; it restarts only once every floater is gone.
+  Duration _now = Duration.zero;
+
+  void _tick(Duration elapsed) {
+    setState(() {
+      _now = elapsed;
+      _floaters.removeWhere((f) => _now - f.born > _life);
+    });
+    if (_floaters.isEmpty) {
+      _ticker.stop();
+      _now = Duration.zero;
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final chat = ref.watch(
+      classroomViewProvider.select(
+        (v) => v.room?.chat ?? const <ChatMessage>[],
+      ),
+    );
+    // History does not float: only what arrives after the page opened.
+    final seen = _seen ??= {for (final m in chat) m.id};
+    for (final m in chat) {
+      if (!seen.add(m.id) || !isReaction(m.text)) continue;
+      if (Motion.reduced(context)) continue;
+      _floaters.add((
+        id: m.id,
+        emoji: m.text.trim(),
+        lane: ((m.id.hashCode % 1000) / 1000 - 0.5) * 0.5,
+        born: _now,
+      ));
+      if (!_ticker.isActive) _ticker.start();
+    }
+    if (_floaters.isEmpty) return const SizedBox.shrink();
+    return LayoutBuilder(
+      builder: (context, box) => Stack(
+        children: [
+          for (final f in _floaters)
+            Builder(
+              builder: (context) {
+                final v =
+                    ((_now - f.born).inMilliseconds / _life.inMilliseconds)
+                        .clamp(0.0, 1.0);
+                final rise = Curves.easeOutCubic.transform(v);
+                final x =
+                    box.maxWidth * (0.5 + f.lane) +
+                    18 * math.sin(v * math.pi * 2.5);
+                final y = box.maxHeight * (1 - 0.7 * rise);
+                final opacity = v < 0.15
+                    ? v / 0.15
+                    : 1 - ((v - 0.6) / 0.4).clamp(0, 1);
+                return Positioned(
+                  left: x - 24,
+                  top: y - 24,
+                  child: Opacity(
+                    opacity: opacity.toDouble(),
+                    child: Transform.scale(
+                      scale:
+                          0.7 +
+                          0.5 *
+                              Curves.easeOutBack.transform(
+                                (v * 4).clamp(0.0, 1.0),
+                              ),
+                      child: Text(
+                        f.emoji,
+                        style: const TextStyle(fontSize: 38, height: 1.2),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
       ),
     );
   }
