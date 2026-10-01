@@ -74,8 +74,8 @@ export class ClassroomGateway implements OnApplicationShutdown {
     let joined: { actor: RoomActor; conn: Connection } | null = null;
     let protocolErrors = 0;
     let queue: Promise<void> = Promise.resolve();
-    const send = (msg: ServerMessage) => {
-      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+    const send = (msg: ServerMessage, frame?: string) => {
+      if (ws.readyState === WebSocket.OPEN) ws.send(frame ?? JSON.stringify(msg));
     };
     const helloTimer = setTimeout(
       () => ws.close(GATEWAY_CLOSE_CODES.unauthenticated),
@@ -154,7 +154,7 @@ export class ClassroomGateway implements OnApplicationShutdown {
     ws: WebSocket,
     ticket: string,
     lastSeq: number | null,
-    send: (msg: ServerMessage) => void,
+    send: (msg: ServerMessage, frame?: string) => void,
   ): Promise<{ actor: RoomActor; conn: Connection } | null> {
     const identity = await this.tickets.verify(ticket);
     if (!identity) {

@@ -29,11 +29,25 @@ function project(e: AudiencedEvent, viewerIsManager: boolean): SequencedEvent {
   return { t: 'evt', seq: e.seq, at: e.at, evt: redactEvent(e.evt, viewerIsManager) };
 }
 
+/** A message with its serialised frame, shared by every connection it goes to. */
+interface Wire {
+  msg: SequencedEvent;
+  frame: string;
+}
+
+function wireOf(msg: SequencedEvent): Wire {
+  return { msg, frame: JSON.stringify(msg) };
+}
+
 /** One WebSocket, as the actor sees it. Abstract so tests can use plain objects. */
 export interface Connection {
   readonly userId: string;
   readonly role: ClassRole;
-  send(msg: ServerMessage): void;
+  /**
+   * `frame` is `msg` already serialised, when the same message goes to many connections: a
+   * class of a hundred would otherwise stringify every event and preview a hundred times.
+   */
+  send(msg: ServerMessage, frame?: string): void;
   close(code: number): void;
   /** Bytes queued but not yet sent: a slow client is skipped for ephemeral traffic. */
   bufferedAmount(): number;
@@ -182,10 +196,13 @@ export class RoomActor {
     }
 
     const msg: ServerMessage = { t: 'eph', from: from.userId, eph };
+    const frame = JSON.stringify(msg);
     for (const { conn, ready } of this.members.values()) {
-      if (ready && conn !== from && conn.bufferedAmount() < SLOW_CLIENT_BYTES) conn.send(msg);
+      if (ready && conn !== from && conn.bufferedAmount() < SLOW_CLIENT_BYTES) {
+        conn.send(msg, frame);
+      }
     }
-    for (const rec of this.recorders) rec.send(msg);
+    for (const rec of this.recorders) rec.send(msg, frame);
     return null;
   }
 
@@ -209,16 +226,31 @@ export class RoomActor {
   }
 
   private fanout(events: AudiencedEvent[]): void {
+    // Each event is projected and serialised once per kind of viewer — managers see capture
+    // status, others do not — and that one frame goes to everyone of that kind.
+    const wire = events.map((e) => {
+      const made: { manager?: Wire; member?: Wire } = {};
+      return (manager: boolean): Wire => {
+        const key = manager ? 'manager' : 'member';
+        return (made[key] ??= wireOf(project(e, manager)));
+      };
+    });
     for (const { conn, ready } of this.members.values()) {
       if (!ready) continue;
       const manager = isManager(this.state, conn.userId);
-      for (const e of events) {
-        if (this.reaches(e, conn.userId, manager)) conn.send(project(e, manager));
-      }
+      events.forEach((e, i) => {
+        if (!this.reaches(e, conn.userId, manager)) return;
+        const { msg, frame } = wire[i]!(manager);
+        conn.send(msg, frame);
+      });
     }
     // The recording shows the stage, never manager-only or personal notices.
     for (const rec of this.recorders) {
-      for (const e of events) if (e.audience === 'all') rec.send(project(e, false));
+      events.forEach((e, i) => {
+        if (e.audience !== 'all') return;
+        const { msg, frame } = wire[i]!(false);
+        rec.send(msg, frame);
+      });
     }
   }
 
