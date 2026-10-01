@@ -9,6 +9,8 @@ import '../theme/glass.dart';
 import '../theme/motion.dart';
 import 'people.dart';
 
+typedef _Raised = ({String userId, String name, int raisedSeq});
+
 /// The raised-hand queue, numbered in the order the server received them. Managers
 /// give the floor (with or without camera) or lower hands from here.
 class HandsPod extends ConsumerStatefulWidget {
@@ -25,12 +27,24 @@ class _HandsPodState extends ConsumerState<HandsPod> {
   @override
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
-    final view = ref.watch(classroomViewProvider);
-    final hands = view.room?.raisedHands ?? const <ParticipantState>[];
+    // The queue as it is drawn: it rebuilds when a hand goes up or down, not on every change
+    // in the class.
+    final hands = ref
+        .watch(
+          classroomViewProvider.select(
+            (v) => ListValue([
+              for (final p in v.room?.raisedHands ?? const <ParticipantState>[])
+                (userId: p.userId, name: p.name, raisedSeq: p.hand!.raisedSeq),
+            ]),
+          ),
+        )
+        .items;
     // A hand is one raise, not one person: lowering and raising again arrives again.
-    String raise(ParticipantState p) => '${p.userId}:${p.hand!.raisedSeq}';
+    String raise(_Raised p) => '${p.userId}:${p.raisedSeq}';
     final seen = _seen ??= SeenSet(hands.map(raise));
-    final canManage = view.can(Capability.participantsManage);
+    final canManage = ref.watch(
+      classroomViewProvider.select((v) => v.can(Capability.participantsManage)),
+    );
     final session = ref.read(classroomSessionProvider);
     return Column(
       children: [

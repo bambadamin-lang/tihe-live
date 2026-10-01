@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 /// Camera, microphone and screen share, as the classroom needs them — behind an interface so
@@ -21,6 +20,20 @@ class ParticipantMedia {
   final bool screenOn;
   final bool speaking;
   final bool isLocal;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ParticipantMedia &&
+      other.userId == userId &&
+      other.micOn == micOn &&
+      other.cameraOn == cameraOn &&
+      other.screenOn == screenOn &&
+      other.speaking == speaking &&
+      other.isLocal == isLocal;
+
+  @override
+  int get hashCode =>
+      Object.hash(userId, micOn, cameraOn, screenOn, speaking, isLocal);
 }
 
 @immutable
@@ -44,6 +57,22 @@ class MediaState {
     }
     return null;
   }
+
+  /// Equal when everything on screen would be the same. LiveKit reports far more often than
+  /// anything visible changes (connection quality, stream state…), and a repeat is dropped.
+  @override
+  bool operator ==(Object other) =>
+      other is MediaState &&
+      other.connected == connected &&
+      other.activeSpeaker == activeSpeaker &&
+      mapEquals(other.participants, participants);
+
+  @override
+  int get hashCode => Object.hash(
+    connected,
+    activeSpeaker,
+    Object.hashAllUnordered(participants.values),
+  );
 
   /// The first participant sharing a screen, preferring [preferred] (the host) when they are.
   String? screenSharer({Iterable<String> preferred = const []}) {

@@ -81,11 +81,16 @@ class LiveKitClassroomMedia implements ClassroomMedia {
     for (final p in _room.remoteParticipants.values) {
       participants[p.identity] = _describe(p, isLocal: false);
     }
-    _state = MediaState(
+    final next = MediaState(
       connected: _room.connectionState == ConnectionState.connected,
       participants: participants,
       activeSpeaker: _room.activeSpeakers.firstOrNull?.identity,
     );
+    // Every room event lands here — connection quality, stream state, speaker levels — many
+    // times a second in a big class. Only a change the classroom can show goes out: each one
+    // reaches every widget that watches media.
+    if (next == _state) return;
+    _state = next;
     if (!_changes.isClosed) _changes.add(_state);
   }
 
@@ -110,9 +115,7 @@ class LiveKitClassroomMedia implements ClassroomMedia {
   Participant? _participant(String userId) {
     final local = _room.localParticipant;
     if (local?.identity == userId) return local;
-    return _room.remoteParticipants.values.firstWhereOrNull(
-      (p) => p.identity == userId,
-    );
+    return _room.remoteParticipants[userId]; // keyed by identity
   }
 
   @override

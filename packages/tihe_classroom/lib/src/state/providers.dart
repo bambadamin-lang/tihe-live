@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'classroom_session.dart';
@@ -29,4 +30,21 @@ class ClassroomViewNotifier extends Notifier<ClassroomView> {
     ref.onDispose(() => session.view.removeListener(listener));
     return session.view.value;
   }
+}
+
+/// A list compared by its elements. A `select` notifies when its result changes by `==`, so a
+/// list built fresh on every change would rebuild its widget every time; wrapped in this, it
+/// does only when the contents differ.
+@immutable
+class ListValue<T> {
+  const ListValue(this.items);
+
+  final List<T> items;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ListValue<T> && listEquals(other.items, items);
+
+  @override
+  int get hashCode => Object.hashAll(items);
 }

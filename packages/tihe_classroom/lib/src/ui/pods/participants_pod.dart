@@ -17,14 +17,22 @@ class ParticipantsPod extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ClassroomTheme.of(context);
-    final view = ref.watch(classroomViewProvider);
-    final room = view.room;
-    if (room == null) return const SizedBox.shrink();
-    final people = room.participants.values.toList()
-      ..sort((a, b) {
-        if (a.online != b.online) return a.online ? -1 : 1;
-        return b.role.rank.compareTo(a.role.rank);
-      });
+    // The list watches only who is in it and in what order; each card watches its own person.
+    final people = ref
+        .watch(
+          classroomViewProvider.select((v) {
+            final room = v.room;
+            if (room == null) return null;
+            final sorted = room.participants.values.toList()
+              ..sort((a, b) {
+                if (a.online != b.online) return a.online ? -1 : 1;
+                return b.role.rank.compareTo(a.role.rank);
+              });
+            return ListValue([for (final p in sorted) p.userId]);
+          }),
+        )
+        ?.items;
+    if (people == null) return const SizedBox.shrink();
     return ListView.separated(
       padding: const EdgeInsets.all(2),
       itemCount: people.length,
@@ -32,30 +40,44 @@ class ParticipantsPod extends ConsumerWidget {
         padding: const EdgeInsetsDirectional.only(start: 48),
         child: Divider(color: t.hairline),
       ),
-      itemBuilder: (context, i) => _Card(participant: people[i], view: view),
+      itemBuilder: (context, i) =>
+          _Card(key: ValueKey(people[i]), userId: people[i]),
     );
   }
 }
 
 class _Card extends ConsumerWidget {
-  const _Card({required this.participant, required this.view});
+  const _Card({super.key, required this.userId});
 
-  final ParticipantState participant;
-  final ClassroomView view;
+  final String userId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = ref.watch(
+      classroomViewProvider.select((v) {
+        final p = v.room?.participants[userId];
+        if (p == null) return null;
+        final media = v.media.of(userId);
+        final me = v.me;
+        final isMe = userId == v.userId;
+        return (
+          // Participant states are immutable and replaced when they change.
+          p: p,
+          micOn: media.micOn,
+          cameraOn: media.cameraOn,
+          isMe: isMe,
+          canManage:
+              me != null &&
+              !isMe &&
+              me.can(Capability.participantsManage) &&
+              me.role.outranks(p.role),
+          canAssign: me != null && !isMe && me.can(Capability.rolesAssign),
+        );
+      }),
+    );
+    if (c == null) return const SizedBox.shrink();
     final t = ClassroomTheme.of(context);
-    final p = participant;
-    final media = view.media.of(p.userId);
-    final me = view.me;
-    final isMe = p.userId == view.userId;
-    final canManage =
-        me != null &&
-        !isMe &&
-        me.can(Capability.participantsManage) &&
-        me.role.outranks(p.role);
-    final canAssign = me != null && !isMe && me.can(Capability.rolesAssign);
+    final (:p, :micOn, :cameraOn, :isMe, :canManage, :canAssign) = c;
     return Opacity(
       opacity: p.online ? 1 : 0.5,
       child: Container(
@@ -115,15 +137,15 @@ class _Card extends ConsumerWidget {
               const SizedBox(width: 8),
             ],
             Icon(
-              media.micOn ? ClassroomIcons.mic : ClassroomIcons.micOff,
+              micOn ? ClassroomIcons.mic : ClassroomIcons.micOff,
               size: 15,
-              color: media.micOn ? t.success : t.textTertiary,
+              color: micOn ? t.success : t.textTertiary,
             ),
             const SizedBox(width: 6),
             Icon(
-              media.cameraOn ? ClassroomIcons.camera : ClassroomIcons.cameraOff,
+              cameraOn ? ClassroomIcons.camera : ClassroomIcons.cameraOff,
               size: 15,
-              color: media.cameraOn ? t.success : t.textTertiary,
+              color: cameraOn ? t.success : t.textTertiary,
             ),
             if (canManage || canAssign)
               _Actions(

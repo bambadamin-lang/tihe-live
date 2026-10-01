@@ -7,6 +7,7 @@ import '../../contracts.dart';
 import '../../data/gateway_client.dart';
 import '../../data/media.dart';
 import '../../domain/persian.dart';
+import '../../state/classroom_session.dart';
 import '../../state/providers.dart';
 import '../classroom_page.dart';
 import '../theme/classroom_theme.dart';
@@ -245,73 +246,117 @@ class _ConnectionLamp extends StatelessWidget {
   }
 }
 
+typedef _DockState = ({
+  bool micOn,
+  bool cameraOn,
+  bool screenOn,
+  bool canAudio,
+  bool canVideo,
+  bool canScreen,
+  bool canRaise,
+  bool canLayout,
+  bool canManage,
+  bool canEnd,
+  bool showHand,
+  bool handUp,
+  int? queue,
+});
+
 /// The dock: microphone, camera and screen share, the raised hand, and the host's layout,
 /// settings and end-of-class keys, grouped and floating centred over the canvas.
 class ControlBar extends ConsumerWidget {
   const ControlBar({super.key});
 
+  /// Everything the dock shows, as one value: it rebuilds when one of these changes, not on
+  /// every board stroke, chat message or speaker change in the class.
+  static _DockState _select(ClassroomView v) {
+    final local = v.media.local;
+    final me = v.me;
+    final hand = me?.hand;
+    return (
+      micOn: local?.micOn ?? false,
+      cameraOn: local?.cameraOn ?? false,
+      screenOn: local?.screenOn ?? false,
+      canAudio: v.can(Capability.publishAudio),
+      canVideo: v.can(Capability.publishVideo),
+      canScreen: v.can(Capability.publishScreen),
+      canRaise: v.can(Capability.handRaise),
+      canLayout: v.can(Capability.layoutChange),
+      canManage: v.can(Capability.participantsManage),
+      canEnd: v.can(Capability.classEnd),
+      // Cohosts and hosts take the floor; they have no hand to raise.
+      showHand: me == null || me.role.rank < ClassRole.cohost.rank,
+      handUp: hand != null,
+      // 1-based place in the queue: hands are served in the order the server received them.
+      queue: hand == null
+          ? null
+          : 1 +
+                (v.room?.participants.values
+                        .where(
+                          (p) =>
+                              p.hand != null &&
+                              p.hand!.raisedSeq < hand.raisedSeq,
+                        )
+                        .length ??
+                    0),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(classroomSessionProvider);
-    final view = ref.watch(classroomViewProvider);
+    final s = ref.watch(classroomViewProvider.select(_select));
     final t = ClassroomTheme.of(context);
-    final local = view.media.local;
-    final me = view.me;
-    final hands = view.room?.raisedHands ?? const <ParticipantState>[];
-    final position = hands.indexWhere((p) => p.userId == view.userId);
     final narrow = MediaQuery.sizeOf(context).width < 640;
 
     final media = [
       MediaToggle(
-        on: local?.micOn ?? false,
-        locked: !view.can(Capability.publishAudio),
+        on: s.micOn,
+        locked: !s.canAudio,
         icon: ClassroomIcons.mic,
         offIcon: ClassroomIcons.micOff,
         label: 'میکروفون',
         onPressed: session.toggleMicrophone,
       ),
       MediaToggle(
-        on: local?.cameraOn ?? false,
-        locked: !view.can(Capability.publishVideo),
+        on: s.cameraOn,
+        locked: !s.canVideo,
         icon: ClassroomIcons.camera,
         offIcon: ClassroomIcons.cameraOff,
         label: 'دوربین',
         onPressed: session.toggleCamera,
       ),
-      if (!narrow || view.can(Capability.publishScreen))
+      if (!narrow || s.canScreen)
         // Sharing is a thing you start, not a thing you mute: off is neutral, not red.
         DockButton(
-          icon: (local?.screenOn ?? false)
+          icon: s.screenOn
               ? ClassroomIcons.screenShareOff
-              : view.can(Capability.publishScreen)
+              : s.canScreen
               ? ClassroomIcons.screenShare
               : ClassroomIcons.lock,
           label: 'اشتراک صفحه',
-          toggled: local?.screenOn ?? false,
-          tint: (local?.screenOn ?? false) ? t.accent : null,
-          tooltip: view.can(Capability.publishScreen)
+          toggled: s.screenOn,
+          tint: s.screenOn ? t.accent : null,
+          tooltip: s.canScreen
               ? 'اشتراک صفحه'
               : 'اشتراک صفحه — نیاز به اجازهٔ میزبان',
           disabledCursor: SystemMouseCursors.forbidden,
-          onPressed:
-              !(local?.screenOn ?? false) && !view.can(Capability.publishScreen)
+          onPressed: !s.screenOn && !s.canScreen
               ? null
-              : () => (local?.screenOn ?? false)
+              : () => s.screenOn
                     ? session.stopScreenShare()
                     : _pickScreen(context, ref),
         ),
-      if (me == null || me.role.rank < ClassRole.cohost.rank)
+      if (s.showHand)
         HandToggle(
-          raised: me?.hand != null,
-          queuePosition: position >= 0 ? position + 1 : null,
-          onPressed: (me?.hand != null || view.can(Capability.handRaise))
-              ? session.toggleHand
-              : null,
+          raised: s.handUp,
+          queuePosition: s.queue,
+          onPressed: (s.handUp || s.canRaise) ? session.toggleHand : null,
         ),
     ];
 
     final host = [
-      if (view.can(Capability.layoutChange))
+      if (s.canLayout)
         DockButton(
           icon: ClassroomIcons.layout,
           label: 'چیدمان',
@@ -319,7 +364,7 @@ class ControlBar extends ConsumerWidget {
           onPressed: () =>
               showClassroomDialog<void>(context, const LayoutPickerSheet()),
         ),
-      if (view.can(Capability.participantsManage))
+      if (s.canManage)
         DockButton(
           icon: ClassroomIcons.settings,
           label: 'تنظیمات کلاس',
@@ -330,7 +375,7 @@ class ControlBar extends ConsumerWidget {
     ];
 
     final exits = [
-      if (view.can(Capability.classEnd))
+      if (s.canEnd)
         DockButton(
           icon: ClassroomIcons.endClass,
           label: 'پایان کلاس',
