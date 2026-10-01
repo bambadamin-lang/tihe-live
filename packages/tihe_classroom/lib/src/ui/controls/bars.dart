@@ -183,14 +183,30 @@ class _LiveClock extends StatefulWidget {
 }
 
 class _LiveClockState extends State<_LiveClock> {
-  late final Timer _timer = Timer.periodic(
-    const Duration(seconds: 1),
-    (_) => setState(() {}),
-  );
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleTick();
+  }
+
+  /// Ticks as each elapsed second turns over, so the clock changes on time and only then.
+  void _scheduleTick() {
+    final elapsed = DateTime.now().difference(widget.startedAt);
+    final toNext =
+        Duration.microsecondsPerSecond -
+        elapsed.inMicroseconds % Duration.microsecondsPerSecond;
+    _timer = Timer(Duration(microseconds: toNext + 2000), () {
+      if (!mounted) return;
+      setState(() {});
+      _scheduleTick();
+    });
+  }
 
   @override
   void dispose() {
-    _timer.cancel();
+    _timer?.cancel();
     super.dispose();
   }
 
