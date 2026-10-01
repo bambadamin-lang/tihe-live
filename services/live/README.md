@@ -46,3 +46,10 @@ pnpm --filter @tihe/live test      # rules, then a whole class over REST + WebSo
 LIVE_TEST_DATABASE_URL=postgresql://tihe:tihe_dev_password@localhost:5432/tihe_live \
 LIVE_TEST_REDIS_URL=redis://localhost:6379 pnpm --filter @tihe/live test
 ```
+
+How long the gateway takes to fan a preview, a chat message and a finished stroke out to a class
+of a hundred — run it before and after touching `room-actor.ts`:
+
+```bash
+pnpm --filter @tihe/live exec tsx scripts/fanout-bench.ts
+```
