@@ -68,6 +68,17 @@ class BoardController extends ChangeNotifier {
   /// Being erased by the current eraser drag; hidden at once.
   final Set<String> erasing = {};
 
+  /// Changes whenever [pending] or [erasing] does — what the board's finished-ink layer draws
+  /// besides the room's own items — so the board rebuilds that layer then and only then, not
+  /// on every pen move.
+  int get committedRevision => _committedRevision;
+  int _committedRevision = 0;
+
+  void _committedChanged() {
+    _committedRevision++;
+    notifyListeners();
+  }
+
   Timer? _flush;
   int _sentPoints = 0;
   bool _manage = false;
@@ -108,7 +119,10 @@ class BoardController extends ChangeNotifier {
     final pageId = room.activePageId;
     switch (tool) {
       case BoardTool.eraser:
-        erasing.clear();
+        if (erasing.isNotEmpty) {
+          erasing.clear();
+          _committedRevision++;
+        }
         _erase(p, room);
       case BoardTool.text:
         return; // placed through placeText after the text is typed
@@ -173,12 +187,12 @@ class BoardController extends ChangeNotifier {
       pending[item.id] = item;
     }
     history.record(ItemsAdded(items));
-    notifyListeners();
+    _committedChanged();
     for (final item in items) {
       final outcome = await _send(AddBoardItem(item));
       if (outcome is! Accepted) {
         pending.remove(item.id);
-        notifyListeners();
+        _committedChanged();
       }
     }
   }
@@ -189,7 +203,7 @@ class BoardController extends ChangeNotifier {
     for (final i in items) {
       changed |= pending.remove(i.id) != null;
     }
-    if (changed) notifyListeners();
+    if (changed) _committedChanged();
   }
 
   List<BoardItem> _itemsFrom(Draft d) {
@@ -281,7 +295,7 @@ class BoardController extends ChangeNotifier {
         _erasedItems[item.id] = item;
       }
     }
-    if (changed) notifyListeners();
+    if (changed) _committedChanged();
   }
 
   final Map<String, BoardItem> _erasedItems = {};
@@ -295,7 +309,7 @@ class BoardController extends ChangeNotifier {
     // Accepted: the server's wb.removed takes them off the page. Refused: they reappear.
     erasing.clear();
     _erasedItems.clear();
-    notifyListeners();
+    _committedChanged();
   }
 
   // ─── Text, undo, pages ────────────────────────────────────────────────────
@@ -315,10 +329,10 @@ class BoardController extends ChangeNotifier {
     );
     pending[item.id] = item;
     history.record(ItemsAdded([item]));
-    notifyListeners();
+    _committedChanged();
     if (await _send(AddBoardItem(item)) is! Accepted) {
       pending.remove(item.id);
-      notifyListeners();
+      _committedChanged();
     }
   }
 

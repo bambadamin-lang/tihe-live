@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../contracts.dart';
 import '../../domain/board_model.dart';
+import '../../domain/classroom_state.dart';
 import '../../domain/persian.dart';
 import '../../state/board_controller.dart';
 import '../../state/providers.dart';
@@ -11,6 +12,7 @@ import '../theme/classroom_theme.dart';
 import '../theme/glass.dart';
 import '../theme/transitions.dart';
 import 'board_painter.dart';
+import 'committed_ink.dart';
 
 /// The whiteboard pod: the board on the pod's glass, with the tool tray below it. The page stays
 /// near-white in both themes — ink colours are chosen for it, and it is what the recording shows.
@@ -153,14 +155,51 @@ class _BoardCanvasState extends ConsumerState<BoardCanvas>
     if (text != null) await board.placeText(_toPage(local), text, pageId);
   }
 
+  /// The finished-ink layer's painter, made again only when what it draws changes: the room's
+  /// items, the page, this user's pending and erased items, or the font. Pen moves, previews
+  /// and the rest of the class reuse it, so that layer is not repainted for them.
+  BoardPainter? _committed;
+  Object? _committedKey;
+
+  BoardPainter _committedPainter(
+    BoardController board,
+    Map<String, BoardItem> items,
+    BoardPage page,
+    String fontFamily,
+  ) {
+    final key = (items, page, board.committedRevision, fontFamily);
+    if (key == _committedKey) return _committed!;
+    _committedKey = key;
+    return _committed = BoardPainter(
+      layer: BoardLayer.committed,
+      page: page,
+      items: [
+        for (final i in items.values)
+          if (i.pageId == page.id) i,
+        for (final i in board.pending.values)
+          if (i.pageId == page.id && !items.containsKey(i.id)) i,
+      ],
+      // A copy: the controller's own set changes in place as the eraser moves.
+      hidden: Set.of(board.erasing),
+      previews: const [],
+      draft: null,
+      now: _still,
+      fontFamily: fontFamily,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(classroomSessionProvider);
     final board = session.board;
-    final room = ref.watch(classroomViewProvider.select((v) => v.room));
+    // Only what the board draws: a chat message or a raised hand leaves it alone.
+    final (:items, :page) = ref.watch(
+      classroomViewProvider.select(
+        (v) => (items: v.room?.items, page: v.room?.activePage),
+      ),
+    );
     final previews = ref.watch(classroomViewProvider.select((v) => v.previews));
-    final page = room?.activePage;
-    if (room == null || page == null) return const SizedBox.expand();
+    if (items == null || page == null) return const SizedBox.expand();
     final fontFamily = ClassroomTheme.of(context).fontFamily;
 
     return LayoutBuilder(
@@ -178,31 +217,13 @@ class _BoardCanvasState extends ConsumerState<BoardCanvas>
             if (moving && !_ticker.isActive) _ticker.start();
             if (!moving && _ticker.isActive) _ticker.stop();
 
-            final items = [
-              ...room.itemsOn(page.id),
-              ...board.pending.values.where(
-                (i) => i.pageId == page.id && !room.items.containsKey(i.id),
-              ),
-            ];
             final canvas = Stack(
               fit: StackFit.expand,
               children: [
-                // Finished work: its own layer, repainted only when an item comes or goes.
-                RepaintBoundary(
-                  child: CustomPaint(
-                    size: Size.infinite,
-                    isComplex: true,
-                    painter: BoardPainter(
-                      layer: BoardLayer.committed,
-                      page: page,
-                      items: items,
-                      hidden: board.erasing,
-                      previews: const [],
-                      draft: null,
-                      now: _still,
-                      fontFamily: fontFamily,
-                    ),
-                  ),
+                // Finished work: its own layer, drawn again only when an item comes or goes.
+                CommittedInk(
+                  painter: _committedPainter(board, items, page, fontFamily),
+                  devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
                 ),
                 // Ink in motion: redrawn every frame, but only the strokes being drawn.
                 CustomPaint(
@@ -221,6 +242,8 @@ class _BoardCanvasState extends ConsumerState<BoardCanvas>
               ],
             );
             if (!widget.canDraw) return canvas;
+            // The room is read when the pen touches down, not watched: drawing needs it then.
+            ClassroomState? room() => ref.read(classroomViewProvider).room;
             return MouseRegion(
               cursor: switch (board.tool) {
                 BoardTool.text => SystemMouseCursors.text,
@@ -230,18 +253,24 @@ class _BoardCanvasState extends ConsumerState<BoardCanvas>
               child: Listener(
                 behavior: HitTestBehavior.opaque,
                 onPointerDown: (e) {
+                  final now = room();
+                  if (now == null) return;
                   if (board.tool == BoardTool.text) {
                     _placeText(board, e.localPosition, page.id);
                     return;
                   }
                   board.pointerDown(
                     _toPage(e.localPosition),
-                    room,
+                    now,
                     canManage: widget.canManage,
                   );
                 },
-                onPointerMove: (e) =>
-                    board.pointerMove(_toPage(e.localPosition), room),
+                onPointerMove: (e) {
+                  final now = room();
+                  if (now != null) {
+                    board.pointerMove(_toPage(e.localPosition), now);
+                  }
+                },
                 onPointerUp: (_) => board.pointerUp(),
                 onPointerCancel: (_) => board.pointerUp(),
                 child: canvas,
@@ -278,7 +307,9 @@ class MarkerTray extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(classroomSessionProvider);
     final board = session.board;
-    final room = ref.watch(classroomViewProvider.select((v) => v.room));
+    final hasRoom = ref.watch(
+      classroomViewProvider.select((v) => v.room != null),
+    );
     final t = ClassroomTheme.of(context);
     return ListenableBuilder(
       listenable: board,
@@ -330,7 +361,7 @@ class MarkerTray extends ConsumerWidget {
             onChanged: board.setWidth,
             tool: board.tool,
           ),
-          if (canManage && room != null) ...[
+          if (canManage && hasRoom) ...[
             const _PageSwitcher(),
             _TrayIcon(
               icon: ClassroomIcons.newPage,
@@ -340,7 +371,10 @@ class MarkerTray extends ConsumerWidget {
             _TrayIcon(
               icon: ClassroomIcons.clearPage,
               label: 'پاک کردن صفحه',
-              onTap: () => board.clearPage(room),
+              onTap: () {
+                final room = ref.read(classroomViewProvider).room;
+                if (room != null) board.clearPage(room);
+              },
             ),
           ],
         ];
@@ -613,20 +647,22 @@ class _PageSwitcher extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(classroomViewProvider.select((v) => v.room));
-    if (state == null) return const SizedBox.shrink();
+    final (:pages, :active) = ref.watch(
+      classroomViewProvider.select(
+        (v) => (pages: v.room?.pages, active: v.room?.activePageId),
+      ),
+    );
+    if (pages == null) return const SizedBox.shrink();
     final board = ref.watch(classroomSessionProvider).board;
-    final index = state.pages.indexWhere((p) => p.id == state.activePageId);
-    final count = state.pages.length;
+    final index = pages.indexWhere((p) => p.id == active);
+    final count = pages.length;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         _TrayIcon(
           icon: ClassroomIcons.previousPage,
           label: 'صفحهٔ قبل',
-          onTap: index > 0
-              ? () => board.selectPage(state.pages[index - 1].id)
-              : null,
+          onTap: index > 0 ? () => board.selectPage(pages[index - 1].id) : null,
         ),
         Text(
           toPersianDigits('${index + 1} / $count'),
@@ -639,7 +675,7 @@ class _PageSwitcher extends ConsumerWidget {
           icon: ClassroomIcons.nextPage,
           label: 'صفحهٔ بعد',
           onTap: index < count - 1
-              ? () => board.selectPage(state.pages[index + 1].id)
+              ? () => board.selectPage(pages[index + 1].id)
               : null,
         ),
       ],
