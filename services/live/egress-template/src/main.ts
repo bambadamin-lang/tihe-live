@@ -46,9 +46,13 @@ async function runLive(): Promise<void> {
         EgressHelper.endRecording();
         return;
       }
-      stage.render(state);
+      // The stage's layout and title change only with the room's state; a board event or a
+      // preview (25 a second per person drawing) needs only the board drawn again.
+      if (what === 'state') {
+        stage.render(state);
+        media.refresh();
+      }
       boardDirty = true;
-      if (what === 'state') media.refresh();
       start();
     },
   );

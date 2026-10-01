@@ -1,6 +1,13 @@
 import { deriveRecordingLayout, type BoardPage, type Layout, type PodKind } from '@tihe/contracts';
 import type { RoomState } from '../../src/core/room-state.js';
-import { drawBoard, type Preview } from './board.js';
+import { drawFinished, drawPreviews, type Preview } from './board.js';
+
+// One formatter for the page's life: building one costs more than formatting with it.
+const PERSIAN_DATE = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
 
 const EMPTY: Partial<Record<PodKind, string>> = {
   speaker: 'دوربین ارائه‌دهنده خاموش است',
@@ -18,6 +25,14 @@ export class Stage {
   private readonly pods = new Map<PodKind, HTMLElement>();
   private canvas: HTMLCanvasElement | null = null;
   private readonly mark: HTMLElement;
+  private markKey = '';
+  /**
+   * The page and its finished ink, kept between frames: while a stroke comes in, each frame
+   * copies this and draws only the stroke. Made again when an event arrives (the room's
+   * sequence number moves), the page changes or the canvas is resized.
+   */
+  private finished: HTMLCanvasElement | null = null;
+  private finishedKey = '';
 
   constructor(private readonly root: HTMLElement) {
     root.classList.add('stage');
@@ -62,13 +77,31 @@ export class Stage {
       canvas.height = h;
     }
     const ctx = canvas.getContext('2d');
-    if (ctx) drawBoard(ctx, page, state.board.items.values(), previews, now);
+    if (!ctx) return;
+    const finished = (this.finished ??= document.createElement('canvas'));
+    const key = `${page.id}:${page.background}:${state.seq}:${w}x${h}`;
+    if (key !== this.finishedKey) {
+      // Assigning a size reallocates the canvas even when it is the same.
+      if (finished.width !== w || finished.height !== h) {
+        finished.width = w;
+        finished.height = h;
+      }
+      const fctx = finished.getContext('2d');
+      if (!fctx) return;
+      drawFinished(fctx, page, state.board.items.values());
+      this.finishedKey = key;
+    }
+    // Same size, no transform: a pixel-for-pixel copy.
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(finished, 0, 0);
+    drawPreviews(ctx, previews, now);
   }
 
   private mount(layout: Layout): void {
     this.root.replaceChildren();
     this.pods.clear();
     this.canvas = null;
+    this.finishedKey = '';
     for (const pod of layout.pods) {
       const el = document.createElement('section');
       el.className = `pod pod--${pod.kind}`;
@@ -106,11 +139,11 @@ export class Stage {
   }
 
   private renderMark(title: string, startedAt: string): void {
-    const date = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }).format(new Date(startedAt));
+    // Rebuilt only when it changes, not on every event the stage hears about.
+    const key = `${title}\n${startedAt}`;
+    if (key === this.markKey && this.mark.isConnected) return;
+    this.markKey = key;
+    const date = PERSIAN_DATE.format(new Date(startedAt));
     this.mark.replaceChildren(
       Object.assign(document.createElement('strong'), { textContent: 'تیهه لایو' }),
       Object.assign(document.createElement('span'), { textContent: title }),

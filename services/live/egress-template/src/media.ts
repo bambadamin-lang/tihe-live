@@ -85,7 +85,12 @@ export class MediaBinder {
         this.elements.delete(key);
       }
     }
-    box.replaceChildren(...wanted);
+    // Speaker changes arrive several times a second; the DOM is touched only when the
+    // tracks shown actually change.
+    const shown = box.children;
+    if (shown.length !== wanted.length || wanted.some((el, i) => shown[i] !== el)) {
+      box.replaceChildren(...wanted);
+    }
     box.dataset.count = String(wanted.length);
     this.stage.setEmpty(kind, wanted.length === 0);
   }
