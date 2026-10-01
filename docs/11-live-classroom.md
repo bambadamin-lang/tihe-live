@@ -241,6 +241,11 @@ Server-side Egress only; the app has no recording path. Egress renders
 the institute mark — and writes to the path fixed in docs/06. A pulsing red "در حال ضبط" pill is
 visible to everyone while recording.
 
+The template draws the page and its finished ink into an offscreen canvas when an event changes
+them, and each frame copies that and draws only the strokes in progress. Redrawing every stroke
+each frame took about 45 ms a frame on a 300-stroke page in headless Chrome — more than the
+recorder's frame budget, so recordings stuttered while the teacher wrote.
+
 Ordering that matters for the pipeline:
 1. `metadata.json` is written at egress start and rewritten with `actualEndAt` and
    `participantCount` **before** `stopEgress` is called, so ingest never reads a stale copy.
@@ -258,18 +263,20 @@ Ordering that matters for the pipeline:
 - **Glass, in light and dark.** The classroom is layers — pods over the stage, the dock and
   sheets over pods — and frosted glass keeps each layer's place readable without heavy borders
   or shadows:
-  - Canvas: a near-flat colour with three soft glows, painted once, so the blur has something to
-    refract but nothing competes with the class.
-  - Panes: every pod, the top bar and the dock are frosted glass with a lit one-pixel rim. The
-    stage's panes share one `BackdropGroup`, so seven pods cost one blur; overlays (toasts,
-    sheets) blur on their own.
+  - Canvas: a near-flat colour with three soft glows, so nothing competes with the class. It is
+    drawn once into an image and that image is reused every frame (see Frame rate).
+  - Panes: every pod, the top bar and the dock are translucent glass with a lit one-pixel rim and
+    a soft shadow. They do not blur: all that lies under them is the canvas, whose glows are
+    hundreds of pixels wide, so a blur there changes no visible pixel — but it cost a backdrop
+    read and two blur passes per pane on every frame. Overlays (toasts, sheets) float over the
+    class itself, and they do blur what is under them.
   - Media: video and screen share sit on an inset dark screen in both themes. The whiteboard page
     stays near-white in both — ink colours are chosen for it and it is what Egress records.
   - Controls: a centred dock of glass keys. A muted microphone or camera is red and crossed out,
     so it is never mistaken for a live one; a locked control shows a padlock; a raised hand turns
     amber with its place in the queue; "end class" is the one solid red key.
   - Status: pills with a dot — green for live, pulsing red for recording, amber while
-    reconnecting.
+    reconnecting. The pulse breathes in 15 steps a second on a timer (see Frame rate).
   - Icons: Lucide, the same set as the video player; the accent, neutrals and status colours
     match the player too, so the two apps read as one product.
 - **Light and dark.** `ClassroomPage` follows the host app's theme unless given a `brightness`;
@@ -292,17 +299,36 @@ Ordering that matters for the pipeline:
     fade would show the class to the recorder.
   - The operating system's reduce-motion setting turns all of this off (`Motion` in
     `motion.dart`).
-- **Frame rate.** The classroom runs at the display's refresh rate (60, 120 or 144 Hz):
-  - Anything that updates alone gets its own layer, so its update repaints nothing else: each
-    pod, the watermark, and the live clock.
-  - The whiteboard is two layers. Finished items are drawn once, and redrawn only when an item
-    comes or goes. Ink in motion (your stroke, others' previews, the laser) is redrawn every
-    frame on its own. Drawing on a full page costs one stroke per frame, not the whole page.
+- **Frame rate.** The classroom animates at the display's refresh rate (60, 120 or 144 Hz) and
+  draws only when something changes. Every frame redraws the whole window, and Impeller — the
+  renderer on iOS, Android, macOS and the desktops — keeps nothing from one frame to the next, so
+  what a frame costs and how many frames there are both matter:
+  - **Few frames when idle.** A class where nothing happens asks for about 16 frames a second:
+    the recording lamp's 15 steps and the clock's tick. The lamp breathes on a timer, not a
+    ticker — a ticker asks for a frame at the display's rate for as long as the class runs, and
+    recording is on in most classes. The watermark wakes only when its minute changes or it
+    jumps corners, and the clock as each second turns over.
+  - **Rebuild only what changed.** Each widget watches the slice of the class it draws, as one
+    value that compares equal when nothing it shows changed. A preview batch rebuilds the board
+    and nothing else; a change of speaker rebuilds the two tiles involved; a chat message, the
+    chat. LiveKit's stream of room events (connection quality, stream state, speaker levels) is
+    reduced to what the classroom can show before it reaches a widget.
+  - **Static things drawn once.** The canvas glows, and the whiteboard's finished ink, are drawn
+    into images when they change and blitted on every other frame. The ink image is made for the
+    board's exact place on the pixel grid and drawn without resampling, so it is pixel for pixel
+    what drawing the strokes would give; while the board moves (a layout change, maximise) the
+    strokes are drawn directly and a new image is made once it holds still. Stroke outlines and
+    laid-out text are worked out once per item, so a new stroke costs one outline, not a page.
+  - The whiteboard is two layers: that finished ink, and ink in motion (your stroke, others'
+    previews, the laser), redrawn every frame on its own.
   - Other people's strokes arrive in 40 ms batches (§6). Each batch is revealed across the next
     40 ms at the display's rate, so remote ink glides instead of stepping 25 times a second.
-  - Frames stop when nothing moves.
+  - Anything that updates alone gets its own layer, so its update repaints nothing else: each
+    pod, the watermark, and the live clock.
   - Android phones often hold apps at 60 Hz unless they ask for more, so the app asks for the
     display's fastest mode. iOS allows ProMotion through `CADisableMinimumFrameDurationOnPhone`.
+  - `test/performance_test.dart` pins all of this; `example/perf/main.dart` measures frame times,
+    input latency, CPU and memory on a real engine (`packages/tihe_classroom/README.md`).
 - The theme lives in `tihe_classroom/lib/src/ui/theme/`: tokens in one `ClassroomTheme` object
   (`ClassroomTheme.light` / `.dark`), the glass controls in `glass.dart`, and motion in
   `motion.dart` and `transitions.dart`.
