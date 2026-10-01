@@ -129,6 +129,21 @@ flutter analyze
 flutter test                # contracts conformance, reducers, gateway client, session, board, page
 ```
 
+`test/performance_test.dart` pins what keeps the classroom fast (docs/11 §11): what may rebuild
+when the class changes, how many frames an idle class asks for, and that finished ink is drawn
+from an image. For frame times, input latency, CPU and memory on a real engine, run the scripted
+scenarios in `example/perf/main.dart` (a busy class: 40 cameras, 300 strokes, a teacher writing):
+
+```bash
+cd example
+flutter build linux --profile -t perf/main.dart
+xvfb-run -a build/linux/x64/profile/bundle/tihe_classroom_example | grep PERF_RESULT
+# PERF_ONLY=idle,local_drawing runs only those; FLUTTER_ENGINE_SWITCHES=1
+# FLUTTER_ENGINE_SWITCH_1=enable-impeller=false measures with Skia instead of Impeller
+```
+
+Compare runs from the same machine only: a software renderer (Xvfb) inflates raster times.
+
 The screenshots in `docs/images/classroom/` come from an opt-in test. It needs a Persian TTF
 (Peyda, or Vazirmatn as a stand-in) registered as the Peyda family:
 
