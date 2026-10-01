@@ -45,6 +45,22 @@ export function strokeOutline(points: readonly number[], width: number, tool: Pe
   });
 }
 
+/**
+ * Outlines of finished strokes, worked out once per item: the recorder redrew every stroke's
+ * perfect-freehand outline on every frame while anyone drew. Items are replaced, never changed,
+ * so an item object is a safe key.
+ */
+const outlines = new WeakMap<BoardItem, Path2D>();
+
+function finishedOutline(item: Extract<BoardItem, { kind: 'stroke' }>): Path2D {
+  let path = outlines.get(item);
+  if (!path) {
+    path = outlinePath(strokeOutline(item.points, item.width, item.tool));
+    outlines.set(item, path);
+  }
+  return path;
+}
+
 function outlinePath(outline: number[][]): Path2D {
   const path = new Path2D();
   if (outline.length === 0) return path;
@@ -91,6 +107,7 @@ function drawPen(
   color: string,
   width: number,
   points: readonly number[],
+  outline?: Path2D,
 ) {
   const style = PEN_STYLES[tool];
   ctx.save();
@@ -103,7 +120,7 @@ function drawPen(
     ctx.arc(points[0]!, points[1]!, width / 2, 0, Math.PI * 2);
     ctx.fill();
   } else {
-    ctx.fill(outlinePath(strokeOutline(points, width, tool)));
+    ctx.fill(outline ?? outlinePath(strokeOutline(points, width, tool)));
   }
   ctx.restore();
 }
@@ -111,7 +128,7 @@ function drawPen(
 function drawItem(ctx: CanvasRenderingContext2D, item: BoardItem): void {
   switch (item.kind) {
     case 'stroke':
-      return drawPen(ctx, item.tool, item.color, item.width, item.points);
+      return drawPen(ctx, item.tool, item.color, item.width, item.points, finishedOutline(item));
     case 'shape': {
       const [x1, y1] = item.from;
       const [x2, y2] = item.to;
@@ -214,6 +231,16 @@ export function drawBoard(
   previews: Iterable<Preview>,
   now: number,
 ): void {
+  drawFinished(ctx, page, items);
+  drawPreviews(ctx, previews, now);
+}
+
+/** The page and its finished items: the part of the board that changes only on events. */
+export function drawFinished(
+  ctx: CanvasRenderingContext2D,
+  page: BoardPage,
+  items: Iterable<BoardItem>,
+): void {
   const { width, height } = ctx.canvas;
   ctx.save();
   ctx.clearRect(0, 0, width, height);
@@ -224,6 +251,18 @@ export function drawBoard(
     if (item.kind === 'stroke' && PEN_STYLES[item.tool].underlay) drawItem(ctx, item);
   for (const item of onPage)
     if (!(item.kind === 'stroke' && PEN_STYLES[item.tool].underlay)) drawItem(ctx, item);
+  ctx.restore();
+}
+
+/** Strokes in progress and laser trails, over whatever is already on the canvas. */
+export function drawPreviews(
+  ctx: CanvasRenderingContext2D,
+  previews: Iterable<Preview>,
+  now: number,
+): void {
+  const { width, height } = ctx.canvas;
+  ctx.save();
+  ctx.scale(width / BOARD_WIDTH, height / BOARD_HEIGHT);
   for (const p of previews) {
     if (p.tool === 'laser') drawLaser(ctx, p, now);
     else drawPen(ctx, p.tool, p.color, p.width, p.points);
