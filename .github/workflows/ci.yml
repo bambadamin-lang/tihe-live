@@ -106,7 +106,8 @@ jobs:
           cache: true
 
       # Every Flutter package and app in the repo, found by its pubspec, so a new package is
-      # covered without editing this file. example/ apps are analysed with their package.
+      # covered without editing this file. example/ apps are analysed with their package and
+      # their own tests run too.
       - name: Format, analyze and test each Flutter project
         run: |
           set -euo pipefail
@@ -121,5 +122,6 @@ jobs:
             dart format --output=none --set-exit-if-changed "$dir"
             (cd "$dir" && flutter analyze --no-fatal-infos)
             if [ -d "$dir/test" ]; then (cd "$dir" && flutter test); fi
+            if [ -d "$dir/example/test" ]; then (cd "$dir/example" && flutter test); fi
             echo "::endgroup::"
           done

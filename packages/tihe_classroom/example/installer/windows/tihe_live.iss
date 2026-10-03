@@ -4,6 +4,7 @@
 ; hand on Windows (see ../../../README.md):
 ;   iscc /DAppVersion=0.1.0 /DDefaultServer=https://… installer\windows\tihe_live.iss
 ; Silent install for IT staff: TIHE-Live-Setup.exe /VERYSILENT /server=https://…
+; The app's self-update (../../lib/update.dart) runs it with /VERYSILENT /relaunch=1.
 
 #ifndef AppVersion
   #define AppVersion "0.1.0"
@@ -87,6 +88,8 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchApp}"; Flags: nowait postinstall skipifsilent
+; After a self-update, start the app again — as the student, even if the update needed UAC.
+Filename: "{app}\{#AppExe}"; Flags: nowait runasoriginaluser; Check: RelaunchAfterUpdate
 
 [UninstallDelete]
 Type: files; Name: "{app}\tihe_live.json"
@@ -123,6 +126,11 @@ end;
 procedure RegisterPreviousData(PreviousDataKey: Integer);
 begin
   SetPreviousData(PreviousDataKey, 'ServerUrl', Trim(ServerPage.Values[0]));
+end;
+
+function RelaunchAfterUpdate: Boolean;
+begin
+  Result := WizardSilent and (ExpandConstant('{param:relaunch|0}') = '1');
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;

@@ -8,6 +8,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:tihe_classroom/demo.dart';
 import 'package:tihe_classroom/tihe_classroom.dart';
 
+import 'update.dart';
+import 'update_banner.dart';
+
 /// The classroom on its own, for development and for the device checklist in
 /// docs/11-live-classroom.md §12:
 ///
@@ -77,9 +80,13 @@ class _LauncherState extends State<Launcher> {
   String? _error;
   bool _joining = false;
 
+  /// Null on development builds and off Windows.
+  final _updater = Updater.forThisBuild();
+
   @override
   void initState() {
     super.initState();
+    _updater?.start();
     final installed = _installedServer();
     if (installed != null) _server.text = installed;
     final env = Platform.environment;
@@ -92,6 +99,15 @@ class _LauncherState extends State<Launcher> {
       _token.text = token;
       WidgetsBinding.instance.addPostFrameCallback((_) => _connect());
     }
+  }
+
+  @override
+  void dispose() {
+    _updater?.dispose();
+    _server.dispose();
+    _session.dispose();
+    _token.dispose();
+    super.dispose();
   }
 
   void _open(ClassroomSession session) => Navigator.of(context).push(
@@ -198,6 +214,7 @@ class _LauncherState extends State<Launcher> {
                         ],
                       ),
                       const SizedBox(height: 24),
+                      if (_updater != null) UpdateBanner(updater: _updater),
                       _Section(
                         title: 'کلاس نمایشی',
                         hint:

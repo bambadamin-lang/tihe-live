@@ -122,11 +122,50 @@ iscc /DDefaultServer=https://your-server/v1/live installer\windows\tihe_live.iss
 # → installer\windows\Output\TIHE-Live-Setup-0.1.0.exe
 ```
 
+## Updates
+
+The Windows app updates itself from GitHub releases
+([`example/lib/update.dart`](example/lib/update.dart)). This repository is private, so a
+`live-v*` tag publishes the wizard twice: as a release here, and as a release in a **public,
+code-free repo** that installed apps read without a token. By default that repo is
+`bambadamin-lang/tihe-live-releases`; the `TIHE_UPDATE_REPO` repository variable overrides it.
+
+The app checks at start-up and every six hours. When there is a newer version it shows a
+banner on the start screen, never in class. **Update** downloads the wizard and checks its
+size and SHA-256 against `latest.json` before running it. The wizard then runs silently,
+keeps the server address, and starts the app again. A per-machine install still raises the
+UAC prompt. **Later** hides that version until a newer one is published.
+
+Setup, once:
+1. Create the public repo with a README. A release needs a commit to tag.
+2. Create a fine-grained token with **Contents: read and write** on that repo only. Save it
+   here as the `RELEASES_TOKEN` Actions secret. Without it, tags still build, but installed
+   apps are not offered the version (the run shows a warning).
+
+To release, push a tag such as `live-v0.2.0`. Versions are `major.minor.patch`. Each release in
+the public repo carries `TIHE-Live-Setup-<version>.exe` and `latest.json`:
+
+```json
+{ "version": "0.2.0", "windows": { "file": "TIHE-Live-Setup-0.2.0.exe", "sha256": "…", "size": 41234567 } }
+```
+
+The app fetches `releases/latest/download/latest.json`, a plain download rather than the
+REST API, so a classroom behind one IP address does not hit GitHub's hourly API limit. It
+builds the wizard's URL from the `live-v<version>` tag. Only builds from the workflow can
+update, because they carry `--dart-define=TIHE_APP_VERSION` and `TIHE_UPDATE_REPO`. Local
+`flutter run` builds never update, and neither do macOS, Android or iOS, since only the
+Windows wizard is published.
+
+The hash catches corrupt or swapped downloads, but not a compromised releases repo, because
+the hash comes from the same place. Code signing (see above) is what would close that gap.
+Keep write access to the releases repo as tight as access to this one.
+
 ## Test it
 
 ```bash
 flutter analyze
 flutter test                # contracts conformance, reducers, gateway client, session, board, page
+(cd example && flutter test)  # self-update: versions, manifest, verified download, schedule
 ```
 
 The screenshots in `docs/images/classroom/` come from an opt-in test. It needs a Persian TTF
