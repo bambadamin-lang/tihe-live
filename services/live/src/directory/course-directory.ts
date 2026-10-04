@@ -9,5 +9,7 @@ export interface CourseDirectory {
   course(courseId: string): Promise<DirectoryCourse | null>;
   isEnrolled(userId: string, courseId: string): Promise<boolean>;
   profile(userId: string): Promise<DirectoryProfile | null>;
+  /** Courses the user attends or teaches; empty for someone unknown. */
+  coursesOf(userId: string): Promise<string[]>;
 }
 export const COURSE_DIRECTORY = Symbol('COURSE_DIRECTORY');

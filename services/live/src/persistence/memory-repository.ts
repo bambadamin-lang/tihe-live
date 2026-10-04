@@ -29,10 +29,11 @@ export class MemoryLiveRepository implements LiveRepository {
   async findClass(id: string) {
     return this.classes.get(id) ?? null;
   }
-  async listClasses(filter: { courseId?: string; teacherId?: string }) {
+  async listClasses(filter: { courseId?: string; courseIds?: string[]; teacherId?: string }) {
     return [...this.classes.values()].filter(
       (c) =>
         (!filter.courseId || c.courseId === filter.courseId) &&
+        (!filter.courseIds || filter.courseIds.includes(c.courseId)) &&
         (!filter.teacherId || c.teacherId === filter.teacherId),
     );
   }

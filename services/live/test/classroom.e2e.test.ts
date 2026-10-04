@@ -151,6 +151,16 @@ describe('a live class from start to end', () => {
     expect((await call('GET', `/classes/${liveClass.id}`, 'ali')).status).toBe(200);
   });
 
+  it("lists a student's classes across their courses, and nobody else's", async () => {
+    // No course given: what the app's dashboard asks.
+    const mine = await call<LiveClass[]>('GET', '/classes', 'ali');
+    expect(mine.body.map((c) => c.id)).toContain(liveClass.id);
+    const theirs = await call<LiveClass[]>('GET', '/classes', 'outsider');
+    expect(theirs.body.map((c) => c.id)).not.toContain(liveClass.id);
+    const taught = await call<LiveClass[]>('GET', '/classes', 'teacher');
+    expect(taught.body.map((c) => c.id)).toContain(liveClass.id);
+  });
+
   it('starts the session: room created, recording started, metadata.json written first', async () => {
     expect((await call('POST', `/classes/${liveClass.id}/sessions`, 'ali')).status).toBe(403);
     const started = await call<LiveSession>('POST', `/classes/${liveClass.id}/sessions`, 'teacher');

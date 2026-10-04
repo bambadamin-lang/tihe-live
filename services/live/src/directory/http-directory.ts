@@ -2,6 +2,7 @@ import {
   directoryCourseSchema,
   directoryEnrollmentSchema,
   directoryProfileSchema,
+  directoryUserCoursesSchema,
   type DirectoryCourse,
   type DirectoryProfile,
 } from '@tihe/contracts';
@@ -46,5 +47,13 @@ export class HttpCourseDirectory implements CourseDirectory {
       `/v1/internal/users/${encodeURIComponent(userId)}/profile`,
       directoryProfileSchema,
     );
+  }
+
+  async coursesOf(userId: string): Promise<string[]> {
+    const res = await this.get(
+      `/v1/internal/users/${encodeURIComponent(userId)}/courses`,
+      directoryUserCoursesSchema,
+    );
+    return res?.courseIds ?? [];
   }
 }

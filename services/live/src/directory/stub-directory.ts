@@ -59,4 +59,9 @@ export class StubCourseDirectory implements CourseDirectory {
       ? { id: u.id, displayName: u.displayName, phoneMasked: maskPhone(u.phone), role: u.role }
       : null;
   }
+  async coursesOf(userId: string): Promise<string[]> {
+    return this.data.courses
+      .filter((c) => c.teacherId === userId || c.enrolled.includes(userId))
+      .map((c) => c.id);
+  }
 }

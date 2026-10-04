@@ -67,9 +67,21 @@ export class ClassesService {
         (await this.directory.isEnrolled(caller.userId, courseId));
       if (!allowed) throw new LiveHttpError('NOT_ENROLLED', 'not enrolled in this course');
       records = await this.repo.listClasses({ courseId });
+    } else if (caller.accountRole === 'admin') {
+      // Admins host every class, so they see every class.
+      records = await this.repo.listClasses({});
     } else {
-      // Without a course, "my classes" means the ones I teach.
-      records = await this.repo.listClasses({ teacherId: caller.userId });
+      // Without a course, "my classes": the ones I teach and those of every course I attend or
+      // teach, which is what a student's dashboard lists.
+      const [taught, ofMyCourses] = await Promise.all([
+        this.repo.listClasses({ teacherId: caller.userId }),
+        this.directory
+          .coursesOf(caller.userId)
+          .then((courseIds) =>
+            courseIds.length ? this.repo.listClasses({ courseIds }) : Promise.resolve([]),
+          ),
+      ]);
+      records = [...new Map([...taught, ...ofMyCourses].map((r) => [r.id, r])).values()];
     }
     return Promise.all(records.map((r) => this.toDto(r)));
   }
