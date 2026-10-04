@@ -26,6 +26,8 @@ Docker Compose (deploy) · pnpm workspaces + Turborepo (monorepo)
 apps/player/            Flutter client                      [owner: video dev]
 services/api/           NestJS: auth, catalog, licensing     [owner: video dev]
 services/media-worker/  ffmpeg transcode/encrypt/package     [owner: video dev]
+packages/db/            Prisma schema, migrations, seed — shared
+packages/crypto/        server-side crypto: CEK, KEK, licences — shared
 services/ingest-worker/ live recording → VOD                 [owner: video dev]
 services/live/          classes, LiveKit, classroom gateway  [owner: live-classroom session]
 packages/tihe_classroom/ Flutter: live classroom UI           [owner: live-classroom session]
@@ -62,8 +64,9 @@ docker compose -f infra/docker/compose.dev.yml up -d   # postgres, redis, minio
 pnpm check                                          # lint + typecheck everything
 pnpm test                                           # all JS tests
 pnpm --filter @tihe/api start:dev                   # API on :3000, Swagger at /docs
-pnpm --filter @tihe/api prisma migrate dev          # apply migrations
-pnpm --filter @tihe/api seed                        # seed demo term/course/videos
+pnpm --filter @tihe/db migrate:dev                  # apply migrations
+pnpm --filter @tihe/db seed                         # seed demo term/course/videos
+pnpm --filter @tihe/media-worker package <file> --course crs_… --inline   # package a video
 cargo test --manifest-path packages/secure-core/Cargo.toml
 pnpm --filter @tihe/live start:dev                  # live classroom on :3100 (services/live/README.md)
 cd packages/tihe_classroom/example && flutter run -d macos   # classroom standalone

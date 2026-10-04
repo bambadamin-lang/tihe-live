@@ -28,11 +28,16 @@ secrets/
 **/ios/Flutter/ephemeral/
 **/android/.gradle/
 **/android/local.properties
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
 **/ios/Pods/
 **/macos/Pods/
 **/test/failures/
 pubspec_overrides.yaml
 *.iml
+# Generated from lib/l10n/*.arb by `flutter gen-l10n`, which `flutter pub get` runs.
+apps/player/lib/l10n/app_localizations*.dart
 
 # tooling caches
 .turbo/
@@ -56,3 +61,9 @@ Thumbs.db
 !.vscode/extensions.json
 !.vscode/settings.json
 services/live/src/generated/
+
+# rust
+packages/secure-core/target/
+
+# prisma
+services/api/prisma/*.db

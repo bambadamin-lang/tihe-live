@@ -28,7 +28,7 @@ for the protected video library.
 
 ## Quick start
 
-Requires Node 22+, pnpm 10+, Docker, and Rust 1.80+ (Flutter 3.24+ only for the client).
+Requires Node 22+, pnpm 10+, Docker, and Rust 1.80+ (Flutter 3.35+ only for the client).
 
 ```bash
 pnpm install
@@ -39,14 +39,21 @@ docker compose -f infra/docker/compose.dev.yml up -d
 # generate local dev secrets (KEK + licence signing keypair) into .env
 ./infra/scripts/generate-secrets.sh
 
-cp services/api/.env.example services/api/.env    # then fill from the output above
-pnpm --filter @tihe/api prisma migrate dev
-pnpm --filter @tihe/api seed
+cp .env.example .env                              # then fill from the output above
+pnpm --filter @tihe/db migrate
+pnpm --filter @tihe/db seed
 pnpm --filter @tihe/api start:dev                 # http://localhost:3000/docs
 ```
 
-Then walk the whole student flow with `docs/smoke-test.http` (VS Code REST Client or
-`httpyac`) — request an OTP, read the code from the API console, verify, and list courses.
+Then walk the whole student flow in one command:
+
+```bash
+./infra/scripts/smoke-test.sh 09125550003
+```
+
+It signs in as the seeded student, lists courses, searches in Persian, updates progress, syncs an
+offline event batch, and checks that playback is refused without a licence — 25 assertions, each
+printed as it passes.
 
 The Rust protection core is independent of all of the above:
 

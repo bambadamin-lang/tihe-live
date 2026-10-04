@@ -1,6 +1,6 @@
 # Data Model
 
-**Source of truth: `services/api/prisma/schema.prisma`.** This document explains the
+**Source of truth: `packages/db/prisma/schema.prisma`.** This document explains the
 *reasoning* — why tables exist and why they are shaped the way they are. When they disagree,
 the schema wins and this file needs updating.
 

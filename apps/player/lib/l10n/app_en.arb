@@ -1,0 +1,52 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "TihePlayer",
+
+  "signInTitle": "Sign in",
+  "signInSubtitle": "Enter your mobile number",
+  "phoneLabel": "Mobile number",
+  "phoneHint": "09123456789",
+  "sendCode": "Send code",
+  "codeLabel": "Verification code",
+  "codeSubtitle": "Enter the code sent to {phone}",
+  "verifyCode": "Verify and sign in",
+  "resendCode": "Resend code",
+  "resendIn": "Resend in {seconds}s",
+  "changeNumber": "Change number",
+
+  "libraryTitle": "My library",
+  "libraryEmpty": "You are not enrolled in any course yet",
+  "libraryEmptyHint": "Contact the institute to be enrolled",
+  "searchHint": "Search courses and sessions",
+  "searchEmpty": "No results",
+  "videoCount": "{count} sessions",
+  "progressPercent": "{percent}% watched",
+
+  "resume": "Resume",
+  "play": "Play",
+  "download": "Download",
+  "downloaded": "Downloaded",
+  "downloading": "Downloading",
+  "downloadNotAllowed": "Downloads are disabled for this course",
+  "processing": "Processing",
+  "attachments": "Materials",
+  "chapters": "Chapters",
+
+  "devicesTitle": "My devices",
+  "thisDevice": "This device",
+  "releaseDevice": "Remove device",
+  "releaseDeviceConfirm": "Removing this device makes its downloaded videos unplayable. Continue?",
+  "offlineVideos": "{count} offline videos",
+  "lastSeen": "Last used: {date}",
+
+  "cancel": "Cancel",
+  "confirm": "Confirm",
+  "retry": "Retry",
+  "close": "Close",
+
+  "errorNetwork": "Could not reach the server. Check your connection.",
+  "errorUnknown": "An unexpected error occurred.",
+  "errorOffline": "You are offline. Only downloaded videos can be played.",
+  "supportHint": "Reference: {requestId}"
+}
