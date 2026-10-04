@@ -5,10 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../contracts.dart';
 import '../../data/media.dart';
+import '../../domain/persian.dart';
 import '../../state/classroom_session.dart';
 import '../../state/providers.dart';
+import '../stage/stage_focus.dart';
+import '../theme/classroom_theme.dart';
 import '../theme/glass.dart';
+import '../theme/motion.dart';
 import 'people.dart';
+import 'person_actions.dart';
 
 /// The pods that show video: speaker, gallery and screen share.
 
@@ -60,6 +65,8 @@ _TileState _tileOf(ClassroomView v, String userId) {
   );
 }
 
+/// The speaker, edge to edge: a tag for the pod in one top corner, their name in the bottom one,
+/// and — for managers — what they may do to them in the other.
 class SpeakerPod extends ConsumerWidget {
   const SpeakerPod({super.key});
 
@@ -82,13 +89,18 @@ class SpeakerPod extends ConsumerWidget {
         if (tile.camera)
           session.media.video(userId, VideoSlot.camera)
         else
-          Center(
-            child: Avatar(userId: userId, name: tile.name, size: 88),
+          _NoCamera(
+            child: Avatar(userId: userId, name: tile.name, size: 96),
           ),
+        const PositionedDirectional(
+          top: 12,
+          start: 12,
+          child: _PodTag(icon: ClassroomIcons.pin, label: 'ارائه‌دهنده'),
+        ),
         PositionedDirectional(
-          start: 10,
-          bottom: 10,
-          end: 10,
+          start: 12,
+          bottom: 12,
+          end: 60,
           child: Align(
             alignment: AlignmentDirectional.bottomStart,
             child: NameStrip(
@@ -96,7 +108,17 @@ class SpeakerPod extends ConsumerWidget {
               micOn: tile.mic,
               speaking: tile.speaking,
               hand: tile.hand,
+              large: true,
             ),
+          ),
+        ),
+        PositionedDirectional(
+          bottom: 10,
+          end: 10,
+          child: ParticipantMenuButton(
+            userId: userId,
+            icon: ClassroomIcons.more,
+            floating: true,
           ),
         ),
       ],
@@ -104,16 +126,88 @@ class SpeakerPod extends ConsumerWidget {
   }
 }
 
-/// Everyone on camera, in a grid sized to the pod. Adaptive streaming on the LiveKit side
-/// means off-screen tiles cost nothing.
+/// A small dark tag on the corner of a video pod.
+class _PodTag extends StatelessWidget {
+  const _PodTag({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+    decoration: BoxDecoration(
+      color: const Color(0xFF070C1A).withValues(alpha: 0.6),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 15, color: Colors.white70),
+        const SizedBox(width: 7),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              height: 1.25,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Where a camera would be: a deep, softly lit card.
+class _NoCamera extends StatelessWidget {
+  const _NoCamera({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: const BoxDecoration(
+      gradient: RadialGradient(
+        center: Alignment(0, -0.2),
+        radius: 1.1,
+        colors: [Color(0xFF1C2744), Color(0xFF0E1528)],
+      ),
+    ),
+    child: Center(child: child),
+  );
+}
+
+/// Everyone on camera. In a tall pod, a grid of the largest tiles that fit; in a short, wide
+/// one, a film strip that scrolls. Adaptive streaming on the LiveKit side means off-screen
+/// tiles cost nothing.
 ///
-/// The grid watches only who is in it and in what order; each tile watches its own person, so
-/// a speaking change redraws two tiles, not the gallery.
-class GalleryPod extends ConsumerWidget {
+/// The gallery watches only who is in it and in what order; each tile watches its own person,
+/// so a speaking change redraws two tiles, not the gallery. The order is stable for the same
+/// reason: cameras first, then by role, never by who is talking.
+class GalleryPod extends ConsumerStatefulWidget {
   const GalleryPod({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GalleryPod> createState() => _GalleryPodState();
+}
+
+class _GalleryPodState extends ConsumerState<GalleryPod> {
+  final _strip = ScrollController();
+
+  @override
+  void dispose() {
+    _strip.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final people = ref
         .watch(
           classroomViewProvider.select((v) {
@@ -132,9 +226,16 @@ class GalleryPod extends ConsumerWidget {
         )
         ?.items;
     if (people == null) return const SizedBox.shrink();
-    if (people.isEmpty) return const _Empty(text: 'هنوز کسی در کلاس نیست');
+    if (people.isEmpty) {
+      return const _Empty(text: 'هنوز کسی در کلاس نیست', dark: false);
+    }
+    Widget tile(String userId, {bool dense = false}) =>
+        _Tile(key: ValueKey(userId), userId: userId, dense: dense);
     return LayoutBuilder(
       builder: (context, box) {
+        if (box.maxWidth / max(1, box.maxHeight) > 2.3) {
+          return _filmstrip(context, box, people, tile);
+        }
         // Largest tiles that fit: try column counts and keep the one with the biggest 16:9 tile.
         var best = (cols: 1, width: 0.0);
         for (var cols = 1; cols <= people.length; cols++) {
@@ -150,14 +251,13 @@ class GalleryPod extends ConsumerWidget {
             alignment: WrapAlignment.center,
             runAlignment: WrapAlignment.center,
             children: [
-              for (final userId in shown)
+              for (final p in shown)
                 SizedBox(
-                  key: ValueKey(userId),
                   width: best.width,
                   height: best.width * 9 / 16,
                   child: Padding(
-                    padding: const EdgeInsets.all(3),
-                    child: _Tile(userId: userId),
+                    padding: const EdgeInsets.all(4),
+                    child: tile(p),
                   ),
                 ),
             ],
@@ -166,12 +266,155 @@ class GalleryPod extends ConsumerWidget {
       },
     );
   }
+
+  Widget _filmstrip(
+    BuildContext context,
+    BoxConstraints box,
+    List<String> people,
+    Widget Function(String, {bool dense}) tile,
+  ) {
+    const gap = 10.0, arrow = 34.0, pill = 36.0;
+    int fits(double tileW, double width) =>
+        max(1, ((width + gap) / (tileW + gap)).floor());
+    var tileH = min(box.maxHeight, 150.0);
+    var tileW = tileH * 1.36;
+    final overflow = people.length > fits(tileW, box.maxWidth);
+    if (overflow) {
+      tileH = min(box.maxHeight - pill - 8, 150.0).clamp(48.0, 150.0);
+      tileW = tileH * 1.36;
+    }
+    final room = box.maxWidth - (overflow ? 2 * (arrow + gap) : 0);
+    final hidden = max(0, people.length - fits(tileW, room));
+    final tiles = [
+      for (final p in people)
+        SizedBox(width: tileW, height: tileH, child: tile(p, dense: true)),
+    ];
+    if (!overflow) {
+      return Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (final (i, t) in tiles.indexed) ...[
+              if (i > 0) const SizedBox(width: gap),
+              t,
+            ],
+          ],
+        ),
+      );
+    }
+    void page(int direction) {
+      if (!_strip.hasClients) return;
+      final to = (_strip.offset + direction * (room - tileW)).clamp(
+        0.0,
+        _strip.position.maxScrollExtent,
+      );
+      _strip.animateTo(
+        to,
+        duration: Motion.of(context, Motion.slow),
+        curve: Motion.move,
+      );
+    }
+
+    final t = ClassroomTheme.of(context);
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SizedBox(
+          height: tileH,
+          child: Row(
+            children: [
+              GlassIconButton(
+                icon: ClassroomIcons.previous,
+                tooltip: 'قبلی',
+                size: arrow,
+                iconSize: 17,
+                radius: 11,
+                fill: t.field,
+                onPressed: () => page(-1),
+              ),
+              const SizedBox(width: gap),
+              Expanded(
+                child: ListView.separated(
+                  controller: _strip,
+                  scrollDirection: Axis.horizontal,
+                  itemCount: tiles.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: gap),
+                  itemBuilder: (_, i) => tiles[i],
+                ),
+              ),
+              const SizedBox(width: gap),
+              GlassIconButton(
+                icon: ClassroomIcons.next,
+                tooltip: 'بعدی',
+                size: arrow,
+                iconSize: 17,
+                radius: 11,
+                fill: t.field,
+                onPressed: () => page(1),
+              ),
+            ],
+          ),
+        ),
+        if (hidden > 0) ...[
+          const SizedBox(height: 8),
+          _MorePeople(count: hidden),
+        ],
+      ],
+    );
+  }
+}
+
+/// "+3 more": opens the gallery over the stage, where everyone fits.
+class _MorePeople extends ConsumerWidget {
+  const _MorePeople({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = ClassroomTheme.of(context);
+    final focus = StageFocusScope.maybeOf(context);
+    final layout = ref.watch(
+      classroomViewProvider.select((v) => v.room?.layout),
+    );
+    return GlassPressable(
+      onTap: focus == null ? null : () => focus.toggle(PodKind.gallery, layout),
+      semanticLabel: 'همهٔ تصاویر',
+      radius: 12,
+      builder: (context, s) => AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: s.hovered ? t.glassHover : t.field,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: t.fieldBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(ClassroomIcons.people, size: 16, color: t.textSecondary),
+            const SizedBox(width: 8),
+            Text(
+              '+${toPersianDigits(count)} نفر دیگر',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: t.text,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _Tile extends ConsumerWidget {
-  const _Tile({required this.userId});
+  const _Tile({super.key, required this.userId, this.dense = false});
 
   final String userId;
+  final bool dense;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -182,34 +425,32 @@ class _Tile extends ConsumerWidget {
     return SpeakingFrame(
       speaking: tile.speaking,
       child: ColoredBox(
-        color: const Color(0xFF16181E),
+        color: const Color(0xFF111A2E),
         child: Stack(
           fit: StackFit.expand,
           children: [
             if (tile.camera)
               session.media.video(userId, VideoSlot.camera)
             else
-              Center(
+              _NoCamera(
                 child: LayoutBuilder(
                   builder: (context, box) => Avatar(
                     userId: userId,
                     name: tile.name,
-                    size: min(56, box.maxHeight * 0.55),
+                    size: min(58, box.maxHeight * 0.42),
                   ),
                 ),
               ),
-            PositionedDirectional(
-              start: 5,
-              bottom: 5,
-              end: 5,
-              child: Align(
-                alignment: AlignmentDirectional.bottomStart,
-                child: NameStrip(
-                  name: tile.name,
-                  micOn: tile.mic,
-                  speaking: tile.speaking,
-                  hand: tile.hand,
-                ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: TileLabel(
+                name: tile.name,
+                micOn: tile.mic,
+                speaking: tile.speaking,
+                hand: tile.hand,
+                dense: dense,
               ),
             ),
           ],
@@ -237,7 +478,6 @@ class ScreenPod extends ConsumerWidget {
           sharer: sharer,
           mine: sharer == v.userId,
           name: v.room?.participants[sharer]?.name ?? '',
-          mic: v.media.of(sharer).micOn,
         );
       }),
     );
@@ -260,9 +500,16 @@ class ScreenPod extends ConsumerWidget {
       children: [
         session.media.video(s.sharer, VideoSlot.screen, fit: BoxFit.contain),
         PositionedDirectional(
-          top: 8,
-          start: 8,
-          child: NameStrip(name: 'صفحهٔ ${s.name}', micOn: s.mic),
+          top: 12,
+          start: 12,
+          end: 60,
+          child: Align(
+            alignment: AlignmentDirectional.topStart,
+            child: _PodTag(
+              icon: ClassroomIcons.screen,
+              label: 'صفحهٔ ${s.name}',
+            ),
+          ),
         ),
       ],
     );
@@ -270,34 +517,48 @@ class ScreenPod extends ConsumerWidget {
 }
 
 class _Empty extends StatelessWidget {
-  const _Empty({required this.text, this.icon = ClassroomIcons.cameraOff});
+  const _Empty({
+    required this.text,
+    this.icon = ClassroomIcons.cameraOff,
+    this.dark = true,
+  });
 
   final String text;
   final IconData icon;
 
-  // On the dark inset screen in both themes, so the colours are fixed rather than themed.
+  /// On the dark inset screen (fixed colours) rather than on the pod's glass (themed).
+  final bool dark;
+
   @override
-  Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+  Widget build(BuildContext context) {
+    final t = ClassroomTheme.of(context);
+    final fg = dark ? Colors.white60 : t.textSecondary;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: dark ? Colors.white.withValues(alpha: 0.06) : t.field,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: dark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : t.fieldBorder,
+              ),
+            ),
+            child: Icon(icon, size: 21, color: fg),
           ),
-          child: Icon(icon, size: 20, color: Colors.white54),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          text,
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white60, fontSize: 13.5),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(height: 12),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: fg, fontSize: 13.5),
+          ),
+        ],
+      ),
+    );
+  }
 }

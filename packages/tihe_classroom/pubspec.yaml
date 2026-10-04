@@ -10,6 +10,8 @@ environment:
 dependencies:
   capture_guard:
     path: ../capture_guard
+  # The class clock reads the time through this, so tests that fake timers fake the time too.
+  clock: ^1.1.1
   collection: ^1.19.0
   flutter:
     sdk: flutter
@@ -37,6 +39,6 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    # Peyda goes here (see assets/fonts/README.md). Registered at runtime by PeydaFonts, so the
-    # package builds before the files exist.
+    # Modam, the classroom's typeface (see assets/fonts/README.md). Registered at runtime by
+    # ClassroomFonts, so the family is plain "Modam" in every app that uses the package.
     - assets/fonts/

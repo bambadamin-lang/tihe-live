@@ -487,34 +487,38 @@ class _DemoSlide extends StatelessWidget {
           margin: const EdgeInsets.all(12),
           padding: const EdgeInsets.all(24),
           color: Colors.white,
-          child: const FittedBox(
+          child: FittedBox(
             alignment: AlignmentDirectional.topStart,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'قاعدهٔ زنجیره‌ای',
-                  style: TextStyle(
-                    fontSize: 34,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1D2B3A),
+            // Dark ink on the white slide, whatever the app's theme.
+            child: DefaultTextStyle.merge(
+              style: const TextStyle(color: Color(0xFF1D2B3A)),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'قاعدهٔ زنجیره‌ای',
+                    style: TextStyle(
+                      fontSize: 34,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1D2B3A),
+                    ),
                   ),
-                ),
-                SizedBox(height: 14),
-                Text(
-                  '•  اگر y = f(u) و u = g(x)',
-                  style: TextStyle(fontSize: 22),
-                ),
-                Text(
-                  '•  آنگاه dy/dx = dy/du · du/dx',
-                  style: TextStyle(fontSize: 22),
-                ),
-                Text(
-                  // The formula is isolated (LRI … PDI) so the bidi algorithm keeps it in one piece.
-                  '•  مثال: \u2066(sin x²)′ = 2x cos x²\u2069',
-                  style: TextStyle(fontSize: 22),
-                ),
-              ],
+                  SizedBox(height: 14),
+                  Text(
+                    '•  اگر y = f(u) و u = g(x)',
+                    style: TextStyle(fontSize: 22),
+                  ),
+                  Text(
+                    '•  آنگاه dy/dx = dy/du · du/dx',
+                    style: TextStyle(fontSize: 22),
+                  ),
+                  Text(
+                    // The formula is isolated (LRI … PDI) so the bidi algorithm keeps it in one piece.
+                    '•  مثال: \u2066(sin x²)′ = 2x cos x²\u2069',
+                    style: TextStyle(fontSize: 22),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

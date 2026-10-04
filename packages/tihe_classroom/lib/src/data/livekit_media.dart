@@ -172,6 +172,45 @@ class LiveKitClassroomMedia implements ClassroomMedia {
   }
 
   @override
+  Future<List<MediaDeviceOption>> devices(MediaDeviceKind kind) async {
+    final found = await _hardware(kind);
+    final current = switch (kind) {
+      MediaDeviceKind.microphone => _room.selectedAudioInputDeviceId,
+      MediaDeviceKind.camera => _room.selectedVideoInputDeviceId,
+    };
+    final noun = kind == MediaDeviceKind.microphone ? 'میکروفون' : 'دوربین';
+    return [
+      for (final (i, d) in found.indexed)
+        MediaDeviceOption(
+          id: d.deviceId,
+          // Browsers and some drivers hide names until permission is given.
+          label: d.label.isEmpty ? '$noun ${i + 1}' : d.label,
+          selected: d.deviceId == current,
+        ),
+    ];
+  }
+
+  @override
+  Future<void> selectDevice(MediaDeviceKind kind, String deviceId) async {
+    final device = (await _hardware(
+      kind,
+    )).firstWhereOrNull((d) => d.deviceId == deviceId);
+    if (device == null) return;
+    switch (kind) {
+      case MediaDeviceKind.microphone:
+        await _room.setAudioInputDevice(device);
+      case MediaDeviceKind.camera:
+        await _room.setVideoInputDevice(device);
+    }
+    _refresh();
+  }
+
+  Future<List<MediaDevice>> _hardware(MediaDeviceKind kind) =>
+      kind == MediaDeviceKind.microphone
+      ? Hardware.instance.audioInputs()
+      : Hardware.instance.videoInputs();
+
+  @override
   Future<void> setRemoteAudioMuted(bool muted) async {
     _remoteMuted = muted;
     for (final p in _room.remoteParticipants.values) {

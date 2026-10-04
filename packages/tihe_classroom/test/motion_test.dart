@@ -87,7 +87,7 @@ void main() {
       previews: previews,
       draft: null,
       now: now ?? at,
-      fontFamily: 'Peyda',
+      fontFamily: 'Modam',
     );
 
     test('ink in motion leaves the committed layer alone', () {

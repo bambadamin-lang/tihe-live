@@ -10,6 +10,7 @@ import '../../state/board_controller.dart';
 import '../../state/providers.dart';
 import '../theme/classroom_theme.dart';
 import '../theme/glass.dart';
+import '../theme/menu.dart';
 import '../theme/transitions.dart';
 import 'board_painter.dart';
 import 'committed_ink.dart';
@@ -40,22 +41,22 @@ class WhiteboardPod extends ConsumerWidget {
               child: DecoratedBox(
                 position: DecorationPosition.foreground,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(11),
-                  border: Border.all(color: t.edgeLow),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: t.fieldBorder),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(11),
+                  borderRadius: BorderRadius.circular(14),
                   child: ColoredBox(
                     // Around the page, where the pod's shape and the page's differ.
                     color: t.isDark
-                        ? const Color(0xFF1C1E24)
-                        : const Color(0xFFE3E6ED),
+                        ? const Color(0xFF0E1628)
+                        : const Color(0xFFE1E7F3),
                     child: BoardCanvas(canDraw: canDraw, canManage: canManage),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             if (canDraw)
               MarkerTray(canManage: canManage, compact: compactTray)
             else
@@ -409,11 +410,11 @@ class MarkerTray extends ConsumerWidget {
                 ],
               );
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: t.glassHover,
-            border: Border.all(color: t.hairline),
+            borderRadius: BorderRadius.circular(14),
+            color: t.field,
+            border: Border.all(color: t.fieldBorder),
           ),
           child: content,
         );
@@ -606,37 +607,24 @@ class _WidthDial extends StatelessWidget {
   Widget build(BuildContext context) {
     final base = defaultToolWidth[tool.name] ?? 28;
     final steps = [base ~/ 2, base, base * 2, base * 4];
-    return PopupMenuButton<int>(
-      tooltip: 'ضخامت',
-      initialValue: value,
-      onSelected: onChanged,
-      itemBuilder: (context) => [
-        for (final (i, w) in steps.indexed)
-          PopupMenuItem(
-            value: w,
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 2.0 + i * 3,
-                  decoration: BoxDecoration(
-                    color: ClassroomTheme.of(context).text,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(['نازک', 'معمولی', 'پهن', 'خیلی پهن'][i]),
-              ],
-            ),
-          ),
-      ],
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Icon(
-          ClassroomIcons.width,
-          size: 16,
-          color: ClassroomTheme.of(context).textSecondary,
-        ),
+    const names = ['نازک', 'معمولی', 'پهن', 'خیلی پهن'];
+    return Builder(
+      builder: (context) => GlassIconButton(
+        icon: ClassroomIcons.width,
+        tooltip: 'ضخامت',
+        size: 32,
+        iconSize: 16,
+        onPressed: () async {
+          final chosen = await showGlassMenu<int>(
+            context: context,
+            width: 200,
+            entries: [
+              for (final (i, w) in steps.indexed)
+                GlassMenuItem(value: w, label: names[i], checked: w == value),
+            ],
+          );
+          if (chosen != null) onChanged(chosen);
+        },
       ),
     );
   }

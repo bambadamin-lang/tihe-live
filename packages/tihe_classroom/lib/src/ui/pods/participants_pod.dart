@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../contracts.dart';
-import '../../state/classroom_session.dart';
 import '../../state/providers.dart';
 import '../theme/classroom_theme.dart';
 import '../theme/glass.dart';
-import '../theme/transitions.dart';
 import 'people.dart';
+import 'person_actions.dart';
+
+export 'person_actions.dart' show PermissionsDialog;
 
 /// Everyone in the class: role tag, mic and camera state, raised hand, and —
 /// for managers — the actions they may take on each person (docs/11 §3–4).
@@ -16,7 +16,6 @@ class ParticipantsPod extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final t = ClassroomTheme.of(context);
     // The list watches only who is in it and in what order; each card watches its own person.
     final people = ref
         .watch(
@@ -33,13 +32,9 @@ class ParticipantsPod extends ConsumerWidget {
         )
         ?.items;
     if (people == null) return const SizedBox.shrink();
-    return ListView.separated(
+    return ListView.builder(
       padding: const EdgeInsets.all(2),
       itemCount: people.length,
-      separatorBuilder: (_, _) => Padding(
-        padding: const EdgeInsetsDirectional.only(start: 48),
-        child: Divider(color: t.hairline),
-      ),
       itemBuilder: (context, i) =>
           _Card(key: ValueKey(people[i]), userId: people[i]),
     );
@@ -58,40 +53,25 @@ class _Card extends ConsumerWidget {
         final p = v.room?.participants[userId];
         if (p == null) return null;
         final media = v.media.of(userId);
-        final me = v.me;
-        final isMe = userId == v.userId;
         return (
           // Participant states are immutable and replaced when they change.
           p: p,
           micOn: media.micOn,
           cameraOn: media.cameraOn,
-          isMe: isMe,
-          canManage:
-              me != null &&
-              !isMe &&
-              me.can(Capability.participantsManage) &&
-              me.role.outranks(p.role),
-          canAssign: me != null && !isMe && me.can(Capability.rolesAssign),
+          isMe: userId == v.userId,
         );
       }),
     );
     if (c == null) return const SizedBox.shrink();
     final t = ClassroomTheme.of(context);
-    final (:p, :micOn, :cameraOn, :isMe, :canManage, :canAssign) = c;
+    final (:p, :micOn, :cameraOn, :isMe) = c;
     return Opacity(
       opacity: p.online ? 1 : 0.5,
-      child: Container(
-        padding: const EdgeInsetsDirectional.fromSTEB(6, 7, 0, 7),
-        decoration: p.capturing
-            ? BoxDecoration(
-                color: t.dangerSubtle,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: t.danger.withValues(alpha: 0.5)),
-              )
-            : null,
+      child: PersonRow(
+        alert: p.capturing ? t.danger : null,
         child: Row(
           children: [
-            Avatar(userId: p.userId, name: p.name, size: 32),
+            Avatar(userId: p.userId, name: p.name, size: 34),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -105,7 +85,7 @@ class _Card extends ConsumerWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                             fontSize: 13.5,
                             color: t.text,
                           ),
@@ -133,190 +113,24 @@ class _Card extends ConsumerWidget {
               ),
             ),
             if (p.hand != null) ...[
-              Icon(ClassroomIcons.hand, size: 15, color: t.warning),
-              const SizedBox(width: 8),
+              Icon(ClassroomIcons.hand, size: 17, color: t.warning),
+              const SizedBox(width: 10),
             ],
             Icon(
               micOn ? ClassroomIcons.mic : ClassroomIcons.micOff,
-              size: 15,
+              size: 17,
               color: micOn ? t.success : t.textTertiary,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 10),
             Icon(
               cameraOn ? ClassroomIcons.camera : ClassroomIcons.cameraOff,
-              size: 15,
-              color: cameraOn ? t.success : t.textTertiary,
+              size: 17,
+              color: cameraOn ? t.accentText : t.textTertiary,
             ),
-            if (canManage || canAssign)
-              _Actions(
-                participant: p,
-                canManage: canManage,
-                canAssign: canAssign,
-              )
-            else
-              const SizedBox(width: 8),
+            const SizedBox(width: 4),
+            ParticipantMenuButton(userId: p.userId),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _Actions extends ConsumerWidget {
-  const _Actions({
-    required this.participant,
-    required this.canManage,
-    required this.canAssign,
-  });
-
-  final ParticipantState participant;
-  final bool canManage;
-  final bool canAssign;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final session = ref.read(classroomSessionProvider);
-    final p = participant;
-    final danger = ClassroomTheme.of(context).danger;
-    return PopupMenuButton<VoidCallback>(
-      tooltip: 'کارها',
-      icon: const Icon(ClassroomIcons.more, size: 16),
-      onSelected: (action) => action(),
-      itemBuilder: (context) => [
-        if (canManage) ...[
-          if (!p.floor) ...[
-            PopupMenuItem(
-              value: () => session.send(GiveFloor(p.userId, video: false)),
-              child: const Text('اجازهٔ صحبت'),
-            ),
-            PopupMenuItem(
-              value: () => session.send(GiveFloor(p.userId, video: true)),
-              child: const Text('اجازهٔ صحبت با تصویر'),
-            ),
-          ] else
-            PopupMenuItem(
-              value: () => session.send(TakeFloor(p.userId)),
-              child: const Text('پس گرفتن اجازهٔ صحبت'),
-            ),
-          if (p.hand != null)
-            PopupMenuItem(
-              value: () => session.send(LowerHand(p.userId)),
-              child: const Text('پایین آوردن دست'),
-            ),
-          const PopupMenuDivider(),
-          PopupMenuItem(
-            value: () =>
-                session.send(MuteParticipant(p.userId, MediaSource.audio)),
-            child: const Text('قطع میکروفون'),
-          ),
-          PopupMenuItem(
-            value: () =>
-                session.send(MuteParticipant(p.userId, MediaSource.video)),
-            child: const Text('خاموش کردن دوربین'),
-          ),
-          PopupMenuItem(
-            value: () =>
-                session.send(MuteParticipant(p.userId, MediaSource.screen)),
-            child: const Text('توقف اشتراک صفحه'),
-          ),
-          PopupMenuItem(
-            value: () => showGlassDialog<void>(
-              context: context,
-              builder: (_) => UncontrolledProviderScope(
-                container: ProviderScope.containerOf(context),
-                child: PermissionsDialog(userId: p.userId),
-              ),
-            ),
-            child: const Text('اجازه‌ها…'),
-          ),
-        ],
-        if (canAssign) ...[
-          const PopupMenuDivider(),
-          for (final role in assignableRoles.where((r) => r != p.role))
-            PopupMenuItem(
-              value: () => session.send(SetRole(p.userId, role)),
-              child: Text('نقش: ${role.labelFa}'),
-            ),
-        ],
-        if (canManage) ...[
-          const PopupMenuDivider(),
-          PopupMenuItem(
-            value: () => _confirmRemove(context, session),
-            child: Text('خارج کردن از کلاس', style: TextStyle(color: danger)),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Future<void> _confirmRemove(
-    BuildContext context,
-    ClassroomSession session,
-  ) async {
-    final danger = ClassroomTheme.of(context).danger;
-    final sure = await showGlassDialog<bool>(
-      context: context,
-      builder: (context) => GlassSheet(
-        title: 'خارج کردن ${participant.name}',
-        width: 380,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('تا پایان این جلسه نمی‌تواند دوباره وارد شود.'),
-            const SizedBox(height: 18),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: danger),
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('خارج کن'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (sure ?? false) {
-      await session.send(RemoveParticipant(participant.userId));
-    }
-  }
-}
-
-/// Grant or revoke one person's individual capabilities. The server still checks each change:
-/// nobody grants what they do not hold.
-class PermissionsDialog extends ConsumerWidget {
-  const PermissionsDialog({super.key, required this.userId});
-
-  final String userId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final p = ref.watch(
-      classroomViewProvider.select((v) => v.room?.participants[userId]),
-    );
-    final session = ref.read(classroomSessionProvider);
-    if (p == null) return const SizedBox.shrink();
-    return GlassSheet(
-      title: 'اجازه‌های ${p.name}',
-      width: 400,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final cap in grantableCapabilities)
-            SwitchListTile(
-              dense: true,
-              title: Text(cap.labelFa),
-              value: p.can(cap),
-              onChanged: (on) => session.send(
-                on ? GrantCaps(userId, [cap]) : RevokeCaps(userId, [cap]),
-              ),
-            ),
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: TextButton(
-              onPressed: () => session.send(ResetCaps(userId)),
-              child: const Text('بازگشت به اجازه‌های پیش‌فرض'),
-            ),
-          ),
-        ],
       ),
     );
   }

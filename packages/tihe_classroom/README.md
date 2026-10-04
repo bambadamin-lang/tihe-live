@@ -8,12 +8,12 @@ The TIHE Live classroom as a Flutter package. It covers:
 - capture censoring
 - the identity watermark
 
-The UI is in Persian, right to left, in Peyda, in a glass theme with light and dark modes. It
-follows the host app's theme unless given `brightness:`, and a switch in the class's top bar
-flips it (reported through `onBrightnessChanged:`). Design and rules:
-[docs/11-live-classroom.md](../../docs/11-live-classroom.md).
+The UI is in Persian, right to left, in Modam: navy glass over a night sky with lit planets,
+in dark and light. It follows the host app's theme unless given `brightness:`, and a switch in
+the class's top bar flips it (reported through `onBrightnessChanged:`). The pointer is the TIHE
+glow cursor. Design and rules: [docs/11-live-classroom.md](../../docs/11-live-classroom.md) §11.
 
-![Host at the whiteboard](../../docs/images/classroom/host-whiteboard.jpg)
+![Questions and answers, host](../../docs/images/classroom/host-qa.jpg)
 
 ## Use it
 
@@ -36,6 +36,13 @@ If the class refuses the join (not enrolled, not started, locked, full, removed)
 `openClassroom` throws `ApiError`, and `messageFa` holds the Persian message to show.
 `ClassroomPage` owns the session: it opens it and disposes it.
 
+Two optional pieces go at the app's root, in `MaterialApp.builder`:
+- `GlowCursorScope`: the glow cursor over the whole app, dialogs included. On Windows the
+  classroom shows it without the scope too (it is a real system cursor there); on macOS and
+  Linux the scope is what draws it, and without one the system arrow stays.
+- `WindowChrome`: for an app that hides the system title bar (the example does on Windows). Its
+  window buttons then sit in the classroom's top bar, and dragging the bar moves the window.
+
 ## Inside
 
 ```
@@ -45,8 +52,9 @@ lib/src/data/        LiveApi (REST), GatewayClient (WebSocket, reconnect + repla
 lib/src/domain/      ClassroomState and its reducer, board model, stage geometry, watermark
                      hopper, Persian digits and Jalali dates
 lib/src/state/       ClassroomSession (gateway + media + capture guard), BoardController, providers
-lib/src/ui/          theme (tokens, glass controls, Peyda loader), stage and pods, whiteboard,
-                     bars and layout editor, censor screen, watermark
+lib/src/ui/          theme (tokens, sky and glass controls, mark and window frame, menus,
+                     cursor, Modam loader), stage and pods, whiteboard, bars and layout editor,
+                     censor screen, watermark
 lib/src/demo/        an in-process gateway and a fixture class, for the demo and the tests
 ```
 
@@ -54,11 +62,12 @@ The server is authoritative, so the client never decides a rule on its own. It s
 commands and applies the events the gateway sends back. Where the UI acts before the server
 confirms (whiteboard strokes), the action is marked pending until the matching event arrives.
 
-## Peyda
+## Modam
 
-Put the TTF/OTF files in [`assets/fonts/`](assets/fonts/README.md). They are found and
-registered at runtime, so the package builds before the files are there. Until then it uses
-the platform's Persian font.
+The typeface is Modam, in [`assets/fonts/`](assets/fonts/README.md), registered at runtime as
+the family `Modam` by `ClassroomFonts`. `ClassroomPage` loads it on its own; an app can call
+`ClassroomFonts.ensureLoaded()` before `runApp` so its first frame is already in Modam, as the
+example does. Modam is a commercial font (FontIran): the institute's licence must cover it.
 
 ## Run the example
 
@@ -67,15 +76,22 @@ cd packages/tihe_classroom/example
 flutter run -d macos        # or windows, android, ios, linux
 ```
 
+![The launcher](../../docs/images/classroom/welcome.jpg)
+
 The launcher offers:
-- **Demo**: an offline class. Pick a role (host, co-host, presenter, student) and a layout.
-  An in-process gateway plays the other side, so hands, chat, the board and permissions
-  all work without a server.
+- **Demo**: an offline class. Pick a role (host, co-host, student) and a starting layout.
+  An in-process gateway plays the other side, so hands, chat, reactions, the board and
+  permissions all work without a server.
 - **Server**: join a real `services/live` session. Give the base URL, the session id and an
   access token. Setting `TIHE_LIVE_URL`, `TIHE_SESSION` and `TIHE_TOKEN` joins straight away.
   Against a local services/live, mint tokens with
   `pnpm --filter @tihe/live dev-token <userId> <role>` (users are in
   `services/live/dev/directory.json`).
+
+The lamp beside the mark checks the server's `/health` every 20 seconds and whenever the
+address changes, so "آنلاین" means the classes can actually be reached. On Windows the app draws
+its own title bar (with `window_manager`), so the launcher's and the class's top bars are the
+window's.
 
 On Linux, `livekit_client` checks connectivity through NetworkManager over D-Bus. Without it,
 as in containers, the gateway works but joining the media room fails. The desktop targets
@@ -126,7 +142,9 @@ iscc /DDefaultServer=https://your-server/v1/live installer\windows\tihe_live.iss
 
 ```bash
 flutter analyze
-flutter test                # contracts conformance, reducers, gateway client, session, board, page
+flutter test                # contracts conformance, reducers, gateway client, session, board,
+                            # page, cursor
+(cd example && flutter test)   # the launcher
 ```
 
 `test/performance_test.dart` pins what keeps the classroom fast (docs/11 §11): what may rebuild
@@ -144,10 +162,13 @@ xvfb-run -a build/linux/x64/profile/bundle/tihe_classroom_example | grep PERF_RE
 
 Compare runs from the same machine only: a software renderer (Xvfb) inflates raster times.
 
-The screenshots in `docs/images/classroom/` come from an opt-in test. It needs a Persian TTF
-(Peyda, or Vazirmatn as a stand-in) registered as the Peyda family:
+The screenshots in `docs/images/classroom/` come from opt-in tests, here and in the example.
+They are set in Modam from the package's assets. Tests have no platform fonts, so give a
+fallback (Vazirmatn) for the few characters Modam lacks ("…", "·", "²"):
 
 ```bash
-TIHE_SCREENSHOTS=1 TIHE_FONT_DIR=/path/to/ttf flutter test test/screenshots --update-goldens
-# PNGs land in test/screenshots/goldens/ (git-ignored); convert to JPEG for docs/images/classroom/
+TIHE_SCREENSHOTS=1 TIHE_FONT_DIR=/path/to/vazirmatn flutter test test/screenshots --update-goldens
+(cd example && TIHE_SCREENSHOTS=1 TIHE_FONT_DIR=/path/to/vazirmatn flutter test --update-goldens)
+# PNGs land in test/screenshots/goldens/ and example/test/goldens/ (git-ignored); convert to
+# JPEG for docs/images/classroom/
 ```
