@@ -15,13 +15,13 @@ class AppSpinner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox.square(
-        dimension: size,
-        child: CircularProgressIndicator(
-          strokeWidth: size <= 16 ? 1.75 : 2,
-          strokeCap: StrokeCap.round,
-          color: color ?? context.colors.textSecondary,
-        ),
-      );
+    dimension: size,
+    child: CircularProgressIndicator(
+      strokeWidth: size <= 16 ? 1.75 : 2,
+      strokeCap: StrokeCap.round,
+      color: color ?? context.colors.textSecondary,
+    ),
+  );
 }
 
 /// A thin, rounded progress track.

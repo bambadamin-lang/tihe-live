@@ -12,9 +12,9 @@ class Session {
   final Device device;
 
   factory Session.fromJson(Map<String, dynamic> json) => Session(
-        user: AppUser.fromJson(json['user'] as Map<String, dynamic>),
-        device: Device.fromJson(json['device'] as Map<String, dynamic>),
-      );
+    user: AppUser.fromJson(json['user'] as Map<String, dynamic>),
+    device: Device.fromJson(json['device'] as Map<String, dynamic>),
+  );
 }
 
 class AppUser {
@@ -23,6 +23,8 @@ class AppUser {
     required this.phoneMasked,
     required this.role,
     this.displayName,
+    this.status = 'active',
+    this.mustChangePassword = false,
   });
 
   final String id;
@@ -31,13 +33,22 @@ class AppUser {
   final String phoneMasked;
   final String role;
   final String? displayName;
+  final String status;
+
+  /// An admin chose the password: the app asks for the student's own before anything else.
+  final bool mustChangePassword;
+
+  bool get isAdmin => role == 'admin';
+  bool get isTeacher => role == 'teacher';
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
-        id: json['id'] as String,
-        phoneMasked: json['phoneMasked'] as String,
-        role: json['role'] as String,
-        displayName: json['displayName'] as String?,
-      );
+    id: json['id'] as String,
+    phoneMasked: json['phoneMasked'] as String,
+    role: json['role'] as String,
+    displayName: json['displayName'] as String?,
+    status: json['status'] as String? ?? 'active',
+    mustChangePassword: json['mustChangePassword'] as bool? ?? false,
+  );
 }
 
 class Device {
@@ -48,6 +59,8 @@ class Device {
     required this.isCurrent,
     required this.offlineVideoCount,
     this.lastSeenAt,
+    this.signedIn = true,
+    this.signedInAt,
   });
 
   final String id;
@@ -57,14 +70,38 @@ class Device {
   final int offlineVideoCount;
   final DateTime? lastSeenAt;
 
+  /// Counts towards the limit of devices signed in at once.
+  final bool signedIn;
+  final DateTime? signedInAt;
+
   factory Device.fromJson(Map<String, dynamic> json) => Device(
-        id: json['id'] as String,
-        platform: json['platform'] as String,
-        name: json['name'] as String,
-        isCurrent: json['isCurrent'] as bool? ?? false,
-        offlineVideoCount: json['offlineVideoCount'] as int? ?? 0,
-        lastSeenAt: _parseDate(json['lastSeenAt']),
-      );
+    id: json['id'] as String,
+    platform: json['platform'] as String,
+    name: json['name'] as String,
+    isCurrent: json['isCurrent'] as bool? ?? false,
+    offlineVideoCount: json['offlineVideoCount'] as int? ?? 0,
+    lastSeenAt: _parseDate(json['lastSeenAt']),
+    signedIn: json['signedIn'] as bool? ?? true,
+    signedInAt: _parseDate(json['signedInAt']),
+  );
+}
+
+/// Sign-in refused at the limit of devices signed in at once: the devices that are, and a
+/// five-minute ticket to sign one out and continue without typing the password again.
+class DeviceLimit {
+  const DeviceLimit({required this.limit, required this.devices, required this.ticket});
+
+  final int limit;
+  final List<Device> devices;
+  final String ticket;
+
+  factory DeviceLimit.fromDetails(Map<String, dynamic> details) => DeviceLimit(
+    limit: details['limit'] as int? ?? 1,
+    devices: (details['devices'] as List<dynamic>? ?? [])
+        .map((d) => Device.fromJson({...d as Map<String, dynamic>, 'signedIn': true}))
+        .toList(),
+    ticket: details['ticket'] as String? ?? '',
+  );
 }
 
 /// Per-course protection policy, decided server-side.
@@ -85,11 +122,11 @@ class CoursePolicy {
   final int maxDevices;
 
   factory CoursePolicy.fromJson(Map<String, dynamic> json) => CoursePolicy(
-        allowDownload: json['allowDownload'] as bool? ?? false,
-        allowCapture: json['allowCapture'] as bool? ?? false,
-        offlineWindowDays: json['offlineWindowDays'] as int? ?? 30,
-        maxDevices: json['maxDevices'] as int? ?? 1,
-      );
+    allowDownload: json['allowDownload'] as bool? ?? false,
+    allowCapture: json['allowCapture'] as bool? ?? false,
+    offlineWindowDays: json['offlineWindowDays'] as int? ?? 30,
+    maxDevices: json['maxDevices'] as int? ?? 1,
+  );
 }
 
 class Course {
@@ -118,16 +155,13 @@ class Course {
   final List<Video> looseVideos;
 
   /// Every video in display order, sections first.
-  List<Video> get allVideos => [
-        for (final section in sections) ...section.videos,
-        ...looseVideos,
-      ];
+  List<Video> get allVideos => [for (final section in sections) ...section.videos, ...looseVideos];
 
   /// Videos the student can open right now, in display order.
   List<Video> get playableVideos => [
-        for (final video in allVideos)
-          if (video.isReady && !video.isLocked) video,
-      ];
+    for (final video in allVideos)
+      if (video.isReady && !video.isLocked) video,
+  ];
 
   /// Where "continue" goes: the first part-watched session, else the first one not yet completed,
   /// else the first playable one (a finished course restarts from the top). Null when nothing is
@@ -160,20 +194,20 @@ class Course {
   }
 
   factory Course.fromJson(Map<String, dynamic> json) => Course(
-        id: json['id'] as String,
-        title: json['title'] as String,
-        videoCount: json['videoCount'] as int? ?? 0,
-        progress: (json['progress'] as num?)?.toDouble() ?? 0,
-        policy: CoursePolicy.fromJson(json['policy'] as Map<String, dynamic>),
-        teacherName: json['teacherName'] as String?,
-        description: json['description'] as String?,
-        sections: (json['sections'] as List<dynamic>? ?? [])
-            .map((s) => CourseSection.fromJson(s as Map<String, dynamic>))
-            .toList(),
-        looseVideos: (json['looseVideos'] as List<dynamic>? ?? [])
-            .map((v) => Video.fromJson(v as Map<String, dynamic>))
-            .toList(),
-      );
+    id: json['id'] as String,
+    title: json['title'] as String,
+    videoCount: json['videoCount'] as int? ?? 0,
+    progress: (json['progress'] as num?)?.toDouble() ?? 0,
+    policy: CoursePolicy.fromJson(json['policy'] as Map<String, dynamic>),
+    teacherName: json['teacherName'] as String?,
+    description: json['description'] as String?,
+    sections: (json['sections'] as List<dynamic>? ?? [])
+        .map((s) => CourseSection.fromJson(s as Map<String, dynamic>))
+        .toList(),
+    looseVideos: (json['looseVideos'] as List<dynamic>? ?? [])
+        .map((v) => Video.fromJson(v as Map<String, dynamic>))
+        .toList(),
+  );
 }
 
 class CourseSection {
@@ -184,12 +218,12 @@ class CourseSection {
   final List<Video> videos;
 
   factory CourseSection.fromJson(Map<String, dynamic> json) => CourseSection(
-        id: json['id'] as String,
-        title: json['title'] as String,
-        videos: (json['videos'] as List<dynamic>? ?? [])
-            .map((v) => Video.fromJson(v as Map<String, dynamic>))
-            .toList(),
-      );
+    id: json['id'] as String,
+    title: json['title'] as String,
+    videos: (json['videos'] as List<dynamic>? ?? [])
+        .map((v) => Video.fromJson(v as Map<String, dynamic>))
+        .toList(),
+  );
 }
 
 class Video {
@@ -232,20 +266,20 @@ class Video {
       duration.inMilliseconds == 0 ? 0 : progress.inMilliseconds / duration.inMilliseconds;
 
   factory Video.fromJson(Map<String, dynamic> json) => Video(
-        id: json['id'] as String,
-        courseId: json['courseId'] as String,
-        title: json['title'] as String,
-        duration: Duration(milliseconds: json['durationMs'] as int? ?? 0),
-        status: json['status'] as String? ?? 'processing',
-        progress: Duration(milliseconds: json['progressMs'] as int? ?? 0),
-        completed: json['completed'] as bool? ?? false,
-        downloaded: json['downloaded'] as bool? ?? false,
-        lockedReason: json['lockedReason'] as String?,
-        recordedAt: _parseDate(json['recordedAt']),
-        chapters: (json['chapters'] as List<dynamic>? ?? [])
-            .map((c) => Chapter.fromJson(c as Map<String, dynamic>))
-            .toList(),
-      );
+    id: json['id'] as String,
+    courseId: json['courseId'] as String,
+    title: json['title'] as String,
+    duration: Duration(milliseconds: json['durationMs'] as int? ?? 0),
+    status: json['status'] as String? ?? 'processing',
+    progress: Duration(milliseconds: json['progressMs'] as int? ?? 0),
+    completed: json['completed'] as bool? ?? false,
+    downloaded: json['downloaded'] as bool? ?? false,
+    lockedReason: json['lockedReason'] as String?,
+    recordedAt: _parseDate(json['recordedAt']),
+    chapters: (json['chapters'] as List<dynamic>? ?? [])
+        .map((c) => Chapter.fromJson(c as Map<String, dynamic>))
+        .toList(),
+  );
 }
 
 class Chapter {
@@ -256,10 +290,10 @@ class Chapter {
   final Duration start;
 
   factory Chapter.fromJson(Map<String, dynamic> json) => Chapter(
-        id: json['id'] as String,
-        title: json['title'] as String,
-        start: Duration(milliseconds: json['startMs'] as int? ?? 0),
-      );
+    id: json['id'] as String,
+    title: json['title'] as String,
+    start: Duration(milliseconds: json['startMs'] as int? ?? 0),
+  );
 }
 
 class SearchHit {
@@ -272,11 +306,10 @@ class SearchHit {
   String get title => course?.title ?? video?.title ?? '';
 
   factory SearchHit.fromJson(Map<String, dynamic> json) => SearchHit(
-        kind: json['kind'] as String,
-        course:
-            json['course'] == null ? null : Course.fromJson(json['course'] as Map<String, dynamic>),
-        video: json['video'] == null ? null : Video.fromJson(json['video'] as Map<String, dynamic>),
-      );
+    kind: json['kind'] as String,
+    course: json['course'] == null ? null : Course.fromJson(json['course'] as Map<String, dynamic>),
+    video: json['video'] == null ? null : Video.fromJson(json['video'] as Map<String, dynamic>),
+  );
 }
 
 /// What the server returns to start protected playback.
@@ -312,17 +345,17 @@ class PlaybackSession {
   final int revocationEpoch;
 
   factory PlaybackSession.fromJson(Map<String, dynamic> json) => PlaybackSession(
-        sessionId: json['sessionId'] as String,
-        videoId: json['videoId'] as String,
-        manifestUrl: json['manifestUrl'] as String,
-        wrappedKey: json['wrappedKey'] as String,
-        keyId: (json['encryption'] as Map<String, dynamic>)['keyId'] as String,
-        watermark: Watermark.fromJson(json['watermark'] as Map<String, dynamic>),
-        blockCapture: json['blockCapture'] as bool? ?? true,
-        expiresAt: DateTime.parse(json['expiresAt'] as String),
-        heartbeatInterval: Duration(seconds: json['heartbeatIntervalSeconds'] as int? ?? 30),
-        revocationEpoch: json['revocationEpoch'] as int? ?? 0,
-      );
+    sessionId: json['sessionId'] as String,
+    videoId: json['videoId'] as String,
+    manifestUrl: json['manifestUrl'] as String,
+    wrappedKey: json['wrappedKey'] as String,
+    keyId: (json['encryption'] as Map<String, dynamic>)['keyId'] as String,
+    watermark: Watermark.fromJson(json['watermark'] as Map<String, dynamic>),
+    blockCapture: json['blockCapture'] as bool? ?? true,
+    expiresAt: DateTime.parse(json['expiresAt'] as String),
+    heartbeatInterval: Duration(seconds: json['heartbeatIntervalSeconds'] as int? ?? 30),
+    revocationEpoch: json['revocationEpoch'] as int? ?? 0,
+  );
 }
 
 /// On-screen identity watermark parameters.
@@ -347,13 +380,110 @@ class Watermark {
   final int seed;
 
   factory Watermark.fromJson(Map<String, dynamic> json) => Watermark(
-        text: json['text'] as String,
-        opacity: (json['opacity'] as num).toDouble(),
-        fontSize: (json['fontSize'] as num).toDouble(),
-        movement: json['movement'] as String,
-        period: Duration(seconds: json['periodSeconds'] as int? ?? 47),
-        seed: json['seed'] as int? ?? 0,
-      );
+    text: json['text'] as String,
+    opacity: (json['opacity'] as num).toDouble(),
+    fontSize: (json['fontSize'] as num).toDouble(),
+    movement: json['movement'] as String,
+    period: Duration(seconds: json['periodSeconds'] as int? ?? 47),
+    seed: json['seed'] as int? ?? 0,
+  );
 }
 
 DateTime? _parseDate(Object? value) => value is String ? DateTime.tryParse(value) : null;
+
+// ─────────────────────────────── Admin ───────────────────────────────
+
+class InstituteSettings {
+  const InstituteSettings({required this.defaultMaxDevices});
+
+  final int defaultMaxDevices;
+
+  factory InstituteSettings.fromJson(Map<String, dynamic> json) =>
+      InstituteSettings(defaultMaxDevices: json['defaultMaxDevices'] as int);
+}
+
+class AdminUser {
+  const AdminUser({
+    required this.user,
+    required this.maxDevices,
+    required this.effectiveMaxDevices,
+    required this.signedInDevices,
+    required this.enrolledCourses,
+  });
+
+  final AppUser user;
+
+  /// This account's own limit; null when the institute default applies.
+  final int? maxDevices;
+  final int effectiveMaxDevices;
+  final int signedInDevices;
+  final int enrolledCourses;
+
+  factory AdminUser.fromJson(Map<String, dynamic> json) => AdminUser(
+    user: AppUser.fromJson(json),
+    maxDevices: json['maxDevices'] as int?,
+    effectiveMaxDevices: json['effectiveMaxDevices'] as int,
+    signedInDevices: json['signedInDevices'] as int? ?? 0,
+    enrolledCourses: json['enrolledCourses'] as int? ?? 0,
+  );
+}
+
+class AdminEnrollment {
+  const AdminEnrollment({
+    required this.courseId,
+    required this.courseTitle,
+    required this.status,
+    this.expiresAt,
+  });
+
+  final String courseId;
+  final String courseTitle;
+  final String status;
+  final DateTime? expiresAt;
+
+  factory AdminEnrollment.fromJson(Map<String, dynamic> json) => AdminEnrollment(
+    courseId: json['courseId'] as String,
+    courseTitle: json['courseTitle'] as String,
+    status: json['status'] as String,
+    expiresAt: _parseDate(json['expiresAt']),
+  );
+}
+
+class AdminUserDetail {
+  const AdminUserDetail({required this.summary, required this.devices, required this.enrollments});
+
+  final AdminUser summary;
+  final List<Device> devices;
+  final List<AdminEnrollment> enrollments;
+
+  factory AdminUserDetail.fromJson(Map<String, dynamic> json) => AdminUserDetail(
+    summary: AdminUser.fromJson(json),
+    devices: (json['devices'] as List<dynamic>? ?? [])
+        .map((d) => Device.fromJson(d as Map<String, dynamic>))
+        .toList(),
+    enrollments: (json['enrollments'] as List<dynamic>? ?? [])
+        .map((e) => AdminEnrollment.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
+}
+
+class AdminCourse {
+  const AdminCourse({
+    required this.id,
+    required this.title,
+    required this.status,
+    required this.enrolledCount,
+  });
+
+  final String id;
+  final String title;
+  final String status;
+  final int enrolledCount;
+
+  factory AdminCourse.fromJson(Map<String, dynamic> json) => AdminCourse(
+    id: json['id'] as String,
+    title: json['title'] as String,
+    status: json['status'] as String,
+    enrolledCount: json['enrolledCount'] as int? ?? 0,
+  );
+}

@@ -30,10 +30,7 @@ class CourseScreen extends ConsumerWidget {
         slivers: [
           SliverFillRemaining(
             hasScrollBody: false,
-            child: ErrorView(
-              error: error,
-              onRetry: () => ref.invalidate(courseProvider(courseId)),
-            ),
+            child: ErrorView(error: error, onRetry: () => ref.invalidate(courseProvider(courseId))),
           ),
         ],
       ),
@@ -74,10 +71,7 @@ class _CourseBody extends StatelessWidget {
         for (final section in course.sections)
           if (section.videos.isNotEmpty) ...[
             SliverToBoxAdapter(
-              child: SectionHeader(
-                title: section.title,
-                meta: _sectionMeta(l10n, section.videos),
-              ),
+              child: SectionHeader(title: section.title, meta: _sectionMeta(l10n, section.videos)),
             ),
             BleedSliver(
               sliver: SliverList.builder(
@@ -141,8 +135,8 @@ class _CourseHeader extends StatelessWidget {
             label: next.hasProgress
                 ? l10n.resume
                 : course.progress > 0
-                    ? l10n.continueAction
-                    : l10n.startCourse,
+                ? l10n.continueAction
+                : l10n.startCourse,
             icon: AppIcons.play,
             expand: compact,
             size: compact ? AppButtonSize.large : AppButtonSize.medium,
@@ -193,7 +187,9 @@ class _CourseHeader extends StatelessWidget {
               if (compact)
                 _ProgressSummary(course: course, total: total)
               else
-                Expanded(child: _ProgressSummary(course: course, total: total)),
+                Expanded(
+                  child: _ProgressSummary(course: course, total: total),
+                ),
               if (action != null) ...[
                 const SizedBox(width: AppSpace.x8, height: AppSpace.x4),
                 action,
@@ -318,11 +314,7 @@ class _DescriptionState extends State<_Description> {
 }
 
 class _SessionRow extends StatelessWidget {
-  const _SessionRow({
-    required this.video,
-    required this.index,
-    required this.allowDownload,
-  });
+  const _SessionRow({required this.video, required this.index, required this.allowDownload});
 
   final Video video;
   final int index;
@@ -386,14 +378,10 @@ class _SessionRow extends StatelessWidget {
               child: Icon(AppIcons.downloaded, size: 17, color: colors.success),
             )
           : allowDownload && video.isReady
-              // M4: enqueue the .tihex download. Disabled rather than hidden so the capability is
-              // visible and its arrival is not a surprise.
-              ? AppIconButton(
-                  icon: AppIcons.download,
-                  tooltip: l10n.downloadSoon,
-                  onPressed: null,
-                )
-              : null,
+          // M4: enqueue the .tihex download. Disabled rather than hidden so the capability is
+          // visible and its arrival is not a surprise.
+          ? AppIconButton(icon: AppIcons.download, tooltip: l10n.downloadSoon, onPressed: null)
+          : null,
       onTap: playable ? () => context.push('/watch/${video.id}') : null,
     );
   }

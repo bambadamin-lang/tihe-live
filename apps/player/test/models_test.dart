@@ -10,18 +10,17 @@ void main() {
       int progressMs = 0,
       bool completed = false,
       String? lockedReason,
-    }) =>
-        {
-          'id': 'vid_01J8ZQK5T9XVWR3M2N4P6H8B7C',
-          'courseId': 'crs_01J8ZQK5T9XVWR3M2N4P6H8B7C',
-          'title': 'جلسه ۴ — مشتق',
-          'durationMs': durationMs,
-          'status': status,
-          'progressMs': progressMs,
-          'completed': completed,
-          'downloaded': false,
-          'lockedReason': lockedReason,
-        };
+    }) => {
+      'id': 'vid_01J8ZQK5T9XVWR3M2N4P6H8B7C',
+      'courseId': 'crs_01J8ZQK5T9XVWR3M2N4P6H8B7C',
+      'title': 'جلسه ۴ — مشتق',
+      'durationMs': durationMs,
+      'status': status,
+      'progressMs': progressMs,
+      'completed': completed,
+      'downloaded': false,
+      'lockedReason': lockedReason,
+    };
 
     test('parses a ready video', () {
       final video = Video.fromJson(json());
@@ -39,10 +38,7 @@ void main() {
       expect(Video.fromJson(json(progressMs: 0)).hasProgress, isFalse);
       expect(Video.fromJson(json(progressMs: 120000)).hasProgress, isTrue);
       // A finished video offers "play", not "resume".
-      expect(
-        Video.fromJson(json(progressMs: 600000, completed: true)).hasProgress,
-        isFalse,
-      );
+      expect(Video.fromJson(json(progressMs: 600000, completed: true)).hasProgress, isFalse);
     });
 
     test('progressFraction does not divide by zero', () {
@@ -118,32 +114,31 @@ void main() {
       int progressMs = 0,
       bool completed = false,
       String? lockedReason,
-    }) =>
-        Video(
-          id: id,
-          courseId: 'crs_1',
-          title: id,
-          duration: Duration(milliseconds: durationMs),
-          status: status,
-          progress: Duration(milliseconds: progressMs),
-          completed: completed,
-          downloaded: false,
-          lockedReason: lockedReason,
-        );
+    }) => Video(
+      id: id,
+      courseId: 'crs_1',
+      title: id,
+      duration: Duration(milliseconds: durationMs),
+      status: status,
+      progress: Duration(milliseconds: progressMs),
+      completed: completed,
+      downloaded: false,
+      lockedReason: lockedReason,
+    );
 
     Course courseOf(List<Video> videos) => Course(
-          id: 'crs_1',
-          title: 'ریاضی',
-          videoCount: videos.length,
-          progress: 0,
-          policy: const CoursePolicy(
-            allowDownload: false,
-            allowCapture: false,
-            offlineWindowDays: 30,
-            maxDevices: 1,
-          ),
-          looseVideos: videos,
-        );
+      id: 'crs_1',
+      title: 'ریاضی',
+      videoCount: videos.length,
+      progress: 0,
+      policy: const CoursePolicy(
+        allowDownload: false,
+        allowCapture: false,
+        offlineWindowDays: 30,
+        maxDevices: 1,
+      ),
+      looseVideos: videos,
+    );
 
     test('nextVideo prefers a part-watched session over an earlier unwatched one', () {
       final course = courseOf([
@@ -293,7 +288,9 @@ void main() {
     test('marks transient failures retryable', () {
       expect(of('RATE_LIMITED').isRetryable, isTrue);
       expect(of('VIDEO_NOT_READY').isRetryable, isTrue);
+      expect(of('INTERNAL').isRetryable, isTrue);
       expect(of('FORBIDDEN').isRetryable, isFalse);
+      expect(of('INVALID_CREDENTIALS').isRetryable, isFalse);
     });
 
     test('parses the server envelope', () {

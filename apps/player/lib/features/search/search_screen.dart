@@ -98,12 +98,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final results = ref.watch(searchProvider(_query));
 
     if (results.hasError && !results.isLoading) {
-      return [
-        SliverFillRemaining(hasScrollBody: false, child: ErrorView(error: results.error!)),
-      ];
+      return [SliverFillRemaining(hasScrollBody: false, child: ErrorView(error: results.error!))];
     }
     if (results.hasValue) _lastHits = results.value;
-    final hits = results.valueOrNull ?? _lastHits;
+    final hits = results.value ?? _lastHits;
 
     if (hits == null) {
       return [
@@ -111,9 +109,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           padding: const EdgeInsets.only(top: AppSpace.x6),
           sliver: BleedSliver(
             sliver: SliverList.list(
-              children: [
-                for (var i = 0; i < 5; i++) SkeletonRow(titleWidth: 140.0 + (i % 3) * 50),
-              ],
+              children: [for (var i = 0; i < 5; i++) SkeletonRow(titleWidth: 140.0 + (i % 3) * 50)],
             ),
           ),
         ),

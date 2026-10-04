@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tihe_classroom/tihe_classroom.dart';
 
 /// Semantic colour tokens.
 ///
@@ -88,69 +89,44 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color scrim;
   final Color shadow;
 
-  static const dark = AppColors(
-    background: Color(0xFF0A0A0B),
-    sidebar: Color(0xFF0F0F11),
-    surface: Color(0xFF121214),
-    surfaceRaised: Color(0xFF19191C),
-    surfaceHover: Color(0xFF1E1E22),
-    surfacePressed: Color(0xFF26262B),
-    border: Color(0xFF232327),
-    borderStrong: Color(0xFF32323A),
-    text: Color(0xFFEDEDEF),
-    textSecondary: Color(0xFFA0A0AB),
-    textTertiary: Color(0xFF70707B),
-    textDisabled: Color(0xFF4E4E57),
-    accent: Color(0xFF3D7BFA),
-    accentHover: Color(0xFF5289FB),
-    accentPressed: Color(0xFF2F6AE6),
-    onAccent: Color(0xFFFFFFFF),
-    accentSubtle: Color(0x243D7BFA),
-    accentText: Color(0xFF7AA5FF),
-    success: Color(0xFF3DB57F),
-    successSubtle: Color(0x1F3DB57F),
-    warning: Color(0xFFE2A336),
-    warningSubtle: Color(0x1FE2A336),
-    danger: Color(0xFFEB5757),
-    dangerHover: Color(0xFFF06B6B),
-    dangerSubtle: Color(0x1FEB5757),
-    inverse: Color(0xFFEDEDEF),
-    onInverse: Color(0xFF111113),
-    scrim: Color(0xB3000000),
-    shadow: Color(0x66000000),
+  /// The palette is the classroom's glass theme (packages/tihe_classroom), so the library, the
+  /// dashboard and the live class are one app to look at. Surfaces are translucent glass over the
+  /// backdrop the app paints behind every screen; there is one palette to change, in
+  /// [ClassroomTheme].
+  factory AppColors.fromClassroom(ClassroomTheme t) => AppColors(
+    background: t.canvas,
+    sidebar: t.glass,
+    surface: t.glass,
+    surfaceRaised: t.glassHover,
+    surfaceHover: t.glassHover,
+    surfacePressed: t.glassPressed,
+    border: t.hairline,
+    borderStrong: t.edgeLow,
+    text: t.text,
+    textSecondary: t.textSecondary,
+    textTertiary: t.textTertiary,
+    textDisabled: t.textDisabled,
+    accent: t.accent,
+    accentHover: t.accentHover,
+    accentPressed: t.accentHover,
+    onAccent: t.onAccent,
+    accentSubtle: t.accentSubtle,
+    accentText: t.accentText,
+    success: t.success,
+    successSubtle: t.successSubtle,
+    warning: t.warning,
+    warningSubtle: t.warningSubtle,
+    danger: t.danger,
+    dangerHover: t.dangerHover,
+    dangerSubtle: t.dangerSubtle,
+    inverse: t.inverse,
+    onInverse: t.onInverse,
+    scrim: t.scrim,
+    shadow: t.shadow,
   );
 
-  static const light = AppColors(
-    background: Color(0xFFFFFFFF),
-    sidebar: Color(0xFFF8F8F9),
-    surface: Color(0xFFFFFFFF),
-    surfaceRaised: Color(0xFFF4F4F5),
-    surfaceHover: Color(0xFFF0F0F2),
-    surfacePressed: Color(0xFFE7E7EA),
-    border: Color(0xFFE6E6E9),
-    borderStrong: Color(0xFFD4D4D8),
-    text: Color(0xFF18181B),
-    textSecondary: Color(0xFF55555E),
-    textTertiary: Color(0xFF7D7D87),
-    textDisabled: Color(0xFFB4B4BC),
-    accent: Color(0xFF2563EB),
-    accentHover: Color(0xFF1D56D8),
-    accentPressed: Color(0xFF1A4CC0),
-    onAccent: Color(0xFFFFFFFF),
-    accentSubtle: Color(0x172563EB),
-    accentText: Color(0xFF1F57D6),
-    success: Color(0xFF16915A),
-    successSubtle: Color(0x1A16915A),
-    warning: Color(0xFFB7791F),
-    warningSubtle: Color(0x1FB7791F),
-    danger: Color(0xFFD93636),
-    dangerHover: Color(0xFFC22D2D),
-    dangerSubtle: Color(0x14D93636),
-    inverse: Color(0xFF18181B),
-    onInverse: Color(0xFFFAFAFA),
-    scrim: Color(0x66000000),
-    shadow: Color(0x1F000000),
-  );
+  static final dark = AppColors.fromClassroom(ClassroomTheme.dark);
+  static final light = AppColors.fromClassroom(ClassroomTheme.light);
 
   @override
   AppColors copyWith() => this;

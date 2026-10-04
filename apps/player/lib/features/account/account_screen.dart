@@ -36,7 +36,7 @@ class AccountScreen extends ConsumerWidget {
     final auth = ref.watch(authControllerProvider);
     final user = auth is AuthSignedIn ? auth.session.user : null;
     final themeMode = ref.watch(themeModeProvider);
-    final version = ref.watch(appVersionProvider).valueOrNull;
+    final version = ref.watch(appVersionProvider).value;
     final compact = context.windowSize.isCompact;
     final touch = isTouchPlatform(context);
 
@@ -120,6 +120,20 @@ class AccountScreen extends ConsumerWidget {
                   trailing: appearance,
                 ),
               AppListRow(
+                title: l10n.changePassword,
+                leading: const IconTile(icon: AppIcons.code),
+                showChevron: true,
+                onTap: () => context.push('/account/password'),
+              ),
+              if (user?.isAdmin ?? false)
+                AppListRow(
+                  title: l10n.adminTitle,
+                  subtitle: l10n.openAdmin,
+                  leading: const IconTile(icon: AppIcons.admin),
+                  showChevron: true,
+                  onTap: () => context.go('/admin'),
+                ),
+              AppListRow(
                 title: l10n.devicesTitle,
                 subtitle: l10n.manageDevices,
                 leading: const IconTile(icon: AppIcons.devices),
@@ -143,8 +157,9 @@ class AccountScreen extends ConsumerWidget {
             children: [
               AppListRow(
                 title: l10n.appTitle,
-                subtitle:
-                    version == null ? null : l10n.version(JalaliFormat.toPersianDigits(version)),
+                subtitle: version == null
+                    ? null
+                    : l10n.version(JalaliFormat.toPersianDigits(version)),
                 leading: const BrandMark(size: 36),
               ),
             ],

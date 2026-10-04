@@ -3,7 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/account/account_screen.dart';
+import '../../features/admin/admin_screen.dart';
+import '../../features/admin/admin_user_screen.dart';
+import '../../features/auth/change_password_screen.dart';
 import '../../features/auth/sign_in_screen.dart';
+import '../../features/home/home_screen.dart';
+import '../../features/live/demo_screen.dart';
+import '../../features/live/live_screen.dart';
 import '../../features/course/course_screen.dart';
 import '../../features/devices/devices_screen.dart';
 import '../../features/library/library_screen.dart';
@@ -22,7 +28,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(notifier.dispose);
 
   return GoRouter(
-    initialLocation: '/library',
+    initialLocation: '/home',
     refreshListenable: notifier,
     redirect: (context, state) {
       final auth = notifier.value;
@@ -31,21 +37,33 @@ final routerProvider = Provider<GoRouter>((ref) {
       // screen at a student who is already signed in.
       if (auth is AuthUnknown) return state.matchedLocation == '/' ? null : '/';
 
-      final signedIn = auth is AuthSignedIn;
-      final atSignIn = state.matchedLocation == '/sign-in';
+      final at = state.matchedLocation;
+      // The demo needs no account and no server.
+      if (at == '/demo') return null;
+      if (auth is! AuthSignedIn) return at == '/sign-in' ? null : '/sign-in';
 
-      if (!signedIn && !atSignIn) return '/sign-in';
-      if (signedIn && (atSignIn || state.matchedLocation == '/')) return '/library';
+      final user = auth.session.user;
+      // A password the institute set must be replaced before anything else.
+      if (user.mustChangePassword) return at == '/change-password' ? null : '/change-password';
+      if (at == '/sign-in' || at == '/' || at == '/change-password') return '/home';
+      if (at.startsWith('/admin') && !user.isAdmin) return '/home';
       return null;
     },
     routes: [
       GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
       GoRoute(path: '/sign-in', builder: (_, __) => const SignInScreen()),
+      GoRoute(
+        path: '/change-password',
+        builder: (_, __) => const ChangePasswordScreen(forced: true),
+      ),
+      GoRoute(path: '/demo', builder: (_, __) => const DemoScreen()),
 
       // Everything signed-in sits in the shell (sidebar, rail or bottom bar), except the player.
       ShellRoute(
         builder: (_, state, child) => AppShell(location: state.uri.path, child: child),
         routes: [
+          GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
+          GoRoute(path: '/live', builder: (_, __) => const LiveScreen()),
           GoRoute(path: '/library', builder: (_, __) => const LibraryScreen()),
           GoRoute(path: '/search', builder: (_, __) => const SearchScreen()),
           GoRoute(
@@ -54,6 +72,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(path: '/devices', builder: (_, __) => const DevicesScreen()),
           GoRoute(path: '/account', builder: (_, __) => const AccountScreen()),
+          GoRoute(path: '/account/password', builder: (_, __) => const ChangePasswordScreen()),
+          GoRoute(path: '/admin', builder: (_, __) => const AdminScreen()),
+          GoRoute(
+            path: '/admin/users/:id',
+            builder: (_, state) => AdminUserScreen(userId: state.pathParameters['id']!),
+          ),
         ],
       ),
 

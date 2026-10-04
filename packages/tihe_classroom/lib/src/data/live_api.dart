@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -20,20 +21,57 @@ class LiveApi {
   final Future<String> Function() accessToken;
   final http.Client _http;
 
-  Future<Json> _call(String method, String path) async {
-    final request = http.Request(method, Uri.parse('$baseUrl$path'))
-      ..headers['authorization'] = 'Bearer ${await accessToken()}'
-      ..headers['accept'] = 'application/json';
-    final response = await http.Response.fromStream(
-      await _http.send(request).timeout(const Duration(seconds: 15)),
-    );
-    final body = response.body.isEmpty
-        ? <String, Object?>{}
-        : asJson(jsonDecode(response.body));
+  /// How long one request may take before it counts as no connection.
+  static const timeout = Duration(seconds: 15);
+
+  /// Sends one request and decodes its body. Transport failures and bodies that are not the
+  /// error envelope (a proxy's HTML error page, a cut-off response) become [ApiError] too, with
+  /// a Persian message, so callers handle exactly one exception type.
+  Future<Object?> _send(String method, String path) async {
+    // Outside the try: a failure to get a token is the token source's own error to report.
+    final token = await accessToken();
+    final http.Response response;
+    try {
+      final request = http.Request(method, Uri.parse('$baseUrl$path'))
+        ..headers['authorization'] = 'Bearer $token'
+        ..headers['accept'] = 'application/json';
+      response = await http.Response.fromStream(
+        await _http.send(request).timeout(timeout),
+      );
+    } on http.ClientException {
+      throw ApiError.network();
+    } on TimeoutException {
+      throw ApiError.network();
+    }
+    Object? body;
+    try {
+      body = response.body.isEmpty ? null : jsonDecode(response.body);
+    } on FormatException {
+      body = null;
+    }
     if (response.statusCode >= 400) {
-      throw ApiError.fromJson(response.statusCode, body);
+      final envelope = body is Map<String, Object?> ? body['error'] : null;
+      if (envelope is Map<String, Object?> &&
+          envelope['code'] is String &&
+          envelope['messageFa'] is String) {
+        throw ApiError.fromJson(response.statusCode, body as Json);
+      }
+      throw ApiError.unexpected(response.statusCode);
     }
     return body;
+  }
+
+  Future<Json> _call(String method, String path) async {
+    final body = await _send(method, path);
+    if (body is! Map) throw ApiError.unexpected(200);
+    return asJson(body);
+  }
+
+  /// The caller's classes: those of every course they attend or teach (all of them for admins).
+  Future<List<LiveClass>> listClasses() async {
+    final body = await _send('GET', '/classes');
+    if (body is! List) throw ApiError.unexpected(200);
+    return [for (final c in body) LiveClass.fromJson(asJson(c))];
   }
 
   /// Enter a class: LiveKit token, gateway ticket, watermark and capture policy.

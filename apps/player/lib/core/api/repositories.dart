@@ -1,51 +1,73 @@
 import '../security/app_log.dart';
 import '../security/token_store.dart';
 import 'api_client.dart';
+import 'api_error.dart';
 import 'models.dart';
 
-/// Sign-in and session management.
+/// Sign-in refused because the account already has its limit of devices signed in.
+class DeviceLimitReached implements Exception {
+  const DeviceLimitReached(this.limit, this.messageFa);
+
+  final DeviceLimit limit;
+  final String messageFa;
+}
+
+/// Sign-in and session management (ADR-0013, ADR-0014).
 class AuthRepository {
   AuthRepository(this._api, this._tokens);
 
   final ApiClient _api;
   final TokenStore _tokens;
 
-  /// Requests an SMS code.
+  /// Signs in with phone and password and registers this device.
   ///
-  /// Returns the dev code when the server is running with the console SMS driver, so local
-  /// development needs no SMS gateway. In production this is always null.
-  Future<({String requestId, int resendAfterSeconds, String? devCode})> requestOtp(
-    String phone,
-  ) async {
-    final json = await _api.post('/auth/otp/request', body: {'phone': phone}, skipAuth: true);
-    AppLog.info('OTP requested for ${AppLog.maskPhone(phone)}');
-    return (
-      requestId: json['requestId'] as String,
-      resendAfterSeconds: json['resendAfterSeconds'] as int? ?? 60,
-      devCode: json['devCode'] as String?,
-    );
-  }
-
-  /// Verifies a code and registers this device.
-  ///
-  /// The caller must pass the device descriptor from [DeviceIdentity]; the server registers it on
-  /// first sight so a student is never signed in but unable to play anything.
-  Future<Session> verifyOtp({
+  /// Throws [DeviceLimitReached] when the account is signed in on its limit of devices: the
+  /// student picks one to sign out ([replaceDevice]) instead of hitting a dead end.
+  Future<Session> login({
     required String phone,
-    required String code,
+    required String password,
     required Map<String, dynamic> device,
   }) async {
-    final json = await _api.post(
-      '/auth/otp/verify',
-      body: {'phone': phone, 'code': code, 'device': device},
-      skipAuth: true,
+    final json = await _guardLimit(
+      () => _api.post(
+        '/auth/login',
+        body: {'phone': phone, 'password': password, 'device': device},
+        skipAuth: true,
+      ),
     );
+    AppLog.info('signed in as ${AppLog.maskPhone(phone)}');
+    return _persist(json);
+  }
 
-    // Persisted here rather than by the caller: a screen that forgets leaves the student
-    // authenticated for exactly one request, and the bug looks like a random session loss.
-    await _tokens.save(json);
+  /// Signs [signOutDeviceId] out and finishes the sign-in that hit the limit.
+  Future<Session> replaceDevice({
+    required String ticket,
+    required String signOutDeviceId,
+    required Map<String, dynamic> device,
+  }) async {
+    final json = await _guardLimit(
+      () => _api.post(
+        '/auth/login/replace',
+        body: {'ticket': ticket, 'signOutDeviceId': signOutDeviceId, 'device': device},
+        skipAuth: true,
+      ),
+    );
+    return _persist(json);
+  }
 
-    return Session.fromJson(json);
+  Future<void> changePassword({
+    required String current,
+    required String next,
+    bool signOutOtherDevices = true,
+  }) async {
+    await _api.post(
+      '/auth/password',
+      body: {
+        'currentPassword': current,
+        'newPassword': next,
+        'signOutOtherDevices': signOutOtherDevices,
+      },
+    );
   }
 
   Future<Session> me() async {
@@ -54,6 +76,24 @@ class AuthRepository {
   }
 
   Future<void> logout() => _api.post('/auth/logout');
+
+  Future<Map<String, dynamic>> _guardLimit(Future<Map<String, dynamic>> Function() call) async {
+    try {
+      return await call();
+    } on ApiError catch (e) {
+      if (e.code == 'DEVICE_LIMIT_REACHED' && e.details != null) {
+        throw DeviceLimitReached(DeviceLimit.fromDetails(e.details!), e.messageFa);
+      }
+      rethrow;
+    }
+  }
+
+  /// Persisted here rather than by the caller: a screen that forgets leaves the student
+  /// authenticated for exactly one request, and the bug looks like a random session loss.
+  Future<Session> _persist(Map<String, dynamic> json) async {
+    await _tokens.save(json);
+    return Session.fromJson(json);
+  }
 }
 
 /// The student's library.
@@ -106,10 +146,7 @@ class ProgressRepository {
   Future<void> save(String videoId, Duration position, {bool? completed}) async {
     await _api.put(
       '/progress/$videoId',
-      body: {
-        'positionMs': position.inMilliseconds,
-        if (completed != null) 'completed': completed,
-      },
+      body: {'positionMs': position.inMilliseconds, if (completed != null) 'completed': completed},
     );
   }
 
@@ -183,7 +220,96 @@ class DevicesRepository {
         .toList();
   }
 
-  /// Releases a device. The server also expires that device's downloads — a released machine must
-  /// not keep playing what it already holds.
-  Future<void> release(String deviceId) => _api.delete('/devices/$deviceId');
+  /// Signs a device out, which frees its slot. The server also expires that device's downloads —
+  /// a signed-out machine must not keep playing what it already holds.
+  Future<void> signOut(String deviceId) => _api.delete('/devices/$deviceId');
+}
+
+/// Accounts, the device limit and enrollments, for admins.
+class AdminRepository {
+  AdminRepository(this._api);
+
+  final ApiClient _api;
+
+  Future<InstituteSettings> settings() async =>
+      InstituteSettings.fromJson(await _api.get('/admin/settings'));
+
+  Future<InstituteSettings> setDefaultMaxDevices(int value) async => InstituteSettings.fromJson(
+    await _api.patch('/admin/settings', body: {'defaultMaxDevices': value}),
+  );
+
+  Future<List<AdminUser>> users({String? query}) async {
+    final json = await _api.get(
+      '/admin/users',
+      query: {if (query != null && query.trim().isNotEmpty) 'query': query.trim()},
+    );
+    return (json['items'] as List<dynamic>)
+        .map((u) => AdminUser.fromJson(u as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<AdminUserDetail> user(String id) async =>
+      AdminUserDetail.fromJson(await _api.get('/admin/users/$id'));
+
+  Future<AdminUserDetail> createUser({
+    required String phone,
+    required String displayName,
+    required String password,
+    String role = 'student',
+    bool mustChangePassword = true,
+    int? maxDevices,
+  }) async => AdminUserDetail.fromJson(
+    await _api.post(
+      '/admin/users',
+      body: {
+        'phone': phone,
+        'displayName': displayName,
+        'password': password,
+        'role': role,
+        'mustChangePassword': mustChangePassword,
+        'maxDevices': maxDevices,
+      },
+    ),
+  );
+
+  /// Only the fields given change. Pass `clearMaxDevices` to return to the institute default.
+  Future<AdminUserDetail> updateUser(
+    String id, {
+    String? displayName,
+    String? role,
+    String? status,
+    int? maxDevices,
+    bool clearMaxDevices = false,
+    String? password,
+    bool? mustChangePassword,
+  }) async => AdminUserDetail.fromJson(
+    await _api.patch(
+      '/admin/users/$id',
+      body: {
+        if (displayName != null) 'displayName': displayName,
+        if (role != null) 'role': role,
+        if (status != null) 'status': status,
+        if (maxDevices != null) 'maxDevices': maxDevices,
+        if (clearMaxDevices) 'maxDevices': null,
+        if (password != null) 'password': password,
+        if (mustChangePassword != null) 'mustChangePassword': mustChangePassword,
+      },
+    ),
+  );
+
+  Future<void> signOutDevice(String userId, String deviceId) =>
+      _api.delete('/admin/users/$userId/devices/$deviceId');
+
+  Future<AdminUserDetail> enroll(String userId, String courseId) async => AdminUserDetail.fromJson(
+    await _api.post('/admin/users/$userId/enrollments', body: {'courseId': courseId}),
+  );
+
+  Future<AdminUserDetail> unenroll(String userId, String courseId) async {
+    await _api.delete('/admin/users/$userId/enrollments/$courseId');
+    return user(userId);
+  }
+
+  Future<List<AdminCourse>> courses() async => (await _api.getList(
+    '/admin/courses',
+  )).map((c) => AdminCourse.fromJson(c as Map<String, dynamic>)).toList();
 }

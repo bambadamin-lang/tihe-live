@@ -61,8 +61,8 @@ extension WindowSizeContext on BuildContext {
 
   /// Horizontal page gutter for the current size class.
   double get pageGutter => switch (windowSize) {
-        WindowSize.compact => AppSpace.x4,
-        WindowSize.medium => AppSpace.x6,
-        WindowSize.expanded => AppSpace.x10,
-      };
+    WindowSize.compact => AppSpace.x4,
+    WindowSize.medium => AppSpace.x6,
+    WindowSize.expanded => AppSpace.x10,
+  };
 }

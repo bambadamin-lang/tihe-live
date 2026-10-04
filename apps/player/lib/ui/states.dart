@@ -55,14 +55,8 @@ class StateMessage extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
               ],
-              if (footer != null) ...[
-                const SizedBox(height: AppSpace.x3),
-                footer!,
-              ],
-              if (action != null) ...[
-                const SizedBox(height: AppSpace.x5),
-                action!,
-              ],
+              if (footer != null) ...[const SizedBox(height: AppSpace.x3), footer!],
+              if (action != null) ...[const SizedBox(height: AppSpace.x5), action!],
             ],
           ),
         ),
@@ -108,8 +102,8 @@ class ErrorView extends StatelessWidget {
     final icon = apiError?.needsSupport == true
         ? AppIcons.locked
         : apiError?.code == 'NETWORK'
-            ? AppIcons.offline
-            : AppIcons.error;
+        ? AppIcons.offline
+        : AppIcons.error;
 
     return StateMessage(
       icon: icon,
@@ -117,8 +111,9 @@ class ErrorView extends StatelessWidget {
       footer: apiError?.requestId == null
           ? null
           : _RequestId(label: l10n.supportHint(apiError!.requestId!), id: apiError.requestId!),
-      action:
-          canRetry ? AppButton(label: l10n.retry, icon: AppIcons.retry, onPressed: onRetry) : null,
+      action: canRetry
+          ? AppButton(label: l10n.retry, icon: AppIcons.retry, onPressed: onRetry)
+          : null,
       iconColor: apiError?.needsSupport == true ? colors.warning : null,
     );
   }
@@ -191,9 +186,9 @@ class InlineAlert extends StatelessWidget {
               child: Text(
                 message,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: tone == AlertTone.info ? colors.textSecondary : colors.text,
-                      height: 1.6,
-                    ),
+                  color: tone == AlertTone.info ? colors.textSecondary : colors.text,
+                  height: 1.6,
+                ),
               ),
             ),
           ],

@@ -31,10 +31,7 @@ void main() {
     });
 
     test('includes hours for a long lecture', () {
-      expect(
-        JalaliFormat.duration(const Duration(hours: 1, minutes: 28, seconds: 30)),
-        '۱:۲۸:۳۰',
-      );
+      expect(JalaliFormat.duration(const Duration(hours: 1, minutes: 28, seconds: 30)), '۱:۲۸:۳۰');
     });
 
     test('pads minutes and seconds', () {
@@ -129,6 +126,40 @@ void main() {
       expect(JalaliFormat.speed(1.25), '۱٫۲۵×');
       expect(JalaliFormat.speed(0.5), '۰٫۵×');
       expect(JalaliFormat.speed(1.5), '۱٫۵×');
+    });
+  });
+
+  group('schedule', () {
+    // Built in local time and handed over as UTC, as the API sends it, so the expected clock
+    // reading holds in whatever time zone the tests run.
+    final now = DateTime(2026, 10, 4, 8, 15); // Sunday 12 Mehr 1405
+
+    test('says today, tomorrow and yesterday rather than a date', () {
+      expect(
+        JalaliFormat.schedule(DateTime(2026, 10, 4, 10, 30).toUtc(), now: now),
+        'امروز، ۱۰:۳۰',
+      );
+      expect(JalaliFormat.schedule(DateTime(2026, 10, 5, 18, 0).toUtc(), now: now), 'فردا، ۱۸:۰۰');
+      expect(JalaliFormat.schedule(DateTime(2026, 10, 3, 9, 5).toUtc(), now: now), 'دیروز، ۰۹:۰۵');
+    });
+
+    test('names the weekday and Jalali date further out', () {
+      expect(
+        JalaliFormat.schedule(DateTime(2026, 10, 10, 10, 30).toUtc(), now: now),
+        'شنبه ۱۸ مهر، ۱۰:۳۰',
+      );
+    });
+
+    test('adds the year only when it differs', () {
+      expect(
+        JalaliFormat.schedule(DateTime(2027, 3, 25, 9, 0).toUtc(), now: now),
+        'پنجشنبه ۵ فروردین ۱۴۰۶، ۰۹:۰۰',
+      );
+    });
+
+    test('a class just after midnight is tomorrow, not today', () {
+      final late = DateTime(2026, 10, 4, 23, 50);
+      expect(JalaliFormat.schedule(DateTime(2026, 10, 5, 0, 10).toUtc(), now: late), 'فردا، ۰۰:۱۰');
     });
   });
 }

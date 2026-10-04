@@ -206,7 +206,8 @@ class _ContinueCard extends StatelessWidget {
                   const SizedBox(width: AppSpace.x1),
                   AnimatedSlide(
                     duration: AppMotion.fast,
-                    offset: Offset(state.hovered ? -0.15 : 0, 0) *
+                    offset:
+                        Offset(state.hovered ? -0.15 : 0, 0) *
                         (Directionality.of(context) == TextDirection.rtl ? 1 : -1),
                     child: Icon(AppIcons.forward, size: 14, color: colors.accentText),
                   ),

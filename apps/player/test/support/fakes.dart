@@ -22,20 +22,19 @@ Video fakeVideo(
   bool completed = false,
   String? lockedReason,
   List<Chapter> chapters = const [],
-}) =>
-    Video(
-      id: id,
-      courseId: 'crs_1',
-      title: title,
-      duration: Duration(minutes: minutes, seconds: 17),
-      status: status,
-      progress: Duration(minutes: progressMinutes),
-      completed: completed,
-      downloaded: completed,
-      lockedReason: lockedReason,
-      recordedAt: DateTime.utc(2026, 9, 1),
-      chapters: chapters,
-    );
+}) => Video(
+  id: id,
+  courseId: 'crs_1',
+  title: title,
+  duration: Duration(minutes: minutes, seconds: 17),
+  status: status,
+  progress: Duration(minutes: progressMinutes),
+  completed: completed,
+  downloaded: completed,
+  lockedReason: lockedReason,
+  recordedAt: DateTime.utc(2026, 9, 1),
+  chapters: chapters,
+);
 
 final fakeCourse = Course(
   id: 'crs_1',
@@ -44,7 +43,8 @@ final fakeCourse = Course(
   progress: 0.42,
   policy: _policy,
   teacherName: 'دکتر مریم احمدی',
-  description: 'این دوره مفاهیم پایه حسابان را از تعریف دقیق حد تا پیوستگی و مشتق‌پذیری پوشش '
+  description:
+      'این دوره مفاهیم پایه حسابان را از تعریف دقیق حد تا پیوستگی و مشتق‌پذیری پوشش '
       'می‌دهد و هر جلسه با مثال‌های حل‌شده و تمرین همراه است.',
   sections: [
     CourseSection(
@@ -156,9 +156,9 @@ class FakeCatalog implements CatalogRepository {
 
   @override
   Future<List<SearchHit>> search(String query, {String? courseId}) async => [
-        SearchHit(kind: 'course', course: fakeCourse),
-        SearchHit(kind: 'video', video: fakeCourse.allVideos[1]),
-      ];
+    SearchHit(kind: 'course', course: fakeCourse),
+    SearchHit(kind: 'video', video: fakeCourse.allVideos[1]),
+  ];
 }
 
 class FakePlayback implements PlaybackRepository {
@@ -169,26 +169,25 @@ class FakePlayback implements PlaybackRepository {
     required String videoId,
     required String deviceId,
     Map<String, bool>? environment,
-  }) async =>
-      PlaybackSession(
-        sessionId: 'pbs_$videoId',
-        videoId: videoId,
-        manifestUrl: 'https://example.invalid/master.m3u8',
-        wrappedKey: 'sealed',
-        keyId: 'key_1',
-        watermark: const Watermark(
-          text: '0912•••6789 · #8B7C',
-          opacity: 0.28,
-          fontSize: 13,
-          movement: 'drift',
-          period: Duration(seconds: 47),
-          seed: 918273,
-        ),
-        blockCapture: true,
-        expiresAt: DateTime.utc(2030),
-        heartbeatInterval: const Duration(seconds: 30),
-        revocationEpoch: 0,
-      );
+  }) async => PlaybackSession(
+    sessionId: 'pbs_$videoId',
+    videoId: videoId,
+    manifestUrl: 'https://example.invalid/master.m3u8',
+    wrappedKey: 'sealed',
+    keyId: 'key_1',
+    watermark: const Watermark(
+      text: '0912•••6789 · #8B7C',
+      opacity: 0.28,
+      fontSize: 13,
+      movement: 'drift',
+      period: Duration(seconds: 47),
+      seed: 918273,
+    ),
+    blockCapture: true,
+    expiresAt: DateTime.utc(2030),
+    heartbeatInterval: const Duration(seconds: 30),
+    revocationEpoch: 0,
+  );
 
   @override
   Future<void> end(String sessionId) async => ended.add(sessionId);
@@ -197,6 +196,5 @@ class FakePlayback implements PlaybackRepository {
   Future<({bool stop, String? reason, int revocationEpoch})> heartbeat(
     String sessionId,
     Duration position,
-  ) async =>
-      (stop: false, reason: null, revocationEpoch: 0);
+  ) async => (stop: false, reason: null, revocationEpoch: 0);
 }

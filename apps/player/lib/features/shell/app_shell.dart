@@ -13,10 +13,13 @@ import '../../ui/ui.dart';
 
 /// Top-level destinations.
 enum Destination {
+  home('/home'),
+  live('/live'),
   library('/library'),
   search('/search'),
   devices('/devices'),
-  account('/account');
+  account('/account'),
+  admin('/admin');
 
   const Destination(this.location);
 
@@ -24,6 +27,9 @@ enum Destination {
 
   /// Which destination a location belongs to. A course page belongs to the library.
   static Destination of(String location) {
+    if (location.startsWith('/home')) return Destination.home;
+    if (location.startsWith('/live')) return Destination.live;
+    if (location.startsWith('/admin')) return Destination.admin;
     if (location.startsWith('/search')) return Destination.search;
     if (location.startsWith('/devices')) return Destination.devices;
     if (location.startsWith('/account')) return Destination.account;
@@ -31,18 +37,24 @@ enum Destination {
   }
 
   IconData get icon => switch (this) {
-        Destination.library => AppIcons.library,
-        Destination.search => AppIcons.search,
-        Destination.devices => AppIcons.devices,
-        Destination.account => AppIcons.account,
-      };
+    Destination.home => AppIcons.home,
+    Destination.live => AppIcons.live,
+    Destination.admin => AppIcons.admin,
+    Destination.library => AppIcons.library,
+    Destination.search => AppIcons.search,
+    Destination.devices => AppIcons.devices,
+    Destination.account => AppIcons.account,
+  };
 
   String label(AppLocalizations l10n) => switch (this) {
-        Destination.library => l10n.navLibrary,
-        Destination.search => l10n.navSearch,
-        Destination.devices => l10n.devicesTitle,
-        Destination.account => l10n.accountTitle,
-      };
+    Destination.home => l10n.navHome,
+    Destination.live => l10n.navLive,
+    Destination.admin => l10n.navAdmin,
+    Destination.library => l10n.navLibrary,
+    Destination.search => l10n.navSearch,
+    Destination.devices => l10n.devicesTitle,
+    Destination.account => l10n.accountTitle,
+  };
 }
 
 /// The frame around every signed-in page except the player.
@@ -96,7 +108,9 @@ class _AppShellState extends ConsumerState<AppShell> {
         body: widget.child,
         bottomNavigationBar: _BottomBar(
           // Devices is reached through Account on a phone.
-          current: current == Destination.devices ? Destination.account : current,
+          current: current == Destination.devices || current == Destination.admin
+              ? Destination.account
+              : current,
           onSelect: _go,
         ),
       );
@@ -143,8 +157,12 @@ class _Sidebar extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding:
-                    const EdgeInsets.fromLTRB(AppSpace.x2, AppSpace.x2, AppSpace.x2, AppSpace.x5),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpace.x2,
+                  AppSpace.x2,
+                  AppSpace.x2,
+                  AppSpace.x5,
+                ),
                 child: Row(
                   children: [
                     const BrandMark(size: 24),
@@ -162,9 +180,12 @@ class _Sidebar extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpace.x4),
               for (final destination in [
+                Destination.home,
+                Destination.live,
                 Destination.library,
                 Destination.devices,
                 Destination.account,
+                if (user?.isAdmin ?? false) Destination.admin,
               ])
                 Padding(
                   padding: const EdgeInsets.only(bottom: 2),
@@ -351,16 +372,17 @@ class _Rail extends ConsumerWidget {
             const BrandMark(size: 26),
             const SizedBox(height: AppSpace.x6),
             for (final destination in Destination.values)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpace.x1),
-                child: AppIconButton(
-                  icon: destination.icon,
-                  tooltip: destination.label(l10n),
-                  size: AppButtonSize.large,
-                  selected: destination == current,
-                  onPressed: () => onSelect(destination),
+              if (destination != Destination.admin || (user?.isAdmin ?? false))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpace.x1),
+                  child: AppIconButton(
+                    icon: destination.icon,
+                    tooltip: destination.label(l10n),
+                    size: AppButtonSize.large,
+                    selected: destination == current,
+                    onPressed: () => onSelect(destination),
+                  ),
                 ),
-              ),
             const Spacer(),
             if (user != null)
               Padding(
@@ -404,6 +426,8 @@ class _BottomBar extends StatelessWidget {
           child: Row(
             children: [
               for (final destination in [
+                Destination.home,
+                Destination.live,
                 Destination.library,
                 Destination.search,
                 Destination.account,
@@ -471,10 +495,10 @@ String displayNameOf(AppUser user, AppLocalizations l10n) {
 }
 
 String roleLabelOf(String role, AppLocalizations l10n) => switch (role) {
-      'teacher' => l10n.roleTeacher,
-      'admin' => l10n.roleAdmin,
-      _ => l10n.roleStudent,
-    };
+  'teacher' => l10n.roleTeacher,
+  'admin' => l10n.roleAdmin,
+  _ => l10n.roleStudent,
+};
 
 /// Shown while the session is being restored on launch.
 class SplashScreen extends StatelessWidget {

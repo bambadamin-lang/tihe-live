@@ -100,40 +100,40 @@ class AppButton extends StatelessWidget {
 
     final (Color bg, Color hover, Color pressed, Color fg, BoxBorder? border) = switch (variant) {
       AppButtonVariant.primary => (
-          colors.accent,
-          colors.accentHover,
-          colors.accentPressed,
-          colors.onAccent,
-          null,
-        ),
+        colors.accent,
+        colors.accentHover,
+        colors.accentPressed,
+        colors.onAccent,
+        null,
+      ),
       AppButtonVariant.secondary => (
-          colors.surfaceRaised,
-          colors.surfaceHover,
-          colors.surfacePressed,
-          colors.text,
-          Border.all(color: colors.border),
-        ),
+        colors.surfaceRaised,
+        colors.surfaceHover,
+        colors.surfacePressed,
+        colors.text,
+        Border.all(color: colors.border),
+      ),
       AppButtonVariant.ghost => (
-          Colors.transparent,
-          colors.surfaceHover,
-          colors.surfacePressed,
-          colors.text,
-          null,
-        ),
+        Colors.transparent,
+        colors.surfaceHover,
+        colors.surfacePressed,
+        colors.text,
+        null,
+      ),
       AppButtonVariant.danger => (
-          colors.danger,
-          colors.dangerHover,
-          colors.danger,
-          Colors.white,
-          null,
-        ),
+        colors.danger,
+        colors.dangerHover,
+        colors.danger,
+        Colors.white,
+        null,
+      ),
       AppButtonVariant.dangerGhost => (
-          Colors.transparent,
-          colors.dangerSubtle,
-          colors.dangerSubtle,
-          colors.danger,
-          null,
-        ),
+        Colors.transparent,
+        colors.dangerSubtle,
+        colors.dangerSubtle,
+        colors.danger,
+        null,
+      ),
     };
 
     // Disabled keeps the shape but drops the colour, so the button stays findable.
@@ -238,8 +238,8 @@ class AppIconButton extends StatelessWidget {
     final fg = !enabled && !loading
         ? colors.textDisabled
         : selected
-            ? colors.accentText
-            : (color ?? colors.textSecondary);
+        ? colors.accentText
+        : (color ?? colors.textSecondary);
 
     return Pressable(
       onTap: enabled ? onPressed : null,
@@ -248,8 +248,8 @@ class AppIconButton extends StatelessWidget {
       color: selected
           ? colors.accentSubtle
           : variant == AppIconButtonVariant.secondary
-              ? colors.surfaceRaised
-              : Colors.transparent,
+          ? colors.surfaceRaised
+          : Colors.transparent,
       hoverColor: hoverColor,
       border: variant == AppIconButtonVariant.secondary ? Border.all(color: colors.border) : null,
       builder: (context, state) => SizedBox.square(

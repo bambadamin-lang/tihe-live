@@ -7,26 +7,21 @@ import 'package:tihe_player/l10n/l10n.dart';
 /// right-to-left layout, and Persian strings actually resolving.
 void main() {
   Widget harness(Widget child) => MaterialApp(
-        locale: const Locale('fa'),
-        supportedLocales: AppLocalizations.supportedLocales,
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        builder: (context, inner) =>
-            Directionality(textDirection: TextDirection.rtl, child: inner!),
-        home: child,
-      );
+    locale: const Locale('fa'),
+    supportedLocales: AppLocalizations.supportedLocales,
+    localizationsDelegates: const [
+      AppLocalizations.delegate,
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ],
+    builder: (context, inner) => Directionality(textDirection: TextDirection.rtl, child: inner!),
+    home: child,
+  );
 
   testWidgets('the app lays out right-to-left', (tester) async {
     await tester.pumpWidget(
-      harness(
-        Builder(
-          builder: (context) => const Text('جلسه چهارم', key: Key('sample')),
-        ),
-      ),
+      harness(Builder(builder: (context) => const Text('جلسه چهارم', key: Key('sample')))),
     );
 
     final direction = Directionality.of(tester.element(find.byKey(const Key('sample'))));

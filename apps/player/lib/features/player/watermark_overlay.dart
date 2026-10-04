@@ -69,25 +69,25 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> with SingleTickerPr
   }
 
   TextPainter _layout() => _text ??= TextPainter(
-        text: TextSpan(
-          text: widget.watermark.text,
-          style: TextStyle(
-            fontSize: widget.watermark.fontSize,
-            fontWeight: FontWeight.w500,
-            color: Colors.white.withValues(alpha: widget.watermark.opacity),
-            // A dark shadow under light text keeps the mark legible on both a bright lecture slide
-            // and a dark video frame. Without it the mark disappears on white backgrounds, which is
-            // most of a slide deck.
-            shadows: [
-              Shadow(
-                color: Colors.black.withValues(alpha: widget.watermark.opacity * 0.9),
-                blurRadius: 3,
-              ),
-            ],
+    text: TextSpan(
+      text: widget.watermark.text,
+      style: TextStyle(
+        fontSize: widget.watermark.fontSize,
+        fontWeight: FontWeight.w500,
+        color: Colors.white.withValues(alpha: widget.watermark.opacity),
+        // A dark shadow under light text keeps the mark legible on both a bright lecture slide
+        // and a dark video frame. Without it the mark disappears on white backgrounds, which is
+        // most of a slide deck.
+        shadows: [
+          Shadow(
+            color: Colors.black.withValues(alpha: widget.watermark.opacity * 0.9),
+            blurRadius: 3,
           ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
+        ],
+      ),
+    ),
+    textDirection: TextDirection.ltr,
+  )..layout();
 
   @override
   void dispose() {

@@ -24,10 +24,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 /// is complete and the crypto slots in without changing the call sites.
 class DeviceIdentity {
   DeviceIdentity({FlutterSecureStorage? storage})
-      : _storage = storage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-            );
+    : _storage =
+          storage ??
+          const FlutterSecureStorage(aOptions: AndroidOptions(encryptedSharedPreferences: true));
 
   final FlutterSecureStorage _storage;
 

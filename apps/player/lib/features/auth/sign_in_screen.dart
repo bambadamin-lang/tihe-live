@@ -3,20 +3,29 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tihe_classroom/tihe_classroom.dart' show Glass;
 
 import '../../core/api/api_error.dart';
+import '../../core/api/models.dart';
+import '../../core/api/repositories.dart';
+import '../../core/phone.dart';
+import '../../core/preferences.dart';
 import '../../core/providers.dart';
+import '../../core/server.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/jalali.dart';
 import '../../core/theme/tokens.dart';
 import '../../l10n/l10n.dart';
 import '../../ui/ui.dart';
+import '../devices/device_icon.dart';
 
-/// Phone + OTP sign-in.
+/// Phone + password sign-in (ADR-0013).
 ///
-/// Two panes in one screen rather than two routes, so going back from the code entry returns to the
-/// number without losing it — the commonest correction a student makes.
+/// One card, two fields, one button: the student types what the institute gave them and presses
+/// Enter. At the device limit (ADR-0014) the screen does not dead-end: it lists the devices signed
+/// in and signs one out on a tap, without asking for the password again.
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
 
@@ -25,93 +34,98 @@ class SignInScreen extends ConsumerStatefulWidget {
 }
 
 class _SignInScreenState extends ConsumerState<SignInScreen> {
-  final _phoneController = TextEditingController();
-  final _codeController = TextEditingController();
+  final _phone = TextEditingController();
+  final _password = TextEditingController();
+  final _passwordFocus = FocusNode();
 
-  bool _codeSent = false;
   bool _busy = false;
+  bool _showPassword = false;
+  String? _phoneError;
+  String? _passwordError;
   String? _error;
-  int _resendIn = 0;
-  Timer? _resendTimer;
+  int _waitSeconds = 0;
+  Timer? _waitTimer;
 
   @override
   void dispose() {
-    _resendTimer?.cancel();
-    _phoneController.dispose();
-    _codeController.dispose();
+    _waitTimer?.cancel();
+    _phone.dispose();
+    _password.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
-  void _startResendCountdown(int seconds) {
-    _resendTimer?.cancel();
-    setState(() => _resendIn = seconds);
-    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+  void _startWait(int seconds) {
+    _waitTimer?.cancel();
+    setState(() => _waitSeconds = seconds);
+    _waitTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return timer.cancel();
-      setState(() => _resendIn -= 1);
-      if (_resendIn <= 0) timer.cancel();
+      setState(() => _waitSeconds -= 1);
+      if (_waitSeconds <= 0) timer.cancel();
     });
   }
 
-  void _changeNumber() => setState(() {
-        _codeSent = false;
-        _codeController.clear();
-        _error = null;
-      });
-
-  Future<void> _requestCode() async {
+  Future<void> _signIn() async {
+    final l10n = context.l10n;
+    final phone = Phone.normalize(_phone.text);
     setState(() {
-      _busy = true;
       _error = null;
+      _phoneError = _phone.text.trim().isEmpty
+          ? l10n.fieldRequired
+          : (phone == null ? l10n.phoneInvalid : null);
+      _passwordError = _password.text.isEmpty ? l10n.fieldRequired : null;
     });
+    if (_phoneError != null || _passwordError != null || phone == null) return;
 
-    try {
-      final result = await ref.read(authRepositoryProvider).requestOtp(_phoneController.text);
-      if (!mounted) return;
-      setState(() {
-        _codeSent = true;
-        // In development the server returns the code, so the field is prefilled and testing does not
-        // need a real SMS gateway. In production devCode is always null.
-        if (result.devCode != null) _codeController.text = result.devCode!;
-      });
-      _startResendCountdown(result.resendAfterSeconds);
-    } on ApiError catch (e) {
-      if (mounted) setState(() => _error = e.messageFa);
-      // The server tells us how long to wait; reflecting it stops the student tapping into a longer
-      // block.
-      final retryAfter = e.details?['retryAfterSeconds'];
-      if (retryAfter is int) _startResendCountdown(retryAfter);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _verify() async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-
+    setState(() => _busy = true);
     try {
       final device = await ref.read(deviceIdentityProvider).describe();
-      final session = await ref.read(authRepositoryProvider).verifyOtp(
-            phone: _phoneController.text,
-            code: _codeController.text,
-            device: device,
-          );
-
-      // AuthRepository has already persisted the tokens.
+      final session = await ref
+          .read(authRepositoryProvider)
+          .login(phone: phone, password: _password.text, device: device);
       ref.read(authControllerProvider.notifier).signedIn(session);
+    } on DeviceLimitReached catch (limit) {
+      if (mounted) await _chooseDeviceToSignOut(limit.limit);
     } on ApiError catch (e) {
       if (!mounted) return;
       setState(() => _error = e.messageFa);
-
-      // A student at the device limit needs somewhere to go, not just a refusal.
-      if (e.needsDeviceManager && mounted) {
-        showToast(context, e.messageFa, tone: ToastTone.danger);
+      final wait = e.retryAfterSeconds;
+      if (wait != null) _startWait(wait);
+      if (e.code == 'INVALID_CREDENTIALS') {
+        _password.clear();
+        _passwordFocus.requestFocus();
       }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _chooseDeviceToSignOut(DeviceLimit limit) async {
+    final chosen = await showDialog<Device>(
+      context: context,
+      builder: (_) => _DeviceLimitDialog(limit: limit),
+    );
+    if (chosen == null || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      final device = await ref.read(deviceIdentityProvider).describe();
+      final session = await ref
+          .read(authRepositoryProvider)
+          .replaceDevice(ticket: limit.ticket, signOutDeviceId: chosen.id, device: device);
+      ref.read(authControllerProvider.notifier).signedIn(session);
+    } on DeviceLimitReached catch (again) {
+      // Someone else took the slot meanwhile, or the limit was lowered: ask again.
+      if (mounted) await _chooseDeviceToSignOut(again.limit);
+    } on ApiError catch (e) {
+      if (mounted) setState(() => _error = e.messageFa);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _editServer() async {
+    await showDialog<void>(context: context, builder: (_) => const _ServerDialog());
   }
 
   @override
@@ -120,146 +134,284 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final theme = Theme.of(context);
     final colors = context.colors;
     final compact = context.windowSize.isCompact;
+    final server = ref.watch(serverProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final dark =
+        themeMode == ThemeMode.dark ||
+        (themeMode == ThemeMode.system &&
+            MediaQuery.platformBrightnessOf(context) == Brightness.dark);
 
-    final form = Column(
-      key: ValueKey(_codeSent),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (!_codeSent) _phoneField(l10n) else _codeField(l10n),
-        if (_error != null) ...[
-          const SizedBox(height: AppSpace.x3),
-          InlineAlert(message: _error!),
-        ],
-        const SizedBox(height: AppSpace.x5),
-        AppButton.primary(
-          label: _codeSent ? l10n.verifyCode : l10n.sendCode,
-          size: AppButtonSize.large,
-          expand: true,
-          loading: _busy,
-          onPressed: _codeSent ? _verify : _requestCode,
-        ),
-        if (_codeSent) ...[
-          const SizedBox(height: AppSpace.x3),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              AppButton.ghost(
-                label: l10n.changeNumber,
-                icon: AppIcons.back,
-                size: AppButtonSize.small,
-                onPressed: _busy ? null : _changeNumber,
+    final card = Glass(
+      radius: 24,
+      strong: true,
+      padding: const EdgeInsets.fromLTRB(AppSpace.x6, AppSpace.x8, AppSpace.x6, AppSpace.x6),
+      child: AutofillGroup(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Center(child: BrandMark(size: 44)),
+            const SizedBox(height: AppSpace.x5),
+            Text(
+              l10n.signInTitle,
+              style: theme.textTheme.headlineSmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpace.x2),
+            Text(
+              l10n.signInSubtitle,
+              style: theme.textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpace.x6),
+            AppTextField(
+              controller: _phone,
+              autofocus: true,
+              label: l10n.phoneLabel,
+              hint: l10n.phoneHint,
+              prefixIcon: AppIcons.phoneInput,
+              size: AppTextFieldSize.large,
+              errorText: _phoneError,
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.telephoneNumber, AutofillHints.username],
+              // The number is data, not display text: LTR so the digits read in entry order.
+              textDirection: TextDirection.ltr,
+              textAlign: TextAlign.left,
+              // Persian and Arabic-Indic digits pass: they are what a Persian keyboard types.
+              inputFormatters: [
+                LengthLimitingTextInputFormatter(16),
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9+۰-۹٠-٩\s-]')),
+              ],
+              onChanged: (_) => _phoneError == null ? null : setState(() => _phoneError = null),
+              onSubmitted: (_) => _passwordFocus.requestFocus(),
+            ),
+            const SizedBox(height: AppSpace.x4),
+            AppTextField(
+              controller: _password,
+              focusNode: _passwordFocus,
+              label: l10n.passwordLabel,
+              prefixIcon: AppIcons.code,
+              size: AppTextFieldSize.large,
+              errorText: _passwordError,
+              obscureText: !_showPassword,
+              textInputAction: TextInputAction.go,
+              autofillHints: const [AutofillHints.password],
+              textDirection: TextDirection.ltr,
+              textAlign: TextAlign.left,
+              suffix: AppIconButton(
+                icon: _showPassword ? AppIcons.hidePassword : AppIcons.showPassword,
+                tooltip: _showPassword ? l10n.hidePassword : l10n.showPassword,
+                onPressed: () => setState(() => _showPassword = !_showPassword),
               ),
-              AppButton.ghost(
-                label: _resendIn > 0
-                    ? l10n.resendIn(JalaliFormat.toPersianDigits('$_resendIn'))
-                    : l10n.resendCode,
-                size: AppButtonSize.small,
-                onPressed: _resendIn > 0 || _busy ? null : _requestCode,
+              onChanged: (_) =>
+                  _passwordError == null ? null : setState(() => _passwordError = null),
+              onSubmitted: (_) => _busy || _waitSeconds > 0 ? null : _signIn(),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: AppSpace.x4),
+              InlineAlert(
+                message: _waitSeconds > 0
+                    ? '$_error ${l10n.retryAfter(JalaliFormat.toPersianDigits('$_waitSeconds'))}'
+                    : _error!,
               ),
             ],
-          ),
-        ],
-      ],
+            const SizedBox(height: AppSpace.x5),
+            AppButton.primary(
+              label: l10n.signInButton,
+              size: AppButtonSize.large,
+              expand: true,
+              loading: _busy,
+              onPressed: _waitSeconds > 0 ? null : _signIn,
+            ),
+            const SizedBox(height: AppSpace.x4),
+            Text(
+              l10n.forgotPasswordHint,
+              style: theme.textTheme.bodySmall?.copyWith(color: colors.textTertiary),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
 
     return Scaffold(
       body: SafeArea(
-        child: Align(
-          // On a phone the form sits high, clear of the keyboard; elsewhere it is centred.
-          alignment: compact ? const Alignment(0, -0.4) : Alignment.center,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpace.x6, vertical: AppSpace.x8),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 360),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Center(child: BrandMark(size: 40)),
-                  const SizedBox(height: AppSpace.x6),
-                  Text(
-                    l10n.signInTitle,
-                    style: theme.textTheme.headlineSmall,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpace.x2),
-                  Text(
-                    _codeSent ? l10n.codeSubtitle(_phoneController.text) : l10n.signInSubtitle,
-                    style: theme.textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpace.x8),
-                  AnimatedSwitcher(
-                    duration: AppMotion.base,
-                    switchInCurve: AppMotion.curve,
-                    transitionBuilder: (child, animation) => FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position: Tween(begin: const Offset(0, 0.03), end: Offset.zero)
-                            .animate(animation),
-                        child: child,
+        child: Stack(
+          children: [
+            Align(
+              // On a phone the form sits high, clear of the keyboard; elsewhere it is centred.
+              alignment: compact ? const Alignment(0, -0.5) : Alignment.center,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpace.x5, vertical: AppSpace.x8),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      card,
+                      const SizedBox(height: AppSpace.x5),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: AppSpace.x2,
+                        runSpacing: AppSpace.x2,
+                        children: [
+                          AppButton.ghost(
+                            label: l10n.serverCurrent(_hostOf(server.serverUrl)),
+                            icon: AppIcons.server,
+                            size: AppButtonSize.small,
+                            onPressed: _busy ? null : _editServer,
+                          ),
+                          AppButton.ghost(
+                            label: l10n.tryDemo,
+                            icon: AppIcons.demo,
+                            size: AppButtonSize.small,
+                            onPressed: _busy ? null : () => context.push('/demo'),
+                          ),
+                        ],
                       ),
-                    ),
-                    layoutBuilder: (current, previous) => Stack(
-                      alignment: Alignment.topCenter,
-                      children: [...previous, if (current != null) current],
-                    ),
-                    child: form,
+                    ],
                   ),
-                  const SizedBox(height: AppSpace.x8),
-                  Text(
-                    l10n.signInFooter,
-                    style: theme.textTheme.bodySmall?.copyWith(color: colors.textTertiary),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
+            Positioned(
+              top: AppSpace.x3,
+              left: AppSpace.x3,
+              child: AppIconButton(
+                icon: dark ? AppIcons.themeLight : AppIcons.themeDark,
+                tooltip: dark ? l10n.themeLight : l10n.themeDark,
+                onPressed: () => ref
+                    .read(themeModeProvider.notifier)
+                    .set(dark ? ThemeMode.light : ThemeMode.dark),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _phoneField(AppLocalizations l10n) => AppTextField(
-        controller: _phoneController,
+  static String _hostOf(String url) => url.replaceFirst(RegExp(r'^https?://'), '');
+}
+
+/// The devices signed in at the limit, one to sign out. Returns the chosen device.
+class _DeviceLimitDialog extends StatefulWidget {
+  const _DeviceLimitDialog({required this.limit});
+
+  final DeviceLimit limit;
+
+  @override
+  State<_DeviceLimitDialog> createState() => _DeviceLimitDialogState();
+}
+
+class _DeviceLimitDialogState extends State<_DeviceLimitDialog> {
+  Device? _chosen;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final colors = context.colors;
+    final theme = Theme.of(context);
+
+    return AppDialog(
+      title: l10n.deviceLimitTitle(JalaliFormat.toPersianDigits('${widget.limit.limit}')),
+      maxWidth: 460,
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l10n.deviceLimitBody,
+            style: theme.textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
+          ),
+          const SizedBox(height: AppSpace.x4),
+          RadioGroup<Device>(
+            groupValue: _chosen,
+            onChanged: (value) => setState(() => _chosen = value),
+            child: AppListGroup(
+              children: [
+                for (final device in widget.limit.devices)
+                  AppListRow(
+                    leading: IconTile(icon: deviceIcon(device.platform)),
+                    title: device.name,
+                    subtitle: device.signedInAt == null
+                        ? null
+                        : l10n.signedInSince(JalaliFormat.relative(device.signedInAt!)),
+                    trailing: Radio<Device>(value: device),
+                    selected: _chosen == device,
+                    onTap: () => setState(() => _chosen = device),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        AppButton(label: l10n.cancel, onPressed: () => Navigator.of(context).pop()),
+        AppButton.primary(
+          label: l10n.signOutAndContinue,
+          onPressed: _chosen == null ? null : () => Navigator.of(context).pop(_chosen),
+        ),
+      ],
+    );
+  }
+}
+
+class _ServerDialog extends ConsumerStatefulWidget {
+  const _ServerDialog();
+
+  @override
+  ConsumerState<_ServerDialog> createState() => _ServerDialogState();
+}
+
+class _ServerDialogState extends ConsumerState<_ServerDialog> {
+  late final _controller = TextEditingController(
+    text: ref.read(serverProvider).serverUrl.replaceFirst('http://', ''),
+  );
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final ok = await ref.read(serverProvider.notifier).set(_controller.text);
+    if (!mounted) return;
+    if (ok) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() => _error = context.l10n.serverInvalid);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AppDialog(
+      title: l10n.serverLabel,
+      body: AppTextField(
+        controller: _controller,
         autofocus: true,
-        label: l10n.phoneLabel,
-        hint: l10n.phoneHint,
-        prefixIcon: AppIcons.phoneInput,
-        size: AppTextFieldSize.large,
-        keyboardType: TextInputType.phone,
-        textInputAction: TextInputAction.go,
-        autofillHints: const [AutofillHints.telephoneNumber],
-        // The number is data, not display text: LTR so the digits read in entry order, even inside an
-        // RTL interface.
+        hint: l10n.serverHint,
+        helper: l10n.serverHelp,
+        errorText: _error,
+        prefixIcon: AppIcons.server,
+        keyboardType: TextInputType.url,
         textDirection: TextDirection.ltr,
         textAlign: TextAlign.left,
-        // Persian and Arabic-Indic digits are allowed through — the server normalises them, and
-        // blocking them would reject what a Persian keyboard produces by default.
-        inputFormatters: [
-          LengthLimitingTextInputFormatter(16),
-          FilteringTextInputFormatter.allow(RegExp(r'[0-9+۰-۹٠-٩\s-]')),
-        ],
-        onSubmitted: (_) => _busy ? null : _requestCode(),
-      );
-
-  // One field rather than a box per digit: the code length is a server setting (4–8), and a single
-  // field takes a pasted or autofilled code in one go.
-  Widget _codeField(AppLocalizations l10n) => AppTextField(
-        controller: _codeController,
-        autofocus: true,
-        label: l10n.codeLabel,
-        size: AppTextFieldSize.large,
-        keyboardType: TextInputType.number,
-        textInputAction: TextInputAction.done,
-        autofillHints: const [AutofillHints.oneTimeCode],
-        textDirection: TextDirection.ltr,
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 22, letterSpacing: 10, fontWeight: FontWeight.w500),
-        inputFormatters: [
-          LengthLimitingTextInputFormatter(8),
-          FilteringTextInputFormatter.allow(RegExp(r'[0-9۰-۹٠-٩]')),
-        ],
-        onSubmitted: (_) => _busy ? null : _verify(),
-      );
+        onSubmitted: (_) => _save(),
+      ),
+      actions: [
+        AppButton(label: l10n.cancel, onPressed: () => Navigator.of(context).pop()),
+        AppButton.primary(label: l10n.serverSave, onPressed: _save),
+      ],
+    );
+  }
 }
+
+/// Whether the app knows it is signed in with a temporary password.
+bool mustChoosePassword(AuthState auth) =>
+    auth is AuthSignedIn && auth.session.user.mustChangePassword;

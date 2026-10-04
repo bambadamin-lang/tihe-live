@@ -10,10 +10,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// not decrypt a single video.
 class TokenStore {
   TokenStore({FlutterSecureStorage? storage})
-      : _storage = storage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-            );
+    : _storage =
+          storage ??
+          const FlutterSecureStorage(aOptions: AndroidOptions(encryptedSharedPreferences: true));
 
   final FlutterSecureStorage _storage;
 
@@ -39,6 +38,15 @@ class TokenStore {
     _cachedAccess = token;
     _cachedExpiry = expiry == null ? null : DateTime.tryParse(expiry);
     return token;
+  }
+
+  /// The access token if it has more than a minute left, else null: the caller should make any
+  /// API call, which refreshes it, before handing it to services/live.
+  Future<String?> freshAccessToken() async {
+    final token = await accessToken();
+    final expiry = _cachedExpiry;
+    if (token == null || expiry == null) return null;
+    return DateTime.now().isBefore(expiry.subtract(const Duration(seconds: 60))) ? token : null;
   }
 
   Future<String?> refreshToken() => _storage.read(key: _refreshKey);

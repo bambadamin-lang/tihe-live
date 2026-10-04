@@ -210,7 +210,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Widget _buildThemed(BuildContext context) {
     final colors = context.colors;
     final video = _video;
-    final course = video == null ? null : ref.watch(courseProvider(video.courseId)).valueOrNull;
+    final course = video == null ? null : ref.watch(courseProvider(video.courseId)).value;
     final neighbours = course == null || video == null
         ? (previous: null, next: null)
         : course.neighboursOf(video.id);
@@ -222,7 +222,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       body = Column(
         children: [
           _TopBar(onBack: _exit),
-          Expanded(child: ErrorView(error: _error!, onRetry: _start)),
+          Expanded(
+            child: ErrorView(error: _error!, onRetry: _start),
+          ),
         ],
       );
     } else {
@@ -299,7 +301,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             constraints: BoxConstraints(maxWidth: maxWidth),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [stage, const SizedBox(height: AppSpace.x6), info],
+                              children: [
+                                stage,
+                                const SizedBox(height: AppSpace.x6),
+                                info,
+                              ],
                             ),
                           ),
                         ),
@@ -577,10 +583,7 @@ class _VideoInfoState extends State<_VideoInfo> {
             ],
           ],
         ),
-        if (compact && widget.course != null) ...[
-          const SizedBox(height: AppSpace.x4),
-          prevNext,
-        ],
+        if (compact && widget.course != null) ...[const SizedBox(height: AppSpace.x4), prevNext],
         const SizedBox(height: AppSpace.x5),
         AppTabs(
           selected: tabs.indexOf(selected),
@@ -589,13 +592,13 @@ class _VideoInfoState extends State<_VideoInfo> {
             for (final tab in tabs)
               switch (tab) {
                 _InfoTab.sessions => AppTab(
-                    label: l10n.courseContent,
-                    count: JalaliFormat.toPersianDigits('${widget.course!.allVideos.length}'),
-                  ),
+                  label: l10n.courseContent,
+                  count: JalaliFormat.toPersianDigits('${widget.course!.allVideos.length}'),
+                ),
                 _InfoTab.chapters => AppTab(
-                    label: l10n.chapters,
-                    count: JalaliFormat.toPersianDigits('${video.chapters.length}'),
-                  ),
+                  label: l10n.chapters,
+                  count: JalaliFormat.toPersianDigits('${video.chapters.length}'),
+                ),
                 _InfoTab.details => AppTab(label: l10n.details),
               },
           ],
@@ -607,10 +610,10 @@ class _VideoInfoState extends State<_VideoInfo> {
             key: ValueKey(selected),
             child: switch (selected) {
               _InfoTab.sessions => _SessionList(
-                  course: widget.course!,
-                  currentId: video.id,
-                  onOpen: widget.onOpen,
-                ),
+                course: widget.course!,
+                currentId: video.id,
+                onOpen: widget.onOpen,
+              ),
               _InfoTab.chapters => _ChapterList(controller: widget.controller),
               _InfoTab.details => _Details(video: video, session: widget.session),
             },
@@ -680,7 +683,7 @@ class _Details extends StatelessWidget {
       (
         AppIcons.capture,
         l10n.detailCapture,
-        session.blockCapture ? l10n.captureBlocked : l10n.captureAllowed
+        session.blockCapture ? l10n.captureBlocked : l10n.captureAllowed,
       ),
       (AppIcons.watermark, l10n.detailWatermark, session.watermark.text),
       // The wrapped key is deliberately not shown, not even truncated. It is passed straight to
@@ -801,8 +804,12 @@ class _SessionList extends StatelessWidget {
         for (final (title, videos) in groups) ...[
           if (title != null)
             Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(AppSpace.x3, AppSpace.x4, AppSpace.x3, AppSpace.x1),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.x3,
+                AppSpace.x4,
+                AppSpace.x3,
+                AppSpace.x1,
+              ),
               child: Text(
                 title,
                 style: theme.textTheme.labelSmall?.copyWith(color: colors.textTertiary),
@@ -833,13 +840,13 @@ class _SessionList extends StatelessWidget {
           child: current
               ? Icon(AppIcons.nowPlaying, size: 15, color: colors.accentText)
               : video.completed
-                  ? Icon(AppIcons.completed, size: 15, color: colors.accentText)
-                  : video.isLocked
-                      ? Icon(AppIcons.locked, size: 13, color: colors.textTertiary)
-                      : Text(
-                          JalaliFormat.toPersianDigits('$number'),
-                          style: TextStyle(fontSize: 12, height: 1, color: colors.textTertiary),
-                        ),
+              ? Icon(AppIcons.completed, size: 15, color: colors.accentText)
+              : video.isLocked
+              ? Icon(AppIcons.locked, size: 13, color: colors.textTertiary)
+              : Text(
+                  JalaliFormat.toPersianDigits('$number'),
+                  style: TextStyle(fontSize: 12, height: 1, color: colors.textTertiary),
+                ),
         ),
       ),
       trailing: Text(

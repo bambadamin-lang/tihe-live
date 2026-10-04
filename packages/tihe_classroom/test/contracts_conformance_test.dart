@@ -39,6 +39,16 @@ void main() {
     expectRoundTrip(raw, ClassroomSnapshot.fromJson(asJson(raw)).toJson());
   });
 
+  test('class list parses, live and not', () {
+    final classes = [
+      for (final raw in fixture('live-classes.json') as List)
+        LiveClass.fromJson(asJson(raw)),
+    ];
+    expect(classes.map((c) => c.isLive), [true, false]);
+    expect(classes.first.scheduledStartAt, DateTime.utc(2026, 10, 4, 6, 30));
+    expect(classes.last.scheduledStartAt, isNull);
+  });
+
   test('join response round-trips', () {
     final raw = fixture('join-response.json');
     expectRoundTrip(raw, JoinResponse.fromJson(asJson(raw)).toJson());

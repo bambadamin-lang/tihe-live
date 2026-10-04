@@ -1,5 +1,5 @@
-/// Offline tools: an in-process gateway and a fixture classroom, for the example app's demo mode
-/// and for widget tests. Not for production use.
+/// Offline tools: an in-process gateway and a fixture classroom, for the app's demo class (no
+/// server needed), the example app and widget tests. Never connected to a real class.
 library;
 
 export 'src/demo/demo_classroom.dart';

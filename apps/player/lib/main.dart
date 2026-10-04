@@ -3,13 +3,17 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 
+import 'package:tihe_classroom/tihe_classroom.dart' show GlassBackdrop, PeydaFonts;
+
 import 'core/preferences.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'l10n/l10n.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Peyda before the first frame, so no screen is ever drawn in a fallback font and re-laid out.
+  await PeydaFonts.ensureLoaded();
 
   // media_kit backs playback on Windows, where the first-party plugin is weak (docs/adr/0001).
   // Must run before any player is constructed.
@@ -24,7 +28,7 @@ class TiheApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'TihePlayer',
+      title: 'TIHE',
       debugShowCheckedModeBanner: false,
       routerConfig: ref.watch(routerProvider),
 
@@ -55,7 +59,8 @@ class TiheApp extends ConsumerWidget {
           child: MediaQuery.withClampedTextScaling(
             minScaleFactor: 0.9,
             maxScaleFactor: 1.4,
-            child: child ?? const SizedBox.shrink(),
+            // One frosted canvas behind every page, as in class.
+            child: GlassBackdrop(child: child ?? const SizedBox.shrink()),
           ),
         );
       },

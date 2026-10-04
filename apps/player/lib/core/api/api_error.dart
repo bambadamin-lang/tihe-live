@@ -39,17 +39,19 @@ class ApiError implements Exception {
   /// No network, or the server never answered. Distinguished from a server refusal because the
   /// recovery differs: check your connection, versus contact the institute.
   factory ApiError.network() => const ApiError(
-        code: 'NETWORK',
-        message: 'network unreachable',
-        messageFa: 'اتصال به سرور برقرار نشد. اتصال اینترنت خود را بررسی کنید.',
-      );
+    code: 'NETWORK',
+    message: 'network unreachable',
+    messageFa: 'اتصال به سرور برقرار نشد. اتصال اینترنت خود را بررسی کنید.',
+  );
 
   /// Whether the client should send the user back to sign-in.
   bool get requiresReauth =>
       code == 'UNAUTHENTICATED' ||
       code == 'TOKEN_EXPIRED' ||
       code == 'DEVICE_REVOKED' ||
-      code == 'DEVICE_UNKNOWN';
+      code == 'DEVICE_UNKNOWN' ||
+      code == 'DEVICE_SIGNED_OUT' ||
+      code == 'ACCOUNT_SUSPENDED';
 
   /// Whether the device manager should open, so the user can free a slot instead of hitting a
   /// dead end.
@@ -62,7 +64,17 @@ class ApiError implements Exception {
       code == 'LICENSE_EXPIRED' ||
       code == 'LICENSE_REVOKED';
 
-  bool get isRetryable => code == 'RATE_LIMITED' || code == 'VIDEO_NOT_READY' || code == 'NETWORK';
+  bool get isRetryable =>
+      code == 'RATE_LIMITED' ||
+      code == 'LOGIN_RATE_LIMITED' ||
+      code == 'VIDEO_NOT_READY' ||
+      code == 'NETWORK' ||
+      // A server fault or a gateway page while a service restarts — on a PC-hosted server, the
+      // usual case is the second, and it passes.
+      code == 'INTERNAL';
+
+  /// Seconds the server asked us to wait, for rate limits.
+  int? get retryAfterSeconds => details?['retryAfterSeconds'] as int?;
 
   @override
   String toString() => 'ApiError($code): $message';

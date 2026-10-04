@@ -96,10 +96,10 @@ class _PressableState extends State<Pressable> {
     final background = !state.enabled
         ? widget.color
         : state.pressed
-            ? (widget.pressedColor ?? colors.surfacePressed)
-            : state.hovered
-                ? (widget.hoverColor ?? colors.surfaceHover)
-                : widget.color;
+        ? (widget.pressedColor ?? colors.surfacePressed)
+        : state.hovered
+        ? (widget.hoverColor ?? colors.surfaceHover)
+        : widget.color;
 
     final content = widget.builder?.call(context, state) ?? widget.child!;
 
@@ -147,11 +147,6 @@ class _PressableState extends State<Pressable> {
       result = Tooltip(message: widget.tooltip, child: result);
     }
 
-    return Semantics(
-      button: true,
-      enabled: _enabled,
-      label: widget.semanticLabel,
-      child: result,
-    );
+    return Semantics(button: true, enabled: _enabled, label: widget.semanticLabel, child: result);
   }
 }

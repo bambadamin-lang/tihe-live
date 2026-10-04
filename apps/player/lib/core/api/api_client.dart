@@ -17,18 +17,18 @@ import 'api_error.dart';
 ///    it tends to mean shipping a release without it.
 class ApiClient {
   ApiClient({required String baseUrl, required TokenStore tokens})
-      : _tokens = tokens,
-        _dio = Dio(
-          BaseOptions(
-            baseUrl: baseUrl,
-            connectTimeout: const Duration(seconds: 10),
-            receiveTimeout: const Duration(seconds: 20),
-            // The API always answers with its own envelope, including for 4xx. Letting Dio throw on
-            // status would lose the body we need to read the error code from.
-            validateStatus: (_) => true,
-            headers: {'Content-Type': 'application/json'},
-          ),
-        ) {
+    : _tokens = tokens,
+      _dio = Dio(
+        BaseOptions(
+          baseUrl: baseUrl,
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 20),
+          // The API always answers with its own envelope, including for 4xx. Letting Dio throw on
+          // status would lose the body we need to read the error code from.
+          validateStatus: (_) => true,
+          headers: {'Content-Type': 'application/json'},
+        ),
+      ) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -56,11 +56,25 @@ class ApiClient {
       _send(() => _dio.get(path, queryParameters: query));
 
   Future<Map<String, dynamic>> post(String path, {Object? body, bool skipAuth = false}) => _send(
-        () => _dio.post(path, data: body, options: Options(extra: {'skipAuth': skipAuth})),
-      );
+    () => _dio.post(
+      path,
+      data: body,
+      options: Options(extra: {'skipAuth': skipAuth}),
+    ),
+    skipAuth: skipAuth,
+  );
 
   Future<Map<String, dynamic>> put(String path, {Object? body}) =>
       _send(() => _dio.put(path, data: body));
+
+  Future<Map<String, dynamic>> patch(String path, {Object? body}) =>
+      _send(() => _dio.patch(path, data: body));
+
+  /// A list response, for the few endpoints that return a bare array.
+  Future<List<dynamic>> getList(String path, {Map<String, dynamic>? query}) async {
+    final json = await _send(() => _dio.get(path, queryParameters: query));
+    return json['data'] as List<dynamic>? ?? const [];
+  }
 
   Future<void> delete(String path) async {
     await _send(() => _dio.delete(path), allowEmpty: true);
@@ -70,6 +84,7 @@ class ApiClient {
     Future<Response<dynamic>> Function() request, {
     bool allowEmpty = false,
     bool isRetry = false,
+    bool skipAuth = false,
   }) async {
     final Response<dynamic> response;
     try {
@@ -99,9 +114,21 @@ class ApiClient {
         ? ApiError.fromJson(response.data as Map<String, dynamic>)
         : ApiError.network();
 
+    // Sign-in calls answer 401 for a wrong password; that is not a session to refresh.
+    if (skipAuth) throw error;
+
+    // Signed out from elsewhere, barred or suspended: no refresh can bring this session back.
+    if (error.code == 'DEVICE_SIGNED_OUT' ||
+        error.code == 'DEVICE_REVOKED' ||
+        error.code == 'ACCOUNT_SUSPENDED') {
+      await _tokens.clear();
+      onAuthenticationLost?.call();
+      throw error;
+    }
+
     // One refresh attempt, then give up. Retrying a second time after a failed refresh only burns
     // tokens and delays telling the user.
-    if (status == 401 && !isRetry && error.code != 'DEVICE_REVOKED') {
+    if (status == 401 && !isRetry) {
       final refreshed = await _refresh();
       if (refreshed) {
         return _send(request, allowEmpty: allowEmpty, isRetry: true);

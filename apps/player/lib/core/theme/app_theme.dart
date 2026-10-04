@@ -1,27 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:tihe_classroom/tihe_classroom.dart';
 
 import 'app_colors.dart';
 import 'tokens.dart';
 
-/// The app's visual system.
+/// The app's visual system: the classroom's glass theme, in light and dark, everywhere.
 ///
 /// Dark-first because the product is a video player: a bright chrome around a lecture is fatiguing,
-/// and most watching happens in the evening. Light is a full equal, not an afterthought, for
-/// students who study by day.
+/// and most watching happens in the evening. Light is a full equal, for students who study by day.
 ///
-/// Components read [AppColors] for colour and this text theme for type. Material's own widgets are
-/// themed onto the same tokens, so anything built from stock parts still looks like the rest.
+/// Components read [AppColors] (the player's roles) or [ClassroomTheme] (the glass), and both come
+/// from one palette. Pages are transparent: the app paints the glass backdrop once, behind every
+/// route (see main.dart), and surfaces are translucent glass over it.
 class AppTheme {
   const AppTheme._();
 
-  /// Vazirmatn throughout. It carries Latin glyphs as well as Persian, so a mixed course title
-  /// ("Calculus — مشتق") does not change face mid-line, which is the usual giveaway of a Persian UI
-  /// built on a Latin font.
-  static const fontFamily = 'Vazirmatn';
+  /// Peyda, the institute's typeface, registered at start-up from the classroom package
+  /// (PeydaFonts). Vazirmatn, bundled with the app, covers anything Peyda lacks.
+  static const fontFamily = PeydaFonts.family;
+  static const fontFallback = ['Vazirmatn', 'Noto Sans Arabic', 'Tahoma'];
 
-  static ThemeData dark() => _build(AppColors.dark, Brightness.dark);
+  static ThemeData dark() => _build(AppColors.dark, ClassroomTheme.dark);
 
-  static ThemeData light() => _build(AppColors.light, Brightness.light);
+  static ThemeData light() => _build(AppColors.light, ClassroomTheme.light);
+
+  static ThemeData of(Brightness brightness) => brightness == Brightness.dark ? dark() : light();
 
   /// The type scale.
   ///
@@ -30,38 +33,33 @@ class AppTheme {
   /// tracking breaks the joins of a cursive script. Hierarchy comes from size and a restrained
   /// weight step (400 → 500 → 600), never from bold body text.
   static TextTheme textTheme(AppColors c) => TextTheme(
-        // Page titles.
-        headlineSmall:
-            TextStyle(fontSize: 24, height: 1.4, fontWeight: FontWeight.w600, color: c.text),
-        // Compact page titles, dialog titles.
-        titleLarge:
-            TextStyle(fontSize: 19, height: 1.45, fontWeight: FontWeight.w600, color: c.text),
-        // Section titles.
-        titleMedium:
-            TextStyle(fontSize: 15, height: 1.5, fontWeight: FontWeight.w600, color: c.text),
-        // Item titles in lists and cards.
-        titleSmall:
-            TextStyle(fontSize: 14, height: 1.55, fontWeight: FontWeight.w500, color: c.text),
-        bodyLarge: TextStyle(fontSize: 15, height: 1.75, color: c.text),
-        bodyMedium: TextStyle(fontSize: 14, height: 1.7, color: c.text),
-        // Secondary text and metadata.
-        bodySmall: TextStyle(fontSize: 12.5, height: 1.6, color: c.textSecondary),
-        // Buttons.
-        labelLarge:
-            TextStyle(fontSize: 14, height: 1.4, fontWeight: FontWeight.w500, color: c.text),
-        // Field labels, tabs, nav items.
-        labelMedium:
-            TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w500, color: c.text),
-        // Badges, overlines, timestamps.
-        labelSmall: TextStyle(
-          fontSize: 11.5,
-          height: 1.4,
-          fontWeight: FontWeight.w500,
-          color: c.textSecondary,
-        ),
-      );
+    // Page titles.
+    headlineSmall: TextStyle(fontSize: 24, height: 1.4, fontWeight: FontWeight.w600, color: c.text),
+    // Compact page titles, dialog titles.
+    titleLarge: TextStyle(fontSize: 19, height: 1.45, fontWeight: FontWeight.w600, color: c.text),
+    // Section titles.
+    titleMedium: TextStyle(fontSize: 15, height: 1.5, fontWeight: FontWeight.w600, color: c.text),
+    // Item titles in lists and cards.
+    titleSmall: TextStyle(fontSize: 14, height: 1.55, fontWeight: FontWeight.w500, color: c.text),
+    bodyLarge: TextStyle(fontSize: 15, height: 1.75, color: c.text),
+    bodyMedium: TextStyle(fontSize: 14, height: 1.7, color: c.text),
+    // Secondary text and metadata.
+    bodySmall: TextStyle(fontSize: 12.5, height: 1.6, color: c.textSecondary),
+    // Buttons.
+    labelLarge: TextStyle(fontSize: 14, height: 1.4, fontWeight: FontWeight.w500, color: c.text),
+    // Field labels, tabs, nav items.
+    labelMedium: TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w500, color: c.text),
+    // Badges, overlines, timestamps.
+    labelSmall: TextStyle(
+      fontSize: 11.5,
+      height: 1.4,
+      fontWeight: FontWeight.w500,
+      color: c.textSecondary,
+    ),
+  );
 
-  static ThemeData _build(AppColors c, Brightness brightness) {
+  static ThemeData _build(AppColors c, ClassroomTheme glass) {
+    final brightness = glass.brightness;
     final scheme = ColorScheme(
       brightness: brightness,
       primary: c.accent,
@@ -93,19 +91,22 @@ class AppTheme {
     final text = textTheme(c);
 
     OutlineInputBorder inputBorder(Color color, [double width = 1]) => OutlineInputBorder(
-          borderRadius: AppRadius.mdAll,
-          borderSide: BorderSide(color: color, width: width),
-        );
+      borderRadius: AppRadius.mdAll,
+      borderSide: BorderSide(color: color, width: width),
+    );
 
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: scheme,
       fontFamily: fontFamily,
+      fontFamilyFallback: fontFallback,
       textTheme: text,
-      extensions: [c],
-      scaffoldBackgroundColor: c.background,
-      canvasColor: c.background,
+      // Both extensions: the player's roles and the classroom's glass, which the classroom pages
+      // and the Glass widgets read.
+      extensions: [c, glass],
+      scaffoldBackgroundColor: Colors.transparent,
+      canvasColor: glass.glassStrong,
       dividerColor: c.border,
       hoverColor: c.surfaceHover,
       splashFactory: NoSplash.splashFactory,
@@ -129,7 +130,7 @@ class AppTheme {
       dividerTheme: DividerThemeData(color: c.border, thickness: 1, space: 1),
       iconTheme: IconThemeData(color: c.textSecondary, size: 18),
       appBarTheme: AppBarTheme(
-        backgroundColor: c.background,
+        backgroundColor: Colors.transparent,
         foregroundColor: c.text,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -215,7 +216,7 @@ class AppTheme {
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: c.surface,
+        backgroundColor: glass.glassStrong,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -226,7 +227,7 @@ class AppTheme {
         contentTextStyle: text.bodyMedium?.copyWith(color: c.textSecondary),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: c.surface,
+        backgroundColor: glass.glassStrong,
         surfaceTintColor: Colors.transparent,
         modalBarrierColor: c.scrim,
         elevation: 0,
@@ -238,7 +239,7 @@ class AppTheme {
         dragHandleSize: const Size(36, 4),
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: c.surface,
+        color: glass.glassStrong,
         surfaceTintColor: Colors.transparent,
         elevation: 8,
         shadowColor: c.shadow,
@@ -274,11 +275,17 @@ class _SubtlePageTransition extends PageTransitionsBuilder {
     Widget child,
   ) {
     final curved = CurvedAnimation(parent: animation, curve: AppMotion.curve);
+    // Pages are transparent over the shared glass backdrop, so the outgoing page fades out too;
+    // otherwise both would show through each other for the length of the transition.
+    final leaving = CurvedAnimation(parent: secondaryAnimation, curve: AppMotion.curve);
     return FadeTransition(
-      opacity: curved,
-      child: SlideTransition(
-        position: Tween(begin: const Offset(0, 0.012), end: Offset.zero).animate(curved),
-        child: child,
+      opacity: ReverseAnimation(leaving),
+      child: FadeTransition(
+        opacity: curved,
+        child: SlideTransition(
+          position: Tween(begin: const Offset(0, 0.012), end: Offset.zero).animate(curved),
+          child: child,
+        ),
       ),
     );
   }

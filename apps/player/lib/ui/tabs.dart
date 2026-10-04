@@ -37,7 +37,9 @@ class AppTabs extends StatelessWidget {
     final colors = context.colors;
 
     return DecoratedBox(
-      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: colors.border))),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: colors.border)),
+      ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: padding,
@@ -46,11 +48,7 @@ class AppTabs extends StatelessWidget {
             for (var i = 0; i < tabs.length; i++)
               Padding(
                 padding: const EdgeInsetsDirectional.only(end: AppSpace.x1),
-                child: _TabButton(
-                  tab: tabs[i],
-                  selected: i == selected,
-                  onTap: () => onChanged(i),
-                ),
+                child: _TabButton(tab: tabs[i], selected: i == selected, onTap: () => onChanged(i)),
               ),
           ],
         ),
@@ -224,10 +222,7 @@ class AppSegmented<T> extends StatelessWidget {
         borderRadius: AppRadius.mdAll,
         border: Border.all(color: colors.border),
       ),
-      child: Row(
-        mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
-        children: children,
-      ),
+      child: Row(mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min, children: children),
     );
   }
 

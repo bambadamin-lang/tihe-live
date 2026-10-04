@@ -9,6 +9,7 @@ import '../../core/theme/jalali.dart';
 import '../../core/theme/tokens.dart';
 import '../../l10n/l10n.dart';
 import '../../ui/ui.dart';
+import 'device_icon.dart';
 
 /// Device management.
 ///
@@ -80,14 +81,6 @@ class _DeviceRow extends StatefulWidget {
 class _DeviceRowState extends State<_DeviceRow> {
   bool _releasing = false;
 
-  static const _icons = {
-    'windows': AppIcons.laptop,
-    'android': AppIcons.phone,
-    'ios': AppIcons.phone,
-    'macos': AppIcons.laptop,
-    'linux': AppIcons.desktop,
-  };
-
   Future<void> _release() async {
     final l10n = context.l10n;
     final device = widget.device;
@@ -107,7 +100,7 @@ class _DeviceRowState extends State<_DeviceRow> {
     final container = ProviderScope.containerOf(context, listen: false);
 
     try {
-      await container.read(devicesRepositoryProvider).release(device.id);
+      await container.read(devicesRepositoryProvider).signOut(device.id);
       container.invalidate(devicesProvider);
       if (mounted) showToast(context, l10n.deviceReleased, tone: ToastTone.success);
 
@@ -136,7 +129,7 @@ class _DeviceRowState extends State<_DeviceRow> {
 
     return AppListRow(
       title: device.name,
-      leading: IconTile(icon: _icons[device.platform] ?? AppIcons.devices),
+      leading: IconTile(icon: deviceIcon(device.platform)),
       // Wraps rather than truncating: on a phone the badge and "last used" do not fit one line.
       subtitle: Wrap(
         spacing: AppSpace.x2,

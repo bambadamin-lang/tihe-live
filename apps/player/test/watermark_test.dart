@@ -16,14 +16,10 @@ void main() {
   );
 
   Widget harness(Watermark mark) => MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 800,
-            height: 450,
-            child: WatermarkOverlay(watermark: mark),
-          ),
-        ),
-      );
+    home: Scaffold(
+      body: SizedBox(width: 800, height: 450, child: WatermarkOverlay(watermark: mark)),
+    ),
+  );
 
   testWidgets('renders without throwing at a typical video size', (tester) async {
     await tester.pumpWidget(harness(watermark));
@@ -41,10 +37,7 @@ void main() {
     // Scoped to the overlay: Material's own scaffolding uses IgnorePointer too, so an unscoped
     // finder passes whether or not the watermark has one.
     expect(
-      find.descendant(
-        of: find.byType(WatermarkOverlay),
-        matching: find.byType(IgnorePointer),
-      ),
+      find.descendant(of: find.byType(WatermarkOverlay), matching: find.byType(IgnorePointer)),
       findsOneWidget,
     );
   });
@@ -104,11 +97,7 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: SizedBox(
-            width: 4,
-            height: 4,
-            child: WatermarkOverlay(watermark: watermark),
-          ),
+          body: SizedBox(width: 4, height: 4, child: WatermarkOverlay(watermark: watermark)),
         ),
       ),
     );

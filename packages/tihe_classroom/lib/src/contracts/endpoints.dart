@@ -4,6 +4,50 @@ import 'roles.dart';
 
 /// The REST side of services/live that the classroom calls — packages/contracts/src/live/
 /// endpoints.ts. Only what the client needs is mirrored.
+/// A class as listed for its students and teacher (liveClassSchema in packages/contracts).
+/// Only what the app shows: the classroom itself gets everything else at join.
+class LiveClass {
+  const LiveClass({
+    required this.id,
+    required this.courseId,
+    required this.title,
+    required this.description,
+    required this.teacherId,
+    required this.scheduledStartAt,
+    required this.durationMinutes,
+    required this.liveSessionId,
+  });
+
+  factory LiveClass.fromJson(Json j) => LiveClass(
+    id: j['id'] as String,
+    courseId: j['courseId'] as String,
+    title: j['title'] as String,
+    description: j['description'] as String?,
+    teacherId: j['teacherId'] as String,
+    scheduledStartAt: switch (j['scheduledStartAt']) {
+      final String at => DateTime.parse(at),
+      _ => null,
+    },
+    durationMinutes: j['durationMinutes'] as int,
+    liveSessionId: j['liveSessionId'] as String?,
+  );
+
+  final String id;
+  final String courseId;
+  final String title;
+  final String? description;
+  final String teacherId;
+
+  /// UTC; null when the class has no fixed time.
+  final DateTime? scheduledStartAt;
+  final int durationMinutes;
+
+  /// The session to join while the class is live; null otherwise.
+  final String? liveSessionId;
+
+  bool get isLive => liveSessionId != null;
+}
+
 class LiveSession {
   const LiveSession({
     required this.id,
@@ -214,6 +258,21 @@ class ApiError implements Exception {
       status: status,
     );
   }
+
+  /// The server never answered: no connection, or it timed out. Client-side only, like the
+  /// player's own `NETWORK`.
+  factory ApiError.network() => const ApiError(
+    code: 'NETWORK',
+    messageFa: 'اتصال به سرور برقرار نشد. اتصال اینترنت خود را بررسی کنید.',
+    status: 0,
+  );
+
+  /// An answer that is not the contract: a proxy's error page, or a cut-off body.
+  factory ApiError.unexpected(int status) => ApiError(
+    code: 'INTERNAL',
+    messageFa: 'سرور کلاس‌ها پاسخ درستی نداد. کمی بعد دوباره امتحان کنید.',
+    status: status,
+  );
 
   final String code;
   final String messageFa;

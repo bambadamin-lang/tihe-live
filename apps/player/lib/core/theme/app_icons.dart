@@ -53,6 +53,27 @@ abstract final class AppIcons {
   // Sign-in.
   static const IconData phoneInput = LucideIcons.smartphone;
   static const IconData code = LucideIcons.keyRound;
+  static const IconData showPassword = LucideIcons.eye;
+  static const IconData hidePassword = LucideIcons.eyeOff;
+  static const IconData server = LucideIcons.server;
+  static const IconData demo = LucideIcons.presentation;
+
+  // The one app: dashboard, live classes, admin.
+  static const IconData home = LucideIcons.house;
+  static const IconData live = LucideIcons.radio;
+  static const IconData liveClass = LucideIcons.presentation;
+  static const IconData admin = LucideIcons.userCog;
+  static const IconData users = LucideIcons.users;
+  static const IconData addUser = LucideIcons.userPlus;
+  static const IconData start = LucideIcons.play;
+  static const IconData calendar = LucideIcons.calendarClock;
+  static const IconData increase = LucideIcons.plus;
+  static const IconData decrease = LucideIcons.minus;
+  static const IconData edit = LucideIcons.pencil;
+  static const IconData suspend = LucideIcons.userX;
+  static const IconData activate = LucideIcons.userCheck;
+  static const IconData generate = LucideIcons.dices;
+  static const IconData enroll = LucideIcons.bookPlus;
 
   // Theme.
   static const IconData themeSystem = LucideIcons.monitor;

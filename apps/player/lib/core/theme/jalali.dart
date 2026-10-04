@@ -32,6 +32,46 @@ class JalaliFormat {
         '${toPersianDigits(jalali.year.toString())}';
   }
 
+  static const _weekdays = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
+
+  /// `۱۰:۳۰`, local time, 24-hour as clocks in Iran read.
+  static String time(DateTime utc) {
+    final local = utc.toLocal();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return toPersianDigits('$hour:$minute');
+  }
+
+  /// When something is scheduled, as a student would say it: `امروز، ۱۰:۳۰`, `فردا، ۱۸:۰۰`,
+  /// `شنبه ۱۹ مهر، ۱۰:۳۰`, with the year only when it is not this year. [now] is for tests.
+  static String schedule(DateTime utc, {DateTime? now}) {
+    final local = utc.toLocal();
+    final today = now?.toLocal() ?? DateTime.now();
+    // Whole calendar days, counted on dates alone so a clock change cannot make it 0.96 of one.
+    final days = DateTime.utc(
+      local.year,
+      local.month,
+      local.day,
+    ).difference(DateTime.utc(today.year, today.month, today.day)).inDays;
+    final String day;
+    if (days == 0) {
+      day = 'امروز';
+    } else if (days == 1) {
+      day = 'فردا';
+    } else if (days == -1) {
+      day = 'دیروز';
+    } else {
+      final date = Jalali.fromDateTime(local);
+      final year = date.year == Jalali.fromDateTime(today).year
+          ? ''
+          : ' ${toPersianDigits('${date.year}')}';
+      day =
+          '${_weekdays[date.weekDay - 1]} ${toPersianDigits('${date.day}')} '
+          '${_months[date.month - 1]}$year';
+    }
+    return '$day، ${time(utc)}';
+  }
+
   /// `۱۴۰۵/۰۷/۱۵`
   static String shortDate(DateTime utc) {
     final jalali = Jalali.fromDateTime(utc.toLocal());

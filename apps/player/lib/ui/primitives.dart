@@ -127,8 +127,9 @@ class Monogram extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surfaceRaised,
         shape: circle ? BoxShape.circle : BoxShape.rectangle,
-        borderRadius:
-            circle ? null : BorderRadius.circular(size >= 40 ? AppRadius.md : AppRadius.sm),
+        borderRadius: circle
+            ? null
+            : BorderRadius.circular(size >= 40 ? AppRadius.md : AppRadius.sm),
         border: Border.all(color: colors.border),
       ),
       child: Text(

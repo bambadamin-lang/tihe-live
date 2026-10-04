@@ -17,12 +17,7 @@ class AppLog {
       developer.log('WARN $message', name: name ?? 'tihe');
 
   static void error(String message, {Object? error, StackTrace? stackTrace, String? name}) =>
-      developer.log(
-        'ERROR $message',
-        name: name ?? 'tihe',
-        error: error,
-        stackTrace: stackTrace,
-      );
+      developer.log('ERROR $message', name: name ?? 'tihe', error: error, stackTrace: stackTrace);
 
   /// `+989123456789` and `09123456789` both become `0912•••6789`.
   static String maskPhone(String phone) {

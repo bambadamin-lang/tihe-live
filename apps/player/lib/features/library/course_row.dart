@@ -86,7 +86,11 @@ class _Progress extends StatelessWidget {
     if (compact) {
       return Row(
         mainAxisSize: MainAxisSize.min,
-        children: [percent, const SizedBox(width: AppSpace.x2), AppProgressRing(value: value)],
+        children: [
+          percent,
+          const SizedBox(width: AppSpace.x2),
+          AppProgressRing(value: value),
+        ],
       );
     }
     return SizedBox(

@@ -78,8 +78,12 @@ class AppPage extends StatelessWidget {
             else
               SliverToBoxAdapter(child: SizedBox(height: MediaQuery.paddingOf(context).top)),
             SliverPadding(
-              padding:
-                  EdgeInsets.fromLTRB(gutter, back != null && size.isCompact ? 0 : top, gutter, 0),
+              padding: EdgeInsets.fromLTRB(
+                gutter,
+                back != null && size.isCompact ? 0 : top,
+                gutter,
+                0,
+              ),
               sliver: SliverToBoxAdapter(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,10 +189,7 @@ class PageHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: Text(title, style: titleStyle)),
-              for (final action in actions) ...[
-                const SizedBox(width: AppSpace.x2),
-                action,
-              ],
+              for (final action in actions) ...[const SizedBox(width: AppSpace.x2), action],
             ],
           ),
           if (subtitle != null) ...[
@@ -201,10 +202,7 @@ class PageHeader extends StatelessWidget {
             else
               subtitle! as Widget,
           ],
-          if (bottom != null) ...[
-            const SizedBox(height: AppSpace.x5),
-            bottom!,
-          ],
+          if (bottom != null) ...[const SizedBox(height: AppSpace.x5), bottom!],
         ],
       ),
     );

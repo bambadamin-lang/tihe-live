@@ -5,7 +5,9 @@
 const FACES = [
   ['Peyda-Regular.ttf', '400'],
   ['Peyda-Medium.ttf', '500'],
+  ['Peyda-SemiBold.ttf', '600'],
   ['Peyda-Bold.ttf', '700'],
+  ['Peyda-ExtraBold.ttf', '800'],
 ] as const;
 
 export async function loadFonts(): Promise<void> {

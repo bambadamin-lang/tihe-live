@@ -26,8 +26,8 @@ class PlayerController extends ChangeNotifier {
     required Duration duration,
     Duration initialPosition = Duration.zero,
     this.chapters = const [],
-  })  : _duration = duration,
-        _position = _clamp(initialPosition, duration);
+  }) : _duration = duration,
+       _position = _clamp(initialPosition, duration);
 
   static const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
   static const qualityAuto = 'auto';

@@ -55,18 +55,18 @@ class AppListRow extends StatelessWidget {
     final titleColor = !enabled
         ? colors.textTertiary
         : destructive
-            ? colors.danger
-            : colors.text;
+        ? colors.danger
+        : colors.text;
 
     final subtitleWidget = switch (subtitle) {
       final String text => Text(
-          text,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: enabled ? colors.textSecondary : colors.textDisabled,
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+        text,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: enabled ? colors.textSecondary : colors.textDisabled,
         ),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
       final Widget widget => widget,
       _ => null,
     };
@@ -81,7 +81,8 @@ class AppListRow extends StatelessWidget {
       builder: (context, state) => ConstrainedBox(
         constraints: BoxConstraints(minHeight: minHeight),
         child: Padding(
-          padding: padding ??
+          padding:
+              padding ??
               EdgeInsets.symmetric(
                 horizontal: AppSpace.x3,
                 vertical: dense ? AppSpace.x2 : AppSpace.x2 + 2,
@@ -106,22 +107,17 @@ class AppListRow extends StatelessWidget {
                       maxLines: titleMaxLines,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (subtitleWidget != null) ...[
-                      const SizedBox(height: 2),
-                      subtitleWidget,
-                    ],
+                    if (subtitleWidget != null) ...[const SizedBox(height: 2), subtitleWidget],
                   ],
                 ),
               ),
-              if (trailing != null) ...[
-                const SizedBox(width: AppSpace.x3),
-                trailing!,
-              ],
+              if (trailing != null) ...[const SizedBox(width: AppSpace.x3), trailing!],
               if (showChevron && enabled) ...[
                 const SizedBox(width: AppSpace.x2),
                 AnimatedSlide(
                   duration: AppMotion.fast,
-                  offset: Offset(state.hovered ? -0.12 : 0, 0) *
+                  offset:
+                      Offset(state.hovered ? -0.12 : 0, 0) *
                       (Directionality.of(context) == TextDirection.rtl ? 1 : -1),
                   child: Icon(
                     AppIcons.forward,

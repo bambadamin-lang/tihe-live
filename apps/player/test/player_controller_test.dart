@@ -7,14 +7,14 @@ import 'package:tihe_player/features/player/player_controller.dart';
 /// student's screen.
 void main() {
   PlayerController controller({Duration initial = Duration.zero}) => PlayerController(
-        duration: const Duration(minutes: 60),
-        initialPosition: initial,
-        chapters: const [
-          Chapter(id: 'c1', title: 'intro', start: Duration.zero),
-          Chapter(id: 'c2', title: 'limits', start: Duration(minutes: 10)),
-          Chapter(id: 'c3', title: 'exercises', start: Duration(minutes: 40)),
-        ],
-      );
+    duration: const Duration(minutes: 60),
+    initialPosition: initial,
+    chapters: const [
+      Chapter(id: 'c1', title: 'intro', start: Duration.zero),
+      Chapter(id: 'c2', title: 'limits', start: Duration(minutes: 10)),
+      Chapter(id: 'c3', title: 'exercises', start: Duration(minutes: 40)),
+    ],
+  );
 
   test('starts at the resume point, clamped to the duration', () {
     expect(controller(initial: const Duration(minutes: 18)).position, const Duration(minutes: 18));

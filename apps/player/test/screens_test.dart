@@ -115,14 +115,16 @@ void main() {
         final container = await pumpApp(tester, size, auth: const AuthSignedOut());
         await go(tester, container, '/sign-in');
         expect(tester.takeException(), isNull);
-        expect(find.byType(AppTextField), findsOneWidget);
+        // Phone and password.
+        expect(find.byType(AppTextField), findsNWidgets(2));
         debugDefaultTargetPlatformOverride = null;
       });
     });
   }
 
-  testWidgets('navigation follows the window: bottom bar on a phone, sidebar on desktop',
-      (tester) async {
+  testWidgets('navigation follows the window: bottom bar on a phone, sidebar on desktop', (
+    tester,
+  ) async {
     var container = await pumpApp(tester, sizes['phone']!);
     await go(tester, container, '/library');
     // The sidebar's search field carries the Ctrl K hint; the bottom bar does not.
@@ -141,10 +143,7 @@ void main() {
 
     final controls = find.byType(PlayerControls);
     expect(Directionality.of(tester.element(controls)), TextDirection.rtl);
-    expect(
-      Directionality.of(tester.element(find.byType(PlayerTimeline))),
-      TextDirection.ltr,
-    );
+    expect(Directionality.of(tester.element(find.byType(PlayerTimeline))), TextDirection.ltr);
     debugDefaultTargetPlatformOverride = null;
   });
 

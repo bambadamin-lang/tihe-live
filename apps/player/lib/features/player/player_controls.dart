@@ -247,7 +247,9 @@ class PlayerControlsState extends State<PlayerControls> {
                     ),
                   )
                 else if (!_c.playing)
-                  Center(child: _PlayPauseButton(controller: _c, large: true, onPressed: reveal)),
+                  Center(
+                    child: _PlayPauseButton(controller: _c, large: true, onPressed: reveal),
+                  ),
 
                 if (widget.fullscreen && widget.title != null)
                   Positioned(
@@ -259,8 +261,12 @@ class PlayerControlsState extends State<PlayerControls> {
                       child: SafeArea(
                         bottom: false,
                         child: Padding(
-                          padding:
-                              const EdgeInsets.fromLTRB(AppSpace.x5, AppSpace.x4, AppSpace.x5, 0),
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpace.x5,
+                            AppSpace.x4,
+                            AppSpace.x5,
+                            0,
+                          ),
                           child: Text(
                             widget.title!,
                             textDirection: appDirection,
@@ -755,8 +761,8 @@ class _VolumeControlState extends State<_VolumeControl> {
     final icon = c.muted
         ? AppIcons.muted
         : c.volume < 0.5
-            ? AppIcons.volumeLow
-            : AppIcons.volume;
+        ? AppIcons.volumeLow
+        : AppIcons.volume;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _open = true),
@@ -809,9 +815,7 @@ class _ThinSlider extends StatelessWidget {
           onHorizontalDragUpdate: (d) => update(d.localPosition),
           child: SizedBox(
             height: 24,
-            child: CustomPaint(
-              painter: _SliderPainter(value: value),
-            ),
+            child: CustomPaint(painter: _SliderPainter(value: value)),
           ),
         );
       },
@@ -938,8 +942,10 @@ class _PlayerTimelineState extends State<PlayerTimeline> {
                     if (previewFraction != null)
                       Positioned(
                         bottom: 24,
-                        left: (previewFraction * width - 80)
-                            .clamp(0.0, (width - 160).clamp(0.0, double.infinity)),
+                        left: (previewFraction * width - 80).clamp(
+                          0.0,
+                          (width - 160).clamp(0.0, double.infinity),
+                        ),
                         width: 160,
                         child: IgnorePointer(
                           child: Center(
@@ -1131,8 +1137,8 @@ class _PlayerSettingsMenuState extends State<_PlayerSettingsMenu> {
 
   String _qualityLabel(AppLocalizations l10n, String quality) =>
       quality == PlayerController.qualityAuto
-          ? l10n.qualityAuto
-          : JalaliFormat.toPersianDigits(quality);
+      ? l10n.qualityAuto
+      : JalaliFormat.toPersianDigits(quality);
 
   String _subtitleLabel(AppLocalizations l10n) {
     final id = _c.subtitle;
@@ -1143,61 +1149,61 @@ class _PlayerSettingsMenuState extends State<_PlayerSettingsMenu> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    const colors = AppColors.dark;
+    final colors = AppColors.dark;
 
     final content = switch (_page) {
       _MenuPage.root => [
-          _MenuRow(
-            icon: AppIcons.speed,
-            label: l10n.speed,
-            value: _speedLabel(l10n, _c.speed),
-            onTap: () => setState(() => _page = _MenuPage.speed),
-          ),
-          _MenuRow(
-            icon: AppIcons.quality,
-            label: l10n.quality,
-            value: _qualityLabel(l10n, _c.quality),
-            onTap: () => setState(() => _page = _MenuPage.quality),
-          ),
-          _MenuRow(
-            icon: AppIcons.subtitles,
-            label: l10n.subtitles,
-            value: _subtitleLabel(l10n),
-            onTap: () => setState(() => _page = _MenuPage.subtitles),
-          ),
-        ],
+        _MenuRow(
+          icon: AppIcons.speed,
+          label: l10n.speed,
+          value: _speedLabel(l10n, _c.speed),
+          onTap: () => setState(() => _page = _MenuPage.speed),
+        ),
+        _MenuRow(
+          icon: AppIcons.quality,
+          label: l10n.quality,
+          value: _qualityLabel(l10n, _c.quality),
+          onTap: () => setState(() => _page = _MenuPage.quality),
+        ),
+        _MenuRow(
+          icon: AppIcons.subtitles,
+          label: l10n.subtitles,
+          value: _subtitleLabel(l10n),
+          onTap: () => setState(() => _page = _MenuPage.subtitles),
+        ),
+      ],
       _MenuPage.speed => [
-          _MenuHeader(label: l10n.speed, onBack: () => setState(() => _page = _MenuPage.root)),
-          for (final speed in PlayerController.speeds)
-            _OptionRow(
-              label: _speedLabel(l10n, speed),
-              selected: _c.speed == speed,
-              onTap: () => _c.setSpeed(speed),
-            ),
-        ],
-      _MenuPage.quality => [
-          _MenuHeader(label: l10n.quality, onBack: () => setState(() => _page = _MenuPage.root)),
-          for (final quality in _c.qualities)
-            _OptionRow(
-              label: _qualityLabel(l10n, quality),
-              selected: _c.quality == quality,
-              onTap: () => _c.setQuality(quality),
-            ),
-        ],
-      _MenuPage.subtitles => [
-          _MenuHeader(label: l10n.subtitles, onBack: () => setState(() => _page = _MenuPage.root)),
+        _MenuHeader(label: l10n.speed, onBack: () => setState(() => _page = _MenuPage.root)),
+        for (final speed in PlayerController.speeds)
           _OptionRow(
-            label: l10n.subtitlesOff,
-            selected: _c.subtitle == null,
-            onTap: () => _c.setSubtitle(null),
+            label: _speedLabel(l10n, speed),
+            selected: _c.speed == speed,
+            onTap: () => _c.setSpeed(speed),
           ),
-          for (final track in _c.subtitleTracks)
-            _OptionRow(
-              label: track.label,
-              selected: _c.subtitle == track.id,
-              onTap: () => _c.setSubtitle(track.id),
-            ),
-        ],
+      ],
+      _MenuPage.quality => [
+        _MenuHeader(label: l10n.quality, onBack: () => setState(() => _page = _MenuPage.root)),
+        for (final quality in _c.qualities)
+          _OptionRow(
+            label: _qualityLabel(l10n, quality),
+            selected: _c.quality == quality,
+            onTap: () => _c.setQuality(quality),
+          ),
+      ],
+      _MenuPage.subtitles => [
+        _MenuHeader(label: l10n.subtitles, onBack: () => setState(() => _page = _MenuPage.root)),
+        _OptionRow(
+          label: l10n.subtitlesOff,
+          selected: _c.subtitle == null,
+          onTap: () => _c.setSubtitle(null),
+        ),
+        for (final track in _c.subtitleTracks)
+          _OptionRow(
+            label: track.label,
+            selected: _c.subtitle == track.id,
+            onTap: () => _c.setSubtitle(track.id),
+          ),
+      ],
     };
 
     final column = Padding(
@@ -1240,7 +1246,7 @@ class _MenuRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const colors = AppColors.dark;
+    final colors = AppColors.dark;
     return Pressable(
       onTap: onTap,
       semanticLabel: label,
@@ -1256,8 +1262,10 @@ class _MenuRow extends StatelessWidget {
               Icon(icon, size: 16, color: colors.textSecondary),
               const SizedBox(width: AppSpace.x2 + 2),
               Expanded(
-                child:
-                    Text(label, style: TextStyle(fontSize: 13.5, height: 1.2, color: colors.text)),
+                child: Text(
+                  label,
+                  style: TextStyle(fontSize: 13.5, height: 1.2, color: colors.text),
+                ),
               ),
               Text(value, style: TextStyle(fontSize: 13, height: 1.2, color: colors.textSecondary)),
               const SizedBox(width: AppSpace.x1),
@@ -1278,7 +1286,7 @@ class _MenuHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const colors = AppColors.dark;
+    final colors = AppColors.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpace.x1),
       child: Column(
@@ -1326,7 +1334,7 @@ class _OptionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const colors = AppColors.dark;
+    final colors = AppColors.dark;
     return Semantics(
       selected: selected,
       child: Pressable(

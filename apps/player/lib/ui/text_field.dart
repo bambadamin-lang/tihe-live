@@ -33,6 +33,7 @@ class AppTextField extends StatefulWidget {
     this.onChanged,
     this.onSubmitted,
     this.autofillHints,
+    this.obscureText = false,
     super.key,
   });
 
@@ -56,6 +57,9 @@ class AppTextField extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final Iterable<String>? autofillHints;
+
+  /// For passwords: hides the value and turns off suggestions and autocorrect.
+  final bool obscureText;
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();
@@ -137,6 +141,9 @@ class _AppTextFieldState extends State<AppTextField> {
               onChanged: widget.onChanged,
               onSubmitted: widget.onSubmitted,
               autofillHints: widget.autofillHints,
+              obscureText: widget.obscureText,
+              enableSuggestions: !widget.obscureText,
+              autocorrect: !widget.obscureText,
               cursorWidth: 1.5,
               style: (large ? theme.textTheme.bodyLarge : theme.textTheme.bodyMedium)
                   ?.copyWith(height: 1.4)
