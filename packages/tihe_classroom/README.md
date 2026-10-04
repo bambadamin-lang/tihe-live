@@ -81,91 +81,18 @@ On Linux, `livekit_client` checks connectivity through NetworkManager over D-Bus
 as in containers, the gateway works but joining the media room fails. The desktop targets
 that ship are Windows and macOS.
 
-## Install on Windows
+## Install and update
 
-`.github/workflows/windows-installer.yml` builds the app on a Windows runner and wraps it in a
-Persian setup wizard, `TIHE-Live-Setup-<version>.exe` (Inno Setup,
-[`installer/windows/tihe_live.iss`](example/installer/windows/tihe_live.iss)). The workflow
-runs on pull requests that touch the classroom and on `live-v*` tags, which also publish a
-GitHub release. Download the `.exe` from the run's **Artifacts**. Once the workflow is on
-`main`, it can also be started by hand from the Actions tab (**Run workflow**, with an
-optional version); GitHub only offers that for workflows on the default branch.
-
-The wizard:
-1. welcome
-2. install folder (per user, no administrator needed)
-3. **class server address**, pre-filled with the repository variable `TIHE_LIVE_URL`
-4. desktop shortcut
-5. install and start
-
-It needs Windows 10 version 2004 or later, the first release that can hide a window from
-screen capture. The Visual C++ runtime is bundled, and every build runs
-[`check-dependencies.ps1`](example/installer/windows/check-dependencies.ps1): it reads what
-each bundled `.exe` and `.dll` imports and fails if a DLL loaded at start-up is neither in the
-bundle nor part of Windows. Uninstall from Windows Settings → Apps.
-
-For IT staff: `TIHE-Live-Setup-0.1.0.exe /VERYSILENT /server=https://…` installs with no
-questions.
-
-The installer is **not code-signed yet**, so Windows SmartScreen warns on first run ("Windows
-protected your PC" → **More info** → **Run anyway**). Signing needs a code-signing
-certificate in the institute's name; add it to the workflow as a secret when there is one.
-
-To build it by hand on a Windows PC with Flutter, Visual Studio (C++ desktop) and
-Inno Setup 6.5+:
-
-```powershell
-cd packages\tihe_classroom\example
-flutter build windows --release
-installer\windows\check-dependencies.ps1 -Bundle build\windows\x64\runner\Release -BundleVcRuntime
-iscc /DDefaultServer=https://your-server/v1/live installer\windows\tihe_live.iss
-# → installer\windows\Output\TIHE-Live-Setup-0.1.0.exe
-```
-
-## Updates
-
-The Windows app updates itself from GitHub releases
-([`example/lib/update.dart`](example/lib/update.dart)). This repository is private, so a
-`live-v*` tag publishes the wizard twice: as a release here, and as a release in a **public,
-code-free repo** that installed apps read without a token. By default that repo is
-`bambadamin-lang/tihe-live-releases`; the `TIHE_UPDATE_REPO` repository variable overrides it.
-
-The app checks at start-up and every six hours. When there is a newer version it shows a
-banner on the start screen, never in class. **Update** downloads the wizard and checks its
-size and SHA-256 against `latest.json` before running it. The wizard then runs silently,
-keeps the server address, and starts the app again. A per-machine install still raises the
-UAC prompt. **Later** hides that version until a newer one is published.
-
-Setup, once:
-1. Create the public repo with a README. A release needs a commit to tag.
-2. Create a fine-grained token with **Contents: read and write** on that repo only. Save it
-   here as the `RELEASES_TOKEN` Actions secret. Without it, tags still build, but installed
-   apps are not offered the version (the run shows a warning).
-
-To release, push a tag such as `live-v0.2.0`. Versions are `major.minor.patch`. Each release in
-the public repo carries `TIHE-Live-Setup-<version>.exe` and `latest.json`:
-
-```json
-{ "version": "0.2.0", "windows": { "file": "TIHE-Live-Setup-0.2.0.exe", "sha256": "…", "size": 41234567 } }
-```
-
-The app fetches `releases/latest/download/latest.json`, a plain download rather than the
-REST API, so a classroom behind one IP address does not hit GitHub's hourly API limit. It
-builds the wizard's URL from the `live-v<version>` tag. Only builds from the workflow can
-update, because they carry `--dart-define=TIHE_APP_VERSION` and `TIHE_UPDATE_REPO`. Local
-`flutter run` builds never update, and neither do macOS, Android or iOS, since only the
-Windows wizard is published.
-
-The hash catches corrupt or swapped downloads, but not a compromised releases repo, because
-the hash comes from the same place. Code signing (see above) is what would close that gap.
-Keep write access to the releases repo as tight as access to this one.
+The classroom ships inside the one TIHE app, so its Windows setup wizard and self-update live
+there now: see [`apps/player/README.md`](../../apps/player/README.md#install-on-windows). The
+wizard keeps the classroom app's Windows identity, so it installs over an existing
+"TIHE Live" and keeps its folder and server address.
 
 ## Test it
 
 ```bash
 flutter analyze
 flutter test                # contracts conformance, reducers, gateway client, session, board, page
-(cd example && flutter test)  # self-update: versions, manifest, verified download, schedule
 ```
 
 The screenshots in `docs/images/classroom/` come from an opt-in test. It needs a Persian TTF

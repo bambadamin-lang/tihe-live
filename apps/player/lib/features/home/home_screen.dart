@@ -13,6 +13,7 @@ import '../../l10n/l10n.dart';
 import '../../ui/ui.dart';
 import '../live/live_class_tile.dart';
 import '../live/live_screen.dart' show courseTitles;
+import 'update_banner.dart';
 
 /// The dashboard after sign-in: the two halves of the app — live classes and the video library —
 /// as two large cards, each saying what is waiting there right now.
@@ -46,6 +47,7 @@ class HomeScreen extends ConsumerWidget {
         subtitle: l10n.dashboardSubtitle,
       ),
       slivers: [
+        const SliverToBoxAdapter(child: UpdateBanner()),
         const SliverToBoxAdapter(child: SizedBox(height: AppSpace.x6)),
         const SliverToBoxAdapter(child: _Destinations()),
         if (liveNow.isNotEmpty) ...[

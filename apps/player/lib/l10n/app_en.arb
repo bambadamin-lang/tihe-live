@@ -299,5 +299,17 @@
   "increase": "More",
   "decrease": "Fewer",
   "openAdmin": "Manage users and devices",
-  "passwordOneCharacter": "The password cannot be one repeated character"
+  "passwordOneCharacter": "The password cannot be one repeated character",
+  "updateReady": "Version {version} is ready",
+  "updateHint": "The app closes, updates and opens again.",
+  "later": "Later",
+  "updateNow": "Update",
+  "updateDownloading": "Downloading {version}… {percent}%",
+  "updateInstalling": "Installing…",
+  "updateInstallingHint": "The app opens again in a moment.",
+  "updateFailed": "The update failed",
+  "checkForUpdates": "Check for updates",
+  "upToDate": "You have the latest version",
+  "updateUnreachable": "Could not check for updates. Check your connection.",
+  "updateFound": "A new version is ready; install it from Home."
 }

@@ -313,5 +313,19 @@
   "increase": "بیشتر",
   "decrease": "کمتر",
   "openAdmin": "مدیریت کاربران و دستگاه‌ها",
-  "passwordOneCharacter": "رمز نباید یک نویسهٔ تکراری باشد"
+  "passwordOneCharacter": "رمز نباید یک نویسهٔ تکراری باشد",
+  "updateReady": "نسخهٔ تازهٔ {version} آماده است",
+  "@updateReady": { "placeholders": { "version": {} } },
+  "updateHint": "برنامه بسته می‌شود، به‌روز می‌شود و دوباره باز می‌شود.",
+  "later": "بعداً",
+  "updateNow": "به‌روزرسانی",
+  "updateDownloading": "در حال دریافت نسخهٔ {version}… {percent}٪",
+  "@updateDownloading": { "placeholders": { "version": {}, "percent": {} } },
+  "updateInstalling": "در حال نصب…",
+  "updateInstallingHint": "برنامه چند لحظهٔ دیگر دوباره باز می‌شود.",
+  "updateFailed": "به‌روزرسانی انجام نشد",
+  "checkForUpdates": "بررسی به‌روزرسانی",
+  "upToDate": "برنامه به‌روز است",
+  "updateUnreachable": "بررسی به‌روزرسانی ممکن نشد. اتصال اینترنت را بررسی کنید.",
+  "updateFound": "نسخهٔ تازه پیدا شد؛ در صفحهٔ خانه نصبش کنید."
 }

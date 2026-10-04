@@ -10,6 +10,7 @@ import '../../core/theme/jalali.dart';
 import '../../core/theme/tokens.dart';
 import '../../l10n/l10n.dart';
 import '../../ui/ui.dart';
+import '../../core/update/updater.dart';
 import '../shell/app_shell.dart';
 
 /// The student's profile and preferences.
@@ -162,6 +163,27 @@ class AccountScreen extends ConsumerWidget {
                     : l10n.version(JalaliFormat.toPersianDigits(version)),
                 leading: const BrandMark(size: 36),
               ),
+              if (ref.watch(updaterProvider) case final updater?)
+                AppListRow(
+                  title: l10n.checkForUpdates,
+                  leading: const IconTile(icon: AppIcons.download),
+                  showChevron: true,
+                  onTap: () async {
+                    final result = await updater.checkNow();
+                    if (!context.mounted) return;
+                    showToast(
+                      context,
+                      switch (result) {
+                        UpdateCheck.available => l10n.updateFound,
+                        UpdateCheck.upToDate => l10n.upToDate,
+                        UpdateCheck.unreachable => l10n.updateUnreachable,
+                      },
+                      tone: result == UpdateCheck.unreachable
+                          ? ToastTone.danger
+                          : ToastTone.success,
+                    );
+                  },
+                ),
             ],
           ),
         ),

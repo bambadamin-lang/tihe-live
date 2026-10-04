@@ -108,3 +108,85 @@ The tests target the logic that fails silently: Jalali and digit formatting, mod
 partial responses, error classification (which decides whether the student is sent to sign-in, to the
 device manager, or to support), phone masking, and the watermark's own properties — that it drifts,
 that it never swallows a tap, and that it survives a degenerate layout.
+
+## Install on Windows
+
+`.github/workflows/windows-installer.yml` builds the app on a Windows runner and wraps it in a
+Persian setup wizard, `TIHE-Setup-<version>.exe` (Inno Setup,
+[`installer/windows/tihe_live.iss`](installer/windows/tihe_live.iss)). The workflow
+runs on pull requests that touch the app or the classroom and on `live-v*` tags, which also publish a
+GitHub release. Download the `.exe` from the run's **Artifacts**. Once the workflow is on
+`main`, it can also be started by hand from the Actions tab (**Run workflow**, with an
+optional version); GitHub only offers that for workflows on the default branch.
+
+The wizard:
+1. welcome
+2. install folder (per user, no administrator needed)
+3. **institute server address** (the server's one address, e.g. `http://192.168.1.10:8080`), pre-filled
+   with the repository variable `TIHE_SERVER_URL`; installs over the old classroom app turn its
+   `…:3100/v1/live` address into the gateway's `…:8080`
+4. desktop shortcut
+5. install and start
+
+It needs Windows 10 version 2004 or later, the first release that can hide a window from
+screen capture. The Visual C++ runtime is bundled, and every build runs
+[`check-dependencies.ps1`](installer/windows/check-dependencies.ps1): it reads what
+each bundled `.exe` and `.dll` imports and fails if a DLL loaded at start-up is neither in the
+bundle nor part of Windows. Uninstall from Windows Settings → Apps.
+
+For IT staff: `TIHE-Setup-0.1.0.exe /VERYSILENT /server=https://…` installs with no
+questions.
+
+The installer is **not code-signed yet**, so Windows SmartScreen warns on first run ("Windows
+protected your PC" → **More info** → **Run anyway**). Signing needs a code-signing
+certificate in the institute's name; add it to the workflow as a secret when there is one.
+
+To build it by hand on a Windows PC with Flutter, Visual Studio (C++ desktop) and
+Inno Setup 6.5+:
+
+```powershell
+cd apps\player
+flutter build windows --release
+installer\windows\check-dependencies.ps1 -Bundle build\windows\x64\runner\Release -BundleVcRuntime
+iscc /DDefaultServer=http://your-server:8080 installer\windows\tihe_live.iss
+# → installer\windows\Output\TIHE-Setup-0.1.0.exe
+```
+
+## Updates
+
+The Windows app updates itself from GitHub releases
+([`lib/core/update/updater.dart`](lib/core/update/updater.dart)). This repository is private, so a
+`live-v*` tag publishes the wizard twice: as a release here, and as a release in a **public,
+code-free repo** that installed apps read without a token. By default that repo is
+`bambadamin-lang/tihe-live-releases`; the `TIHE_UPDATE_REPO` repository variable overrides it.
+
+The app checks at start-up and every six hours. When there is a newer version it shows a
+banner on the dashboard, never in class or the player; Account → **Check for updates** asks
+at once. **Update** downloads the wizard and checks its
+size and SHA-256 against `latest.json` before running it. The wizard then runs silently,
+keeps the server address, and starts the app again. A per-machine install still raises the
+UAC prompt. **Later** hides that version until a newer one is published.
+
+Setup, once:
+1. Create the public repo with a README. A release needs a commit to tag.
+2. Create a fine-grained token with **Contents: read and write** on that repo only. Save it
+   here as the `RELEASES_TOKEN` Actions secret. Without it, tags still build, but installed
+   apps are not offered the version (the run shows a warning).
+
+To release, push a tag such as `live-v0.2.0`. Versions are `major.minor.patch`. Each release in
+the public repo carries `TIHE-Setup-<version>.exe` and `latest.json`:
+
+```json
+{ "version": "0.2.0", "windows": { "file": "TIHE-Setup-0.2.0.exe", "sha256": "…", "size": 41234567 } }
+```
+
+The app fetches `releases/latest/download/latest.json`, a plain download rather than the
+REST API, so a classroom behind one IP address does not hit GitHub's hourly API limit. It
+builds the wizard's URL from the `live-v<version>` tag. Only builds from the workflow can
+update, because they carry `--dart-define=TIHE_APP_VERSION` and `TIHE_UPDATE_REPO`. Local
+`flutter run` builds never update, and neither do macOS, Android or iOS, since only the
+Windows wizard is published.
+
+The hash catches corrupt or swapped downloads, but not a compromised releases repo, because
+the hash comes from the same place. Code signing (see above) is what would close that gap.
+Keep write access to the releases repo as tight as access to this one.

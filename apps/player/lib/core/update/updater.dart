@@ -4,9 +4,11 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
-/// Self-update for the Windows app from GitHub releases.
+/// Self-update for the Windows app from GitHub releases. Surfaced by [updaterProvider] as a
+/// banner on the dashboard and a row in Account.
 ///
 /// The source repo is private, so CI also publishes each `live-v*` release to a public,
 /// code-free repo (`TIHE_UPDATE_REPO`) that the app reads without a token. Each release there
@@ -45,8 +47,7 @@ class AppVersion implements Comparable<AppVersion> {
   bool operator >(AppVersion other) => compareTo(other) > 0;
 
   @override
-  bool operator ==(Object other) =>
-      other is AppVersion && compareTo(other) == 0;
+  bool operator ==(Object other) => other is AppVersion && compareTo(other) == 0;
 
   @override
   int get hashCode => Object.hash(major, minor, patch);
@@ -80,18 +81,11 @@ class ReleaseManifest {
       final version = AppVersion.tryParse('${json['version']}');
       final windows = json['windows'];
       if (version == null || windows is! Map) return null;
-      final file = windows['file'],
-          sha = windows['sha256'],
-          size = windows['size'];
+      final file = windows['file'], sha = windows['sha256'], size = windows['size'];
       if (file is! String || !_file.hasMatch(file)) return null;
       if (sha is! String || !_sha256.hasMatch(sha.toLowerCase())) return null;
       if (size is! int || size <= 0 || size > maxSize) return null;
-      return ReleaseManifest(
-        version: version,
-        file: file,
-        sha256: sha.toLowerCase(),
-        size: size,
-      );
+      return ReleaseManifest(version: version, file: file, sha256: sha.toLowerCase(), size: size);
     } on FormatException {
       return null;
     }
@@ -102,6 +96,8 @@ class ReleaseManifest {
   final String sha256;
   final int size;
 }
+
+enum UpdateCheck { available, upToDate, unreachable }
 
 sealed class UpdateState {
   const UpdateState();
@@ -186,15 +182,12 @@ class Updater extends ValueNotifier<UpdateState> {
 
   /// `releases/latest/download/…` is a plain redirect to the asset, not the REST API, so a
   /// classroom of students behind one address does not run into the API's hourly limit.
-  Uri get manifestUrl => Uri.parse(
-    'https://github.com/$repo/releases/latest/download/latest.json',
-  );
+  Uri get manifestUrl => Uri.parse('https://github.com/$repo/releases/latest/download/latest.json');
 
   /// Built from the tag CI publishes (`live-v<version>`), never taken from the manifest, so
   /// the manifest cannot point the download anywhere else.
-  Uri installerUrl(ReleaseManifest r) => Uri.parse(
-    'https://github.com/$repo/releases/download/live-v${r.version}/${r.file}',
-  );
+  Uri installerUrl(ReleaseManifest r) =>
+      Uri.parse('https://github.com/$repo/releases/download/live-v${r.version}/${r.file}');
 
   /// The release the banner offers to install, if any.
   ReleaseManifest? get _offered => switch (value) {
@@ -208,26 +201,34 @@ class Updater extends ValueNotifier<UpdateState> {
     _timer ??= Timer.periodic(interval, (_) => unawaited(check()));
   }
 
-  Future<void> check() async {
-    if (value is UpdateDownloading || value is UpdateInstalling) return;
+  /// Looks for a newer release. The answer is for a check the student asked for; the
+  /// periodic one ignores it.
+  Future<UpdateCheck> check() async {
+    if (value is UpdateDownloading || value is UpdateInstalling) return UpdateCheck.available;
     final ReleaseManifest? release;
     try {
-      final res = await _client
-          .get(manifestUrl)
-          .timeout(const Duration(seconds: 20));
+      final res = await _client.get(manifestUrl).timeout(const Duration(seconds: 20));
       // 404 until the first release exists.
-      if (res.statusCode != 200) return;
+      if (res.statusCode == 404) return UpdateCheck.upToDate;
+      if (res.statusCode != 200) return UpdateCheck.unreachable;
       release = ReleaseManifest.tryParse(utf8.decode(res.bodyBytes));
     } on Object {
       // Offline or GitHub unreachable: try again at the next check, without bothering anyone.
-      return;
+      return UpdateCheck.unreachable;
     }
-    if (_disposed || release == null) return;
-    if (!(release.version > current) || release.version == _dismissed) return;
+    if (_disposed) return UpdateCheck.unreachable;
+    if (release == null || !(release.version > current)) return UpdateCheck.upToDate;
+    if (release.version == _dismissed) return UpdateCheck.available;
     // Already offered, or failed: a failure stays on screen until the student retries or a
     // newer version arrives.
-    if (_offered?.version == release.version) return;
-    value = UpdateAvailable(release);
+    if (_offered?.version != release.version) value = UpdateAvailable(release);
+    return UpdateCheck.available;
+  }
+
+  /// Shows a dismissed version again, for a check the student asked for.
+  Future<UpdateCheck> checkNow() async {
+    _dismissed = null;
+    return check();
   }
 
   /// "Later": hide this version until a newer one is published or the app restarts.
@@ -262,10 +263,7 @@ class Updater extends ValueNotifier<UpdateState> {
       await launchInstaller(installer);
     } on Object {
       if (!_disposed) {
-        value = UpdateFailed(
-          release,
-          'اجرای نصب‌کننده ممکن نشد. دوباره تلاش کنید.',
-        );
+        value = UpdateFailed(release, 'اجرای نصب‌کننده ممکن نشد. دوباره تلاش کنید.');
       }
     }
   }
@@ -284,9 +282,7 @@ class Updater extends ValueNotifier<UpdateState> {
         .send(http.Request('GET', installerUrl(release)))
         .timeout(const Duration(seconds: 30));
     if (res.statusCode != 200) {
-      throw const _UpdateError(
-        'فایل نسخهٔ تازه پیدا نشد. کمی بعد دوباره تلاش کنید.',
-      );
+      throw const _UpdateError('فایل نسخهٔ تازه پیدا نشد. کمی بعد دوباره تلاش کنید.');
     }
     final digest = _DigestSink();
     final hasher = sha256.startChunkedConversion(digest);
@@ -294,9 +290,7 @@ class Updater extends ValueNotifier<UpdateState> {
     var received = 0;
     var reported = 0.0;
     try {
-      await for (final chunk in res.stream.timeout(
-        const Duration(seconds: 60),
-      )) {
+      await for (final chunk in res.stream.timeout(const Duration(seconds: 60))) {
         received += chunk.length;
         if (received > release.size) throw const _UpdateError(_corrupt);
         hasher.add(chunk);
@@ -358,3 +352,12 @@ Future<void> launchWindowsInstaller(File installer) async {
   ], mode: ProcessStartMode.detached);
   exit(0);
 }
+
+/// The updater for this build, started on first read; null where updates do not apply.
+final updaterProvider = Provider<Updater?>((ref) {
+  final updater = Updater.forThisBuild();
+  if (updater == null) return null;
+  updater.start();
+  ref.onDispose(updater.dispose);
+  return updater;
+});

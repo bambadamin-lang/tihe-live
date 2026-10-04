@@ -4,7 +4,8 @@ project(tihe_player LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "tihe_player")
+# Same name as the classroom app this replaces, so an update installs over it.
+set(BINARY_NAME "tihe_live")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
