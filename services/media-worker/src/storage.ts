@@ -26,7 +26,7 @@ export class StorageError extends Error {
   ) {
     const reason = cause instanceof Error ? cause.message : String(cause);
     const hint = /ECONNREFUSED|ENOTFOUND|EAI_AGAIN/.test(reason)
-      ? ` — is object storage running? try: docker compose -f infra/docker/compose.dev.yml up -d minio`
+      ? ` — is object storage running? try: docker compose -f infra/docker/compose.dev.yml up -d storage storage-init`
       : '';
     super(`${message}: ${reason} [endpoint ${endpoint}]${hint}`);
     this.name = 'StorageError';

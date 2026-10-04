@@ -10,12 +10,12 @@ ws_url: ws://livekit:7880
 redis:
   address: redis:6379
 
-# MinIO is S3-compatible; force_path_style is required for it.
+# Self-hosted S3-compatible storage needs path-style addressing.
 s3:
   access_key: tihe_minio
   secret: tihe_minio_dev_password
   region: us-east-1
-  endpoint: http://minio:9000
+  endpoint: http://storage:9000
   bucket: tihe-raw
   force_path_style: true
 

@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
 import type { Env } from '../src/config.js';
 import { CONTENT_TYPES, Storage, vodKeys } from '../src/storage.js';
@@ -7,10 +7,10 @@ import { CONTENT_TYPES, Storage, vodKeys } from '../src/storage.js';
 /**
  * Exercises the real S3 leg — the one part of the pipeline that `FakeStorage` cannot cover.
  *
- * Skips when object storage is unreachable, so `pnpm test` works without Docker. It runs in CI, where
- * the MinIO image pulls normally, and locally after:
+ * Skips when object storage is unreachable, so `pnpm test` works without Docker. It runs in CI, which
+ * starts an S3-compatible store (RustFS), and locally after:
  *
- *   docker compose -f infra/docker/compose.dev.yml up -d minio
+ *   docker compose -f infra/docker/compose.dev.yml up -d storage storage-init
  *
  * This split is deliberate rather than convenient: the packaging tests prove the transcode, the
  * encryption, the manifests and the rows against an in-memory double, and this proves the bytes
@@ -32,12 +32,14 @@ const env: Env = {
   MEDIA_CONCURRENCY: 1,
 };
 
-let reachable = false;
 const storage = new Storage(env);
 const prefix = `storage-test-${Date.now()}`;
 const written: string[] = [];
 
-beforeAll(async () => {
+// Probed before the suite is declared, because skipIf reads its argument when the file is
+// collected. Probing in beforeAll instead left `reachable` false at that point, so the suite never
+// ran anywhere, CI included.
+const reachable = await (async () => {
   try {
     // A HEAD on a key that does not exist still proves credentials and connectivity: it returns
     // cleanly rather than throwing a connection error.
@@ -49,11 +51,11 @@ beforeAll(async () => {
       'text/plain',
     );
     written.push(`${prefix}/probe`);
-    reachable = true;
+    return true;
   } catch {
-    reachable = false;
+    return false;
   }
-}, 30_000);
+})();
 
 afterAll(async () => {
   if (!reachable) return;

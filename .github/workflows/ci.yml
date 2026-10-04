@@ -31,14 +31,16 @@ jobs:
         options: >-
           --health-cmd "redis-cli ping" --health-interval 10s
           --health-timeout 5s --health-retries 5
-      minio:
-        image: minio/minio:edge-cicd
+      # S3-compatible storage. MinIO no longer publishes images, so its service container could
+      # not start; RustFS speaks the same API and the code only ever uses an S3 client.
+      storage:
+        image: rustfs/rustfs:latest
         env:
-          MINIO_ROOT_USER: tihe_minio
-          MINIO_ROOT_PASSWORD: tihe_minio_dev_password
+          RUSTFS_ACCESS_KEY: tihe_minio
+          RUSTFS_SECRET_KEY: tihe_minio_dev_password
         ports: ['9000:9000']
         options: >-
-          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-cmd "curl -f http://localhost:9000/health"
           --health-interval 10s --health-timeout 5s --health-retries 5
     env:
       DATABASE_URL: postgresql://tihe:tihe@localhost:5432/tihe_test
@@ -68,11 +70,15 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Create storage buckets
+        # The AWS CLI ships on the runner image.
+        env:
+          AWS_ACCESS_KEY_ID: tihe_minio
+          AWS_SECRET_ACCESS_KEY: tihe_minio_dev_password
+          AWS_DEFAULT_REGION: us-east-1
         run: |
-          curl -sSL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
-          chmod +x /usr/local/bin/mc
-          mc alias set ci http://localhost:9000 tihe_minio tihe_minio_dev_password
-          mc mb --ignore-existing ci/tihe-raw ci/tihe-vod
+          for bucket in tihe-raw tihe-vod; do
+            aws --endpoint-url http://localhost:9000 s3 mb "s3://$bucket"
+          done
 
       - name: Create the services/live test database
         run: PGPASSWORD=tihe psql -h localhost -U tihe -d tihe_test -c 'CREATE DATABASE tihe_live_test'

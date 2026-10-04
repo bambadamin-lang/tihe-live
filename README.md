@@ -33,7 +33,7 @@ Requires Node 22+, pnpm 10+, Docker, and Rust 1.80+ (Flutter 3.35+ only for the 
 ```bash
 pnpm install
 
-# Postgres + Redis + MinIO, with buckets created
+# Postgres + Redis + S3 storage, with buckets created
 docker compose -f infra/docker/compose.dev.yml up -d
 
 # generate local dev secrets (KEK + licence signing keypair) into .env

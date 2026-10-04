@@ -5,7 +5,7 @@ Everything needed to run TIHE Live locally, and the shape of the production depl
 ## Development stack
 
 ```bash
-# Postgres + Redis + MinIO (what the video-management side needs)
+# Postgres + Redis + S3 storage (what the video-management side needs)
 docker compose -f infra/docker/compose.dev.yml up -d
 
 # ...plus LiveKit + Egress (what the live-classroom side needs)
@@ -16,13 +16,14 @@ docker compose -f infra/docker/compose.dev.yml --profile live up -d
 |---|---|---|
 | PostgreSQL | `localhost:5432` | `tihe` / `tihe_dev_password`, db `tihe` |
 | Redis | `localhost:6379` | none |
-| MinIO S3 API | `localhost:9000` | `tihe_minio` / `tihe_minio_dev_password` |
-| MinIO console | http://localhost:9001 | same |
+| S3 storage (RustFS) | `localhost:9000` | `tihe_minio` / `tihe_minio_dev_password` |
+| Storage console | http://localhost:9001 | same |
 | LiveKit | `ws://localhost:7880` | `devkey` / `devsecret_...` |
 | services/live (run on host) | `http://localhost:3100/v1/live`, WS `/v1/live/ws` | — |
 
-`minio-init` runs once on startup and creates `tihe-raw` and `tihe-vod`, sets both to
-private, and enables versioning on `tihe-vod`. If you ever see those buckets public,
+`storage-init` runs once on startup and creates `tihe-raw` and `tihe-vod`, sets both to
+private, and enables versioning on `tihe-vod`. Storage is RustFS because MinIO no longer
+publishes images; the code only uses an S3 client, so any S3-compatible store works (ADR-0004). If you ever see those buckets public,
 something has gone wrong — every recording would be readable by anyone who guessed a key.
 
 `postgres-init/02-live-database.sql` creates a second database, `tihe_live`, for
@@ -37,7 +38,7 @@ Postgres is initialised with the `fa-IR` ICU collation and the `pg_trgm`, `unacc
 | Script | Purpose |
 |---|---|
 | `scripts/generate-secrets.sh` | Generates the KEK, the Ed25519 licence keypair, the JWT secret and the OTP pepper, and prints them as `.env` lines. Development only. |
-| `scripts/minio-init.sh` | Bucket creation and lockdown. Runs automatically in Compose. |
+| `scripts/storage-init.sh` | Bucket creation and lockdown over plain S3. Runs automatically in Compose. |
 | `scripts/fake-egress.sh` | Drops an MP4 into `tihe-raw` and posts a LiveKit `egress_ended` webhook — exercises the whole recording pipeline with no LiveKit running. |
 
 `fake-egress.sh` is the one worth knowing about: it is what lets the video-management
