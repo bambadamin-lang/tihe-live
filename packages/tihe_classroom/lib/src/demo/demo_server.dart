@@ -21,7 +21,8 @@ class DemoClassroomServer {
   final List<Json> received = [];
   final List<StreamChannelController<Object?>> _clients = [];
   String? _you;
-  int _chatCounter = 0;
+  // Past the fixture's own messages (…0001 to …0004), so a new message never reuses an id.
+  int _chatCounter = 100;
 
   /// Use as `GatewayClient(connect: server.connect, …)`.
   Future<GatewayChannel> connect(Uri url) async {

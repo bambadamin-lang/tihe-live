@@ -106,6 +106,39 @@ class FakeClassroomMedia implements ClassroomMedia {
     );
   }
 
+  final Map<MediaDeviceKind, String> selectedDevices = {
+    MediaDeviceKind.microphone: 'mic:0',
+    MediaDeviceKind.camera: 'cam:0',
+  };
+
+  @override
+  Future<List<MediaDeviceOption>> devices(MediaDeviceKind kind) async {
+    final options = switch (kind) {
+      MediaDeviceKind.microphone => const [
+        ('mic:0', 'میکروفون داخلی'),
+        ('mic:1', 'هدست USB'),
+      ],
+      MediaDeviceKind.camera => const [
+        ('cam:0', 'دوربین داخلی'),
+        ('cam:1', 'وب‌کم USB'),
+      ],
+    };
+    return [
+      for (final (id, label) in options)
+        MediaDeviceOption(
+          id: id,
+          label: label,
+          selected: selectedDevices[kind] == id,
+        ),
+    ];
+  }
+
+  @override
+  Future<void> selectDevice(MediaDeviceKind kind, String deviceId) async {
+    calls.add('device:${kind.name}:$deviceId');
+    selectedDevices[kind] = deviceId;
+  }
+
   @override
   Future<void> setRemoteAudioMuted(bool muted) async {
     remoteAudioMuted = muted;
