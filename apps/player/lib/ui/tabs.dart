@@ -80,7 +80,12 @@ class _TabButton extends StatelessWidget {
         builder: (context, state) => Stack(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpace.x2 + 2, AppSpace.x2, AppSpace.x2 + 2, AppSpace.x3 - 1),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.x2 + 2,
+                AppSpace.x2,
+                AppSpace.x2 + 2,
+                AppSpace.x3 - 1,
+              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -178,7 +183,11 @@ class AppSegmented<T> extends StatelessWidget {
                       ? BoxDecoration(
                           borderRadius: AppRadius.smAll,
                           boxShadow: [
-                            BoxShadow(color: colors.shadow, blurRadius: 2, offset: const Offset(0, 1)),
+                            BoxShadow(
+                              color: colors.shadow,
+                              blurRadius: 2,
+                              offset: const Offset(0, 1),
+                            ),
                           ],
                         )
                       : null,
@@ -192,7 +201,12 @@ class AppSegmented<T> extends StatelessWidget {
                       ],
                       Text(
                         segment.label,
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, height: 1.2, color: fg),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          height: 1.2,
+                          color: fg,
+                        ),
                       ),
                     ],
                   ),

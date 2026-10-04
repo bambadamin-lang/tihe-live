@@ -143,7 +143,8 @@ class AccountScreen extends ConsumerWidget {
             children: [
               AppListRow(
                 title: l10n.appTitle,
-                subtitle: version == null ? null : l10n.version(JalaliFormat.toPersianDigits(version)),
+                subtitle:
+                    version == null ? null : l10n.version(JalaliFormat.toPersianDigits(version)),
                 leading: const BrandMark(size: 36),
               ),
             ],

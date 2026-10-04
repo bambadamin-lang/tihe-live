@@ -260,7 +260,8 @@ class _LibrarySkeleton extends StatelessWidget {
         BleedSliver(
           sliver: SliverList.list(
             children: [
-              for (var i = 0; i < 6; i++) SkeletonRow(leadingSize: 40, titleWidth: 160.0 + (i % 3) * 40),
+              for (var i = 0; i < 6; i++)
+                SkeletonRow(leadingSize: 40, titleWidth: 160.0 + (i % 3) * 40),
             ],
           ),
         ),

@@ -199,7 +199,9 @@ class _VideoResult extends StatelessWidget {
         iconColor: video.isReady ? colors.accentText : null,
       ),
       subtitle: video.isProcessing ? l10n.processing : JalaliFormat.duration(video.duration),
-      trailing: video.hasProgress ? SizedBox(width: 64, child: AppProgressBar(value: video.progressFraction)) : null,
+      trailing: video.hasProgress
+          ? SizedBox(width: 64, child: AppProgressBar(value: video.progressFraction))
+          : null,
       onTap: () => context.push('/watch/${video.id}'),
     );
   }

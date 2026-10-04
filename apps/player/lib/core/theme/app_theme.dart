@@ -31,23 +31,34 @@ class AppTheme {
   /// weight step (400 → 500 → 600), never from bold body text.
   static TextTheme textTheme(AppColors c) => TextTheme(
         // Page titles.
-        headlineSmall: TextStyle(fontSize: 24, height: 1.4, fontWeight: FontWeight.w600, color: c.text),
+        headlineSmall:
+            TextStyle(fontSize: 24, height: 1.4, fontWeight: FontWeight.w600, color: c.text),
         // Compact page titles, dialog titles.
-        titleLarge: TextStyle(fontSize: 19, height: 1.45, fontWeight: FontWeight.w600, color: c.text),
+        titleLarge:
+            TextStyle(fontSize: 19, height: 1.45, fontWeight: FontWeight.w600, color: c.text),
         // Section titles.
-        titleMedium: TextStyle(fontSize: 15, height: 1.5, fontWeight: FontWeight.w600, color: c.text),
+        titleMedium:
+            TextStyle(fontSize: 15, height: 1.5, fontWeight: FontWeight.w600, color: c.text),
         // Item titles in lists and cards.
-        titleSmall: TextStyle(fontSize: 14, height: 1.55, fontWeight: FontWeight.w500, color: c.text),
+        titleSmall:
+            TextStyle(fontSize: 14, height: 1.55, fontWeight: FontWeight.w500, color: c.text),
         bodyLarge: TextStyle(fontSize: 15, height: 1.75, color: c.text),
         bodyMedium: TextStyle(fontSize: 14, height: 1.7, color: c.text),
         // Secondary text and metadata.
         bodySmall: TextStyle(fontSize: 12.5, height: 1.6, color: c.textSecondary),
         // Buttons.
-        labelLarge: TextStyle(fontSize: 14, height: 1.4, fontWeight: FontWeight.w500, color: c.text),
+        labelLarge:
+            TextStyle(fontSize: 14, height: 1.4, fontWeight: FontWeight.w500, color: c.text),
         // Field labels, tabs, nav items.
-        labelMedium: TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w500, color: c.text),
+        labelMedium:
+            TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w500, color: c.text),
         // Badges, overlines, timestamps.
-        labelSmall: TextStyle(fontSize: 11.5, height: 1.4, fontWeight: FontWeight.w500, color: c.textSecondary),
+        labelSmall: TextStyle(
+          fontSize: 11.5,
+          height: 1.4,
+          fontWeight: FontWeight.w500,
+          color: c.textSecondary,
+        ),
       );
 
   static ThemeData _build(AppColors c, Brightness brightness) {

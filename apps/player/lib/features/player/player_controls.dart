@@ -112,7 +112,11 @@ class PlayerControlsState extends State<PlayerControls> {
     reveal();
   }
 
-  Future<void> _openSettings(BuildContext context, {bool asSheet = false, _MenuPage page = _MenuPage.root}) async {
+  Future<void> _openSettings(
+    BuildContext context, {
+    bool asSheet = false,
+    _MenuPage page = _MenuPage.root,
+  }) async {
     if (!asSheet) {
       _setMenuOpen(!_menuOpen);
       return;
@@ -255,7 +259,8 @@ class PlayerControlsState extends State<PlayerControls> {
                       child: SafeArea(
                         bottom: false,
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(AppSpace.x5, AppSpace.x4, AppSpace.x5, 0),
+                          padding:
+                              const EdgeInsets.fromLTRB(AppSpace.x5, AppSpace.x4, AppSpace.x5, 0),
                           child: Text(
                             widget.title!,
                             textDirection: appDirection,
@@ -321,7 +326,8 @@ class PlayerControlsState extends State<PlayerControls> {
                                 onPrevious: widget.onPrevious,
                                 onNext: widget.onNext,
                                 onToggleFullscreen: widget.onToggleFullscreen,
-                                onSettings: (page) => _openSettings(context, asSheet: showSheet, page: page),
+                                onSettings: (page) =>
+                                    _openSettings(context, asSheet: showSheet, page: page),
                               ),
                             ],
                           ),
@@ -515,7 +521,11 @@ class _ControlBar extends StatelessWidget {
             _VolumeControl(controller: c),
           ] else if (fullscreen) ...[
             // Under the video on touch; in the bar only when fullscreen hides that.
-            _PlayerButton(icon: AppIcons.previous, tooltip: l10n.previousSession, onPressed: onPrevious),
+            _PlayerButton(
+              icon: AppIcons.previous,
+              tooltip: l10n.previousSession,
+              onPressed: onPrevious,
+            ),
             _PlayerButton(icon: AppIcons.next, tooltip: l10n.nextSession, onPressed: onNext),
           ],
           const SizedBox(width: AppSpace.x2),
@@ -562,7 +572,10 @@ class _ControlBar extends StatelessWidget {
                   ),
           ),
           if (c.speed != 1 && !small)
-            _PlayerChip(label: JalaliFormat.speed(c.speed), onPressed: () => onSettings(_MenuPage.speed)),
+            _PlayerChip(
+              label: JalaliFormat.speed(c.speed),
+              onPressed: () => onSettings(_MenuPage.speed),
+            ),
           if (c.subtitleTracks.isNotEmpty)
             _PlayerButton(
               icon: AppIcons.subtitles,
@@ -711,7 +724,12 @@ class _PlayerChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AppSpace.x2, vertical: 3),
         child: Text(
           label,
-          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500, height: 1.3),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            height: 1.3,
+          ),
         ),
       ),
     );
@@ -746,7 +764,11 @@ class _VolumeControlState extends State<_VolumeControl> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _PlayerButton(icon: icon, tooltip: c.muted ? l10n.unmute : l10n.mute, onPressed: c.toggleMute),
+          _PlayerButton(
+            icon: icon,
+            tooltip: c.muted ? l10n.unmute : l10n.mute,
+            onPressed: c.toggleMute,
+          ),
           AnimatedContainer(
             duration: AppMotion.base,
             curve: AppMotion.curve,
@@ -916,7 +938,8 @@ class _PlayerTimelineState extends State<PlayerTimeline> {
                     if (previewFraction != null)
                       Positioned(
                         bottom: 24,
-                        left: (previewFraction * width - 80).clamp(0.0, (width - 160).clamp(0.0, double.infinity)),
+                        left: (previewFraction * width - 80)
+                            .clamp(0.0, (width - 160).clamp(0.0, double.infinity)),
                         width: 160,
                         child: IgnorePointer(
                           child: Center(
@@ -964,7 +987,11 @@ class _TimePreview extends StatelessWidget {
               textDirection: textDirection,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11.5, height: 1.4),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.75),
+                fontSize: 11.5,
+                height: 1.4,
+              ),
             ),
           Text(
             JalaliFormat.duration(time),
@@ -1020,7 +1047,13 @@ class _TimelinePainter extends CustomPainter {
         final b = end.clamp(from * w, to * w);
         if (b <= a) continue;
         canvas.drawRRect(
-          RRect.fromLTRBR(a, y - thickness / 2, b, y + thickness / 2, Radius.circular(thickness / 2)),
+          RRect.fromLTRBR(
+            a,
+            y - thickness / 2,
+            b,
+            y + thickness / 2,
+            Radius.circular(thickness / 2),
+          ),
           paint,
         );
       }
@@ -1097,7 +1130,9 @@ class _PlayerSettingsMenuState extends State<_PlayerSettingsMenu> {
       speed == 1 ? l10n.normalSpeed : JalaliFormat.speed(speed);
 
   String _qualityLabel(AppLocalizations l10n, String quality) =>
-      quality == PlayerController.qualityAuto ? l10n.qualityAuto : JalaliFormat.toPersianDigits(quality);
+      quality == PlayerController.qualityAuto
+          ? l10n.qualityAuto
+          : JalaliFormat.toPersianDigits(quality);
 
   String _subtitleLabel(AppLocalizations l10n) {
     final id = _c.subtitle;
@@ -1191,7 +1226,12 @@ class _PlayerSettingsMenuState extends State<_PlayerSettingsMenu> {
 }
 
 class _MenuRow extends StatelessWidget {
-  const _MenuRow({required this.icon, required this.label, required this.value, required this.onTap});
+  const _MenuRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
@@ -1216,7 +1256,8 @@ class _MenuRow extends StatelessWidget {
               Icon(icon, size: 16, color: colors.textSecondary),
               const SizedBox(width: AppSpace.x2 + 2),
               Expanded(
-                child: Text(label, style: TextStyle(fontSize: 13.5, height: 1.2, color: colors.text)),
+                child:
+                    Text(label, style: TextStyle(fontSize: 13.5, height: 1.2, color: colors.text)),
               ),
               Text(value, style: TextStyle(fontSize: 13, height: 1.2, color: colors.textSecondary)),
               const SizedBox(width: AppSpace.x1),
@@ -1257,7 +1298,12 @@ class _MenuHeader extends StatelessWidget {
                     const SizedBox(width: AppSpace.x2),
                     Text(
                       label,
-                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, height: 1.2, color: colors.text),
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w500,
+                        height: 1.2,
+                        color: colors.text,
+                      ),
                     ),
                   ],
                 ),
@@ -1297,7 +1343,9 @@ class _OptionRow extends StatelessWidget {
               children: [
                 SizedBox(
                   width: 22,
-                  child: selected ? Icon(AppIcons.completed, size: 15, color: colors.accentText) : null,
+                  child: selected
+                      ? Icon(AppIcons.completed, size: 15, color: colors.accentText)
+                      : null,
                 ),
                 Expanded(
                   child: Text(

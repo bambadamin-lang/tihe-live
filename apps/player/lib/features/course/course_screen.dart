@@ -177,7 +177,10 @@ class _CourseHeader extends StatelessWidget {
                 label: l10n.videoCount(JalaliFormat.toPersianDigits('${course.videoCount}')),
               ),
               if (course.totalDuration > Duration.zero)
-                AppBadge(icon: AppIcons.duration, label: JalaliFormat.spokenDuration(course.totalDuration)),
+                AppBadge(
+                  icon: AppIcons.duration,
+                  label: JalaliFormat.spokenDuration(course.totalDuration),
+                ),
               if (!course.policy.allowDownload)
                 AppBadge(icon: AppIcons.noDownload, label: l10n.downloadNotAllowed),
             ],
@@ -187,7 +190,9 @@ class _CourseHeader extends StatelessWidget {
             direction: compact ? Axis.vertical : Axis.horizontal,
             crossAxisAlignment: compact ? CrossAxisAlignment.stretch : CrossAxisAlignment.center,
             children: [
-              if (compact) _ProgressSummary(course: course, total: total) else
+              if (compact)
+                _ProgressSummary(course: course, total: total)
+              else
                 Expanded(child: _ProgressSummary(course: course, total: total)),
               if (action != null) ...[
                 const SizedBox(width: AppSpace.x8, height: AppSpace.x4),
@@ -425,7 +430,12 @@ class _SessionMarker extends StatelessWidget {
       );
       child = Text(
         JalaliFormat.toPersianDigits('$index'),
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, height: 1, color: colors.textSecondary),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          height: 1,
+          color: colors.textSecondary,
+        ),
       );
     }
 
@@ -475,7 +485,8 @@ class _CourseSkeleton extends StatelessWidget {
         BleedSliver(
           sliver: SliverList.list(
             children: [
-              for (var i = 0; i < 6; i++) SkeletonRow(leadingSize: 28, titleWidth: 180.0 + (i % 3) * 40),
+              for (var i = 0; i < 6; i++)
+                SkeletonRow(leadingSize: 28, titleWidth: 180.0 + (i % 3) * 40),
             ],
           ),
         ),

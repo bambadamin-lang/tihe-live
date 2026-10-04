@@ -117,9 +117,8 @@ class ErrorView extends StatelessWidget {
       footer: apiError?.requestId == null
           ? null
           : _RequestId(label: l10n.supportHint(apiError!.requestId!), id: apiError.requestId!),
-      action: canRetry
-          ? AppButton(label: l10n.retry, icon: AppIcons.retry, onPressed: onRetry)
-          : null,
+      action:
+          canRetry ? AppButton(label: l10n.retry, icon: AppIcons.retry, onPressed: onRetry) : null,
       iconColor: apiError?.needsSupport == true ? colors.warning : null,
     );
   }

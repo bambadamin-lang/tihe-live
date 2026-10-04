@@ -112,8 +112,8 @@ class _PressableState extends State<Pressable> {
         SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
         SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
       },
-      mouseCursor: widget.mouseCursor ??
-          (_enabled ? SystemMouseCursors.click : SystemMouseCursors.basic),
+      mouseCursor:
+          widget.mouseCursor ?? (_enabled ? SystemMouseCursors.click : SystemMouseCursors.basic),
       onShowHoverHighlight: (value) => setState(() => _hovered = value),
       onShowFocusHighlight: (value) => setState(() => _focused = value),
       child: GestureDetector(

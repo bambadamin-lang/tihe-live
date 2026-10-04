@@ -65,10 +65,17 @@ class _Progress extends StatelessWidget {
     final colors = context.colors;
 
     if (value >= 1) {
-      return AppBadge(label: l10n.courseCompleted, icon: AppIcons.completed, tone: BadgeTone.success);
+      return AppBadge(
+        label: l10n.courseCompleted,
+        icon: AppIcons.completed,
+        tone: BadgeTone.success,
+      );
     }
     if (value <= 0) {
-      return Text(l10n.notStarted, style: theme.textTheme.bodySmall?.copyWith(color: colors.textTertiary));
+      return Text(
+        l10n.notStarted,
+        style: theme.textTheme.bodySmall?.copyWith(color: colors.textTertiary),
+      );
     }
 
     final percent = Text(

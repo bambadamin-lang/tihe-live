@@ -78,7 +78,8 @@ class AppPage extends StatelessWidget {
             else
               SliverToBoxAdapter(child: SizedBox(height: MediaQuery.paddingOf(context).top)),
             SliverPadding(
-              padding: EdgeInsets.fromLTRB(gutter, back != null && size.isCompact ? 0 : top, gutter, 0),
+              padding:
+                  EdgeInsets.fromLTRB(gutter, back != null && size.isCompact ? 0 : top, gutter, 0),
               sliver: SliverToBoxAdapter(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

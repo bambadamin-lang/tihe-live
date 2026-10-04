@@ -127,7 +127,8 @@ class Monogram extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surfaceRaised,
         shape: circle ? BoxShape.circle : BoxShape.rectangle,
-        borderRadius: circle ? null : BorderRadius.circular(size >= 40 ? AppRadius.md : AppRadius.sm),
+        borderRadius:
+            circle ? null : BorderRadius.circular(size >= 40 ? AppRadius.md : AppRadius.sm),
         border: Border.all(color: colors.border),
       ),
       child: Text(
@@ -261,7 +262,12 @@ class KeyCap extends StatelessWidget {
       child: Text(
         label,
         textDirection: TextDirection.ltr,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, height: 1, color: colors.textSecondary),
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          height: 1,
+          color: colors.textSecondary,
+        ),
       ),
     );
   }

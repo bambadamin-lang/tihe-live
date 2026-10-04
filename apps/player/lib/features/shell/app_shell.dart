@@ -143,18 +143,29 @@ class _Sidebar extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpace.x2, AppSpace.x2, AppSpace.x2, AppSpace.x5),
+                padding:
+                    const EdgeInsets.fromLTRB(AppSpace.x2, AppSpace.x2, AppSpace.x2, AppSpace.x5),
                 child: Row(
                   children: [
                     const BrandMark(size: 24),
                     const SizedBox(width: AppSpace.x2 + 2),
-                    Text(l10n.appTitle, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                    Text(
+                      l10n.appTitle,
+                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                    ),
                   ],
                 ),
               ),
-              _SearchTrigger(onTap: () => onSelect(Destination.search), active: current == Destination.search),
+              _SearchTrigger(
+                onTap: () => onSelect(Destination.search),
+                active: current == Destination.search,
+              ),
               const SizedBox(height: AppSpace.x4),
-              for (final destination in [Destination.library, Destination.devices, Destination.account])
+              for (final destination in [
+                Destination.library,
+                Destination.devices,
+                Destination.account,
+              ])
                 Padding(
                   padding: const EdgeInsets.only(bottom: 2),
                   child: _SidebarItem(
@@ -249,7 +260,12 @@ class _SidebarItem extends StatelessWidget {
                   Expanded(
                     child: Text(
                       label,
-                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, height: 1.2, color: fg),
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w500,
+                        height: 1.2,
+                        color: fg,
+                      ),
                     ),
                   ),
                 ],
@@ -289,7 +305,12 @@ class _UserFooter extends StatelessWidget {
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, height: 1.3, color: colors.text),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    height: 1.3,
+                    color: colors.text,
+                  ),
                 ),
                 Text(
                   user.phoneMasked,
@@ -382,7 +403,11 @@ class _BottomBar extends StatelessWidget {
           height: 58,
           child: Row(
             children: [
-              for (final destination in [Destination.library, Destination.search, Destination.account])
+              for (final destination in [
+                Destination.library,
+                Destination.search,
+                Destination.account,
+              ])
                 Expanded(
                   child: Semantics(
                     selected: destination == current,
@@ -414,7 +439,9 @@ class _BottomBar extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              destination == Destination.account ? l10n.navAccount : destination.label(l10n),
+                              destination == Destination.account
+                                  ? l10n.navAccount
+                                  : destination.label(l10n),
                               style: TextStyle(
                                 fontSize: 11,
                                 height: 1.3,

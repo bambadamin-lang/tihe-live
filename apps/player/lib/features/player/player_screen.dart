@@ -95,12 +95,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       final video = await ref.read(catalogRepositoryProvider).video(widget.videoId);
 
       final session = await _playback.start(
-            videoId: widget.videoId,
-            deviceId: auth.session.device.id,
-            // M3 fills this from secure-core's environment checks (screen recorder, virtual display,
-            // emulator, debugger). Sending nothing is honest until those checks exist — a hardcoded set
-            // of falses would claim a clean environment we have not verified.
-          );
+        videoId: widget.videoId,
+        deviceId: auth.session.device.id,
+        // M3 fills this from secure-core's environment checks (screen recorder, virtual display,
+        // emulator, debugger). Sending nothing is honest until those checks exist — a hardcoded set
+        // of falses would claim a clean environment we have not verified.
+      );
 
       if (!mounted) return;
       setState(() {
@@ -159,7 +159,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     await SystemChrome.setPreferredOrientations(const []);
   }
 
-  KeyEventResult _onKey(FocusNode node, KeyEvent event, ({Video? previous, Video? next}) neighbours) {
+  KeyEventResult _onKey(
+    FocusNode node,
+    KeyEvent event,
+    ({Video? previous, Video? next}) neighbours,
+  ) {
     final c = _controller;
     if (c == null || event is KeyUpEvent) return KeyEventResult.ignored;
     final key = event.logicalKey;
@@ -284,7 +288,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       final maxVideoHeight = constraints.maxHeight - 150;
                       final maxWidth = (maxVideoHeight * 16 / 9).clamp(480.0, 1280.0);
                       return SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(AppSpace.x8, AppSpace.x2, AppSpace.x8, AppSpace.x10),
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpace.x8,
+                          AppSpace.x2,
+                          AppSpace.x8,
+                          AppSpace.x10,
+                        ),
                         child: Center(
                           child: ConstrainedBox(
                             constraints: BoxConstraints(maxWidth: maxWidth),
@@ -516,7 +525,9 @@ class _VideoInfoState extends State<_VideoInfo> {
             icon: AppIcons.previous,
             size: AppButtonSize.small,
             expand: compact,
-            onPressed: widget.neighbours.previous == null ? null : () => widget.onOpen(widget.neighbours.previous!),
+            onPressed: widget.neighbours.previous == null
+                ? null
+                : () => widget.onOpen(widget.neighbours.previous!),
           ),
         ),
         const SizedBox(width: AppSpace.x2),
@@ -527,8 +538,12 @@ class _VideoInfoState extends State<_VideoInfo> {
             trailingIcon: AppIcons.next,
             size: AppButtonSize.small,
             expand: compact,
-            variant: widget.neighbours.next == null ? AppButtonVariant.secondary : AppButtonVariant.primary,
-            onPressed: widget.neighbours.next == null ? null : () => widget.onOpen(widget.neighbours.next!),
+            variant: widget.neighbours.next == null
+                ? AppButtonVariant.secondary
+                : AppButtonVariant.primary,
+            onPressed: widget.neighbours.next == null
+                ? null
+                : () => widget.onOpen(widget.neighbours.next!),
           ),
         ),
       ],
@@ -544,9 +559,15 @@ class _VideoInfoState extends State<_VideoInfo> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(video.title, style: compact ? theme.textTheme.titleMedium : theme.textTheme.titleLarge),
+                  Text(
+                    video.title,
+                    style: compact ? theme.textTheme.titleMedium : theme.textTheme.titleLarge,
+                  ),
                   const SizedBox(height: AppSpace.x1),
-                  MetaLine(items: meta, style: theme.textTheme.bodySmall?.copyWith(color: colors.textSecondary)),
+                  MetaLine(
+                    items: meta,
+                    style: theme.textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+                  ),
                 ],
               ),
             ),
@@ -656,7 +677,11 @@ class _Details extends StatelessWidget {
     final rows = [
       (AppIcons.duration, l10n.detailDuration, JalaliFormat.duration(video.duration)),
       (AppIcons.resumeFrom, l10n.detailResumeFrom, JalaliFormat.duration(video.progress)),
-      (AppIcons.capture, l10n.detailCapture, session.blockCapture ? l10n.captureBlocked : l10n.captureAllowed),
+      (
+        AppIcons.capture,
+        l10n.detailCapture,
+        session.blockCapture ? l10n.captureBlocked : l10n.captureAllowed
+      ),
       (AppIcons.watermark, l10n.detailWatermark, session.watermark.text),
       // The wrapped key is deliberately not shown, not even truncated. It is passed straight to
       // secure-core over FFI and never inspected in Dart.
@@ -677,7 +702,10 @@ class _Details extends StatelessWidget {
                 const SizedBox(width: AppSpace.x3),
                 SizedBox(
                   width: 110,
-                  child: Text(rows[i].$2, style: theme.textTheme.bodySmall?.copyWith(color: colors.textSecondary)),
+                  child: Text(
+                    rows[i].$2,
+                    style: theme.textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+                  ),
                 ),
                 Expanded(child: Text(rows[i].$3, style: theme.textTheme.bodyMedium)),
               ],
@@ -711,7 +739,10 @@ class _CoursePanel extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(l10n.courseContent, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                l10n.courseContent,
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: AppSpace.x3),
               Row(
                 children: [
@@ -770,8 +801,12 @@ class _SessionList extends StatelessWidget {
         for (final (title, videos) in groups) ...[
           if (title != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpace.x3, AppSpace.x4, AppSpace.x3, AppSpace.x1),
-              child: Text(title, style: theme.textTheme.labelSmall?.copyWith(color: colors.textTertiary)),
+              padding:
+                  const EdgeInsets.fromLTRB(AppSpace.x3, AppSpace.x4, AppSpace.x3, AppSpace.x1),
+              child: Text(
+                title,
+                style: theme.textTheme.labelSmall?.copyWith(color: colors.textTertiary),
+              ),
             ),
           for (final video in videos) _row(context, video, numbers[video.id] ?? 0),
         ],

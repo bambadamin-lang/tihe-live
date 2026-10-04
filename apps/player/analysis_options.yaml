@@ -25,3 +25,10 @@ analyzer:
   exclude:
     - "**/*.g.dart"
     - "**/generated/**"
+    - build/**
+    - android/**
+    - windows/**
+
+# The client was written at 100 columns; the formatter needs telling (Dart 3.7+ reads this).
+formatter:
+  page_width: 100
