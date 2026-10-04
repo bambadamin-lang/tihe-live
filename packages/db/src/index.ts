@@ -14,7 +14,8 @@ export { PrismaClient, Prisma } from '@prisma/client';
 export type {
   User,
   Device,
-  OtpCode,
+  LoginAttempt,
+  Setting,
   RefreshToken,
   Term,
   Course,

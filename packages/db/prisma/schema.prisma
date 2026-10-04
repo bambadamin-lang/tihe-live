@@ -41,6 +41,15 @@ model User {
   /// epoch against this on each heartbeat, so a revocation lands within one interval.
   revocationEpoch Int @default(0) @map("revocation_epoch")
 
+  /// Argon2id of the password with the server pepper (ADR-0013). Null: cannot sign in until an
+  /// admin sets one.
+  passwordHash       String?   @map("password_hash")
+  passwordChangedAt  DateTime? @map("password_changed_at")
+  /// Set when an admin chose the password, so the student picks their own before anything else.
+  mustChangePassword Boolean   @default(false) @map("must_change_password")
+  /// Devices this account may have signed in at once (ADR-0014). Null: the institute default.
+  maxDevices         Int?      @map("max_devices")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -60,26 +69,30 @@ model User {
   @@map("users")
 }
 
-model OtpCode {
+/// Every sign-in attempt, kept for rate limiting and abuse analysis: a burst from one address
+/// across many numbers is the signal that matters, and it is invisible if rows are deleted.
+model LoginAttempt {
   id String @id
 
-  phone String
-  /// Argon2 hash with a server-side pepper. The plaintext code is never stored.
-  codeHash String @map("code_hash")
-
-  expiresAt    DateTime  @map("expires_at")
-  consumedAt   DateTime? @map("consumed_at")
-  attemptCount Int       @default(0) @map("attempt_count")
-
-  /// Kept for abuse analysis: a burst from one address across many numbers is the signal that
-  /// matters, and it is invisible if rows are deleted on use.
+  /// E.164, normalised, whether or not it belongs to an account.
+  phone     String
   ip        String?
-  userAgent String?  @map("user_agent")
+  succeeded Boolean
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([phone, createdAt])
   @@index([ip, createdAt])
-  @@map("otp_codes")
+  @@map("login_attempts")
+}
+
+/// Institute-wide settings an admin changes in the app, e.g. `default_max_devices`.
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by")
+
+  @@map("settings")
 }
 
 enum Platform {
@@ -116,6 +129,15 @@ model Device {
   lastSeenAt DateTime? @map("last_seen_at")
   createdAt  DateTime  @default(now()) @map("created_at")
 
+  /// The current sign-in on this device (ADR-0014). Access tokens carry it as `sid`, so signing
+  /// out, here or from another device, ends the session at once rather than when the token
+  /// expires. Null while signed out.
+  sessionId        String?   @unique @map("session_id")
+  sessionStartedAt DateTime? @map("session_started_at")
+  /// Slides forward with every refresh. A device left alone this long times out and stops
+  /// counting towards the limit by itself.
+  sessionExpiresAt DateTime? @map("session_expires_at")
+
   refreshTokens RefreshToken[]
   downloads     Download[]
   watchEvents   WatchEvent[]
@@ -125,6 +147,7 @@ model Device {
   /// One row per physical device per user, so re-registering does not consume a second slot.
   @@unique([userId, fingerprintHash])
   @@index([userId, revokedAt])
+  @@index([userId, sessionExpiresAt])
   @@map("devices")
 }
 

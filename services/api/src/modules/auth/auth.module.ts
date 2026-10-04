@@ -7,12 +7,8 @@ import { DevicesModule } from '../devices/devices.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
-import {
-  ConsoleSmsProvider,
-  KavenegarSmsProvider,
-  SMS_PROVIDER,
-  type SmsProvider,
-} from './sms.provider.js';
+import { PasswordHasher } from '@tihe/crypto';
+import { TokenService } from './tokens.js';
 
 @Global()
 @Module({
@@ -20,9 +16,10 @@ import {
     DevicesModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
+      // Issuer and audience are set per token (TokenService), because access tokens and
+      // device-limit tickets must never be accepted as each other.
       useFactory: (config: ConfigService<Env, true>) => ({
         secret: config.getOrThrow('JWT_SECRET', { infer: true }),
-        signOptions: { issuer: 'tihe-live' },
       }),
     }),
   ],
@@ -30,19 +27,16 @@ import {
   providers: [
     AuthService,
     AuthGuard,
+    TokenService,
     {
-      // Chosen at boot from configuration, so the production path cannot silently fall through to
-      // the console driver when an API key is missing — it fails to start instead.
-      provide: SMS_PROVIDER,
+      provide: PasswordHasher,
       inject: [ConfigService],
-      useFactory: (config: ConfigService<Env, true>): SmsProvider =>
-        config.getOrThrow('SMS_PROVIDER', { infer: true }) === 'kavenegar'
-          ? new KavenegarSmsProvider(config)
-          : new ConsoleSmsProvider(),
+      useFactory: (config: ConfigService<Env, true>) =>
+        new PasswordHasher(config.getOrThrow('PASSWORD_PEPPER', { infer: true })),
     },
   ],
-  // JwtModule is re-exported because AuthGuard is registered as an APP_GUARD in AppModule, so
-  // Nest resolves its dependencies from AppModule's context rather than this module's.
-  exports: [AuthService, AuthGuard, JwtModule],
+  // TokenService and JwtModule are exported because AuthGuard is registered as an APP_GUARD in
+  // AppModule, so Nest resolves its dependencies from AppModule's context rather than this one.
+  exports: [AuthService, AuthGuard, TokenService, PasswordHasher, JwtModule],
 })
 export class AuthModule {}

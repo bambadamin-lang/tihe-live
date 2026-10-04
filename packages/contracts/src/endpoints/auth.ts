@@ -2,24 +2,6 @@ import { z } from 'zod';
 import { id, phoneSchema, platformSchema } from '../common.js';
 import { deviceSchema, userSchema } from '../entities/user.js';
 
-export const otpRequestBodySchema = z.object({
-  phone: phoneSchema,
-});
-export type OtpRequestBody = z.infer<typeof otpRequestBodySchema>;
-
-/**
- * Deliberately identical whether or not the phone number belongs to a registered user —
- * otherwise this endpoint enumerates the institute's students.
- */
-export const otpRequestResponseSchema = z.object({
-  requestId: z.string(),
-  expiresInSeconds: z.number().int().positive(),
-  resendAfterSeconds: z.number().int().positive(),
-  /** Only in development, where SMS_PROVIDER=console. Never populated in production. */
-  devCode: z.string().optional(),
-});
-export type OtpRequestResponse = z.infer<typeof otpRequestResponseSchema>;
-
 /**
  * Device identity presented at sign-in.
  *
@@ -37,12 +19,60 @@ export const deviceIdentitySchema = z.object({
 });
 export type DeviceIdentity = z.infer<typeof deviceIdentitySchema>;
 
-export const otpVerifyBodySchema = z.object({
+/**
+ * A new password. The server applies the full policy (no phone number, not one repeated
+ * character) and answers PASSWORD_TOO_WEAK; this is the shape both sides agree on.
+ */
+export const passwordSchema = z.string().min(8).max(128);
+
+/**
+ * Phone + password sign-in (ADR-0013). The password is not checked against the policy here: a
+ * sign-in must not reveal what the policy is, only whether the pair is right.
+ */
+export const loginBodySchema = z.object({
   phone: phoneSchema,
-  code: z.string().regex(/^\d{4,8}$/),
+  password: z.string().min(1).max(128),
   device: deviceIdentitySchema,
 });
-export type OtpVerifyBody = z.infer<typeof otpVerifyBodySchema>;
+export type LoginBody = z.infer<typeof loginBodySchema>;
+
+/** One of the devices signed in to the account, as offered when the limit is reached. */
+export const signedInDeviceSchema = z.object({
+  id: id('device'),
+  platform: platformSchema,
+  name: z.string(),
+  signedInAt: z.string().datetime().nullable(),
+  lastSeenAt: z.string().datetime().nullable(),
+});
+export type SignedInDevice = z.infer<typeof signedInDeviceSchema>;
+
+/**
+ * `details` of DEVICE_LIMIT_REACHED on sign-in (ADR-0014). The ticket proves the password was
+ * right, so the student can sign one device out and continue without typing it again. It is
+ * bound to the device that asked and lasts five minutes.
+ */
+export const deviceLimitDetailsSchema = z.object({
+  limit: z.number().int().positive(),
+  devices: z.array(signedInDeviceSchema),
+  ticket: z.string(),
+  ticketExpiresAt: z.string().datetime(),
+});
+export type DeviceLimitDetails = z.infer<typeof deviceLimitDetailsSchema>;
+
+export const replaceDeviceBodySchema = z.object({
+  ticket: z.string().min(1),
+  signOutDeviceId: id('device'),
+  device: deviceIdentitySchema,
+});
+export type ReplaceDeviceBody = z.infer<typeof replaceDeviceBodySchema>;
+
+export const changePasswordBodySchema = z.object({
+  currentPassword: z.string().min(1).max(128),
+  newPassword: passwordSchema,
+  /** Signing the other devices out is what a student changing a leaked password needs. */
+  signOutOtherDevices: z.boolean().default(true),
+});
+export type ChangePasswordBody = z.infer<typeof changePasswordBodySchema>;
 
 export const tokenPairSchema = z.object({
   accessToken: z.string(),

@@ -7,13 +7,16 @@ import { PrismaModule } from './common/prisma.module.js';
 import { RequestIdMiddleware } from './common/request-id.middleware.js';
 import { validateEnv } from './config/configuration.js';
 import { AuthGuard } from './modules/auth/auth.guard.js';
+import { AdminModule } from './modules/admin/admin.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CatalogModule } from './modules/catalog/catalog.module.js';
 import { DevicesModule } from './modules/devices/devices.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { InternalModule } from './modules/internal/internal.module.js';
 import { LicensingModule } from './modules/licensing/licensing.module.js';
 import { PlaybackModule } from './modules/playback/playback.module.js';
 import { ProgressModule } from './modules/progress/progress.module.js';
+import { SettingsModule } from './modules/settings/settings.module.js';
 import { StorageModule } from './modules/storage/storage.module.js';
 import { WebhooksModule } from './modules/webhooks/webhooks.module.js';
 
@@ -30,6 +33,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module.js';
     }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     PrismaModule,
+    SettingsModule,
     StorageModule,
     AuthModule,
     DevicesModule,
@@ -38,6 +42,8 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module.js';
     ProgressModule,
     PlaybackModule,
     WebhooksModule,
+    AdminModule,
+    InternalModule,
     HealthModule,
   ],
   providers: [

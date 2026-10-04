@@ -30,3 +30,5 @@ export {
   type LicensePayloadWire,
   type SignedLicense,
 } from './license.signer.js';
+
+export { checkPasswordPolicy, PasswordHasher, type PasswordProblem } from './password.js';

@@ -1,25 +1,30 @@
-import { randomBytes, randomInt, createHash } from 'node:crypto';
-
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import type { AuthSession, DeviceIdentity, TokenPair } from '@tihe/contracts';
+import type {
+  AuthSession,
+  ChangePasswordBody,
+  DeviceIdentity,
+  DeviceLimitDetails,
+  LoginBody,
+  ReplaceDeviceBody,
+  TokenPair,
+} from '@tihe/contracts';
 import { maskPhone } from '@tihe/contracts';
-import * as argon2 from 'argon2';
+import { newId, type User } from '@tihe/db';
 
 import { AppError } from '../../common/app-error.js';
-import { newId } from '@tihe/db';
 import { PrismaService } from '../../common/prisma.service.js';
 import type { Env } from '../../config/configuration.js';
 import { DevicesService } from '../devices/devices.service.js';
-import {
-  checkOtpState,
-  decideOtpRequest,
-  generateOtpCode,
-  type OtpPolicyConfig,
-} from './otp.policy.js';
-import { SMS_PROVIDER, type SmsProvider } from './sms.provider.js';
+import { effectiveDeviceLimit } from '../devices/sessions.js';
+import { SettingsService } from '../settings/settings.service.js';
+import { decideLoginAttempt, type LoginPolicy } from './login.policy.js';
+import { checkPasswordPolicy, PasswordHasher } from '@tihe/crypto';
+import { hashRefreshToken, TokenService } from './tokens.js';
 
+/**
+ * Phone + password sign-in (ADR-0013) with a limit on devices signed in at once (ADR-0014).
+ */
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -27,275 +32,275 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
-    private readonly jwt: JwtService,
+    private readonly tokens: TokenService,
     private readonly devices: DevicesService,
-    @Inject(SMS_PROVIDER) private readonly sms: SmsProvider,
+    private readonly settings: SettingsService,
+    private readonly hasher: PasswordHasher,
   ) {}
 
-  private get policy(): OtpPolicyConfig {
+  private get policy(): LoginPolicy {
     return {
-      ttlSeconds: this.config.getOrThrow('OTP_TTL_SECONDS', { infer: true }),
-      resendAfterSeconds: this.config.getOrThrow('OTP_RESEND_AFTER_SECONDS', { infer: true }),
-      maxPerPhonePerHour: this.config.getOrThrow('OTP_MAX_PER_PHONE_PER_HOUR', { infer: true }),
-      maxPerIpPerHour: this.config.getOrThrow('OTP_MAX_PER_IP_PER_HOUR', { infer: true }),
-      maxAttempts: this.config.getOrThrow('OTP_MAX_ATTEMPTS', { infer: true }),
+      windowMinutes: this.config.getOrThrow('LOGIN_WINDOW_MINUTES', { infer: true }),
+      maxFailuresPerPhone: this.config.getOrThrow('LOGIN_MAX_FAILURES_PER_PHONE', { infer: true }),
+      maxFailuresPerIp: this.config.getOrThrow('LOGIN_MAX_FAILURES_PER_IP', { infer: true }),
     };
   }
 
   /**
-   * Issues an OTP.
+   * Signs in with phone and password.
    *
-   * The response is identical whether or not the number belongs to a registered student. Anything
-   * else turns this endpoint into a way to enumerate who studies at the institute.
+   * An unknown number and a wrong password give the same INVALID_CREDENTIALS after the same work,
+   * so this endpoint cannot be used to find out who studies at the institute.
    */
-  async requestOtp(phone: string, ip: string | undefined, userAgent: string | undefined) {
+  async login(body: LoginBody, ip: string | undefined): Promise<AuthSession> {
     const now = new Date();
-    const hourAgo = new Date(now.getTime() - 3_600_000);
-    const policy = this.policy;
+    const since = new Date(now.getTime() - this.policy.windowMinutes * 60_000);
 
-    const [recentForPhone, recentForIpCount] = await Promise.all([
-      this.prisma.otpCode.findMany({
-        where: { phone, createdAt: { gt: hourAgo } },
-        select: { createdAt: true, consumedAt: true },
+    const [phoneFailures, ipFailures] = await Promise.all([
+      this.prisma.loginAttempt.findMany({
+        where: { phone: body.phone, succeeded: false, createdAt: { gt: since } },
+        select: { createdAt: true },
       }),
       ip
-        ? this.prisma.otpCode.count({ where: { ip, createdAt: { gt: hourAgo } } })
-        : Promise.resolve(0),
+        ? this.prisma.loginAttempt.findMany({
+            where: { ip, succeeded: false, createdAt: { gt: since } },
+            select: { createdAt: true },
+          })
+        : Promise.resolve([]),
     ]);
 
-    const decision = decideOtpRequest(now, policy, recentForPhone, recentForIpCount);
+    const decision = decideLoginAttempt(
+      now,
+      this.policy,
+      phoneFailures.map((f) => f.createdAt),
+      ipFailures.map((f) => f.createdAt),
+    );
     if (!decision.allowed) {
-      this.logger.warn(`OTP refused for ${maskPhone(phone)}: ${decision.reason}`);
-      throw new AppError('OTP_RATE_LIMITED', decision.reason, {
-        ...(decision.reason === 'resend_too_soon'
-          ? { retryAfterSeconds: decision.retryAfterSeconds }
-          : {}),
+      this.logger.warn(`sign-in refused for ${maskPhone(body.phone)}: rate limited`);
+      throw new AppError('LOGIN_RATE_LIMITED', 'too many failed sign-ins', {
+        retryAfterSeconds: decision.retryAfterSeconds,
       });
     }
 
-    const code = generateOtpCode(this.config.getOrThrow('OTP_LENGTH', { infer: true }), (max) =>
-      randomInt(max),
-    );
+    const user = await this.prisma.user.findUnique({ where: { phone: body.phone } });
+    const ok = user?.passwordHash
+      ? await this.hasher.verify(user.passwordHash, body.password)
+      : await this.hasher.verifyAgainstNothing(body.password);
 
-    const record = await this.prisma.otpCode.create({
-      data: {
-        id: newId('user').replace('usr_', 'otp_'),
-        phone,
-        codeHash: await this.hashOtp(phone, code),
-        expiresAt: new Date(now.getTime() + policy.ttlSeconds * 1000),
-        ip: ip ?? null,
-        userAgent: userAgent?.slice(0, 256) ?? null,
-      },
+    await this.prisma.loginAttempt.create({
+      data: { id: newId('loginAttempt'), phone: body.phone, ip: ip ?? null, succeeded: ok },
     });
 
-    await this.sms.sendOtp(phone, code);
+    if (!ok || !user) throw new AppError('INVALID_CREDENTIALS');
+    if (user.status === 'suspended') throw new AppError('ACCOUNT_SUSPENDED');
 
-    return {
-      requestId: record.id,
-      expiresInSeconds: policy.ttlSeconds,
-      resendAfterSeconds: policy.resendAfterSeconds,
-      // Only the console driver exposes the code, and only so local development does not need a
-      // real SMS gateway.
-      ...(this.sms.exposesCode ? { devCode: code } : {}),
-    };
-  }
-
-  /**
-   * Verifies a code and signs the user in, registering the device if it is new.
-   *
-   * Device registration happens here rather than in a separate call so a student never ends up
-   * authenticated but unable to play anything for lack of a registered device.
-   */
-  async verifyOtp(
-    phone: string,
-    code: string,
-    device: DeviceIdentity,
-    ip?: string,
-  ): Promise<AuthSession> {
-    const now = new Date();
-    const policy = this.policy;
-
-    const record = await this.prisma.otpCode.findFirst({
-      where: { phone },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (!record) {
-      throw new AppError('OTP_INVALID', 'no code was requested for this number');
-    }
-
-    const state = checkOtpState(now, policy, record);
-    if (state === 'expired') throw new AppError('OTP_EXPIRED');
-    if (state === 'consumed') throw new AppError('OTP_INVALID', 'code already used');
-    if (state === 'too_many_attempts') {
-      throw new AppError('OTP_RATE_LIMITED', 'too many attempts for this code');
-    }
-
-    const matches = await argon2.verify(record.codeHash, this.otpMaterial(phone, code));
-    if (!matches) {
-      // Count the failure before returning, so a brute-force attempt exhausts the allowance even
-      // though each individual response looks the same.
-      await this.prisma.otpCode.update({
-        where: { id: record.id },
-        data: { attemptCount: { increment: 1 } },
-      });
-      throw new AppError('OTP_INVALID');
-    }
-
-    await this.prisma.otpCode.update({
-      where: { id: record.id },
-      data: { consumedAt: now, attemptCount: { increment: 1 } },
-    });
-
-    const user =
-      (await this.prisma.user.findUnique({ where: { phone } })) ??
-      (await this.prisma.user.create({ data: { id: newId('user'), phone } }));
-
-    if (user.status === 'suspended') {
-      throw AppError.forbidden('account suspended');
-    }
-
-    const registered = await this.devices.registerOrUpdate(user.id, device);
-    const tokens = await this.issueTokens(user.id, registered.id);
-
-    // The IP is logged for abuse investigation — a single address signing in as many students is
-    // the pattern worth seeing. The phone number is masked, as everywhere.
+    const session = await this.signInDevice(user, body.device, now);
     this.logger.log(
-      `sign-in ${maskPhone(phone)} on ${registered.platform} (${registered.id}) from ${ip ?? 'unknown'}`,
+      `sign-in ${maskPhone(user.phone)} on ${session.device.platform} (${session.device.id}) ` +
+        `from ${ip ?? 'unknown'}`,
     );
+    return session;
+  }
 
-    return {
-      tokens,
-      user: {
-        id: user.id,
-        phoneMasked: maskPhone(user.phone),
-        displayName: user.displayName,
+  /**
+   * Finishes a sign-in that hit the device limit: signs the chosen device out, then signs this
+   * one in. The ticket proves the password was right a few minutes ago, on this device.
+   */
+  async replaceDevice(body: ReplaceDeviceBody): Promise<AuthSession> {
+    const ticket = await this.tokens.verifyDeviceLimitTicket(body.ticket);
+    if (
+      !ticket ||
+      ticket.fingerprintHash !== this.devices.hashFingerprint(body.device.fingerprint)
+    ) {
+      throw new AppError('TOKEN_EXPIRED', 'device-limit ticket invalid or expired');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: ticket.userId } });
+    if (!user) throw new AppError('TOKEN_EXPIRED', 'device-limit ticket invalid or expired');
+    if (user.status === 'suspended') throw new AppError('ACCOUNT_SUSPENDED');
+
+    const session = await this.signInDevice(user, body.device, new Date(), body.signOutDeviceId);
+    this.logger.log(
+      `sign-in ${maskPhone(user.phone)} on ${session.device.id} after signing out ` +
+        `${body.signOutDeviceId}`,
+    );
+    return session;
+  }
+
+  /**
+   * Registers the device if it is new and starts a session on it, or refuses with the devices
+   * already signed in.
+   *
+   * The user row is locked for the whole check, so two devices signing in at the same moment
+   * cannot both take the last slot.
+   */
+  private async signInDevice(
+    user: User,
+    identity: DeviceIdentity,
+    now: Date,
+    signOutDeviceId?: string,
+  ): Promise<AuthSession> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${user.id} FOR UPDATE`;
+
+      const device = await this.devices.registerOrUpdate(tx, user.id, identity);
+
+      if (signOutDeviceId) {
+        const target = await tx.device.findFirst({
+          where: { id: signOutDeviceId, userId: user.id },
+        });
+        if (!target) throw AppError.notFound('device');
+        if (target.id !== device.id) await this.devices.endSession(tx, target.id, now);
+      }
+
+      const limit = effectiveDeviceLimit(
+        user.maxDevices,
+        await this.settings.defaultMaxDevices(tx),
+      );
+      const others = await this.devices.signedInOthers(tx, user.id, device.id, now);
+
+      if (others.length >= limit) {
+        return {
+          kind: 'refused',
+          limit,
+          devices: others.map((d) => this.devices.toSignedInDto(d)),
+          fingerprintHash: device.fingerprintHash,
+        } as const;
+      }
+
+      const sessionId = await this.devices.startSession(
+        tx,
+        device.id,
+        now,
+        this.tokens.refreshTtlMs,
+      );
+      const tokens = await this.tokens.issue(tx, {
+        userId: user.id,
         role: user.role,
-        status: user.status,
-        createdAt: user.createdAt.toISOString(),
-      },
-      device: await this.devices.toDto(registered, registered.id),
+        deviceId: device.id,
+        sessionId,
+      });
+      return { kind: 'signed-in', deviceId: device.id, tokens } as const;
+    });
+
+    if (result.kind === 'refused') {
+      // Thrown after the transaction, so a device seen for the first time is still registered and
+      // the ticket refers to a row that exists.
+      const { ticket, expiresAt } = await this.tokens.deviceLimitTicket(
+        user.id,
+        result.fingerprintHash,
+      );
+      const details: DeviceLimitDetails = {
+        limit: result.limit,
+        devices: result.devices,
+        ticket,
+        ticketExpiresAt: expiresAt,
+      };
+      throw new AppError('DEVICE_LIMIT_REACHED', `device limit of ${details.limit} reached`, {
+        ...details,
+      });
+    }
+
+    const device = await this.prisma.device.findUniqueOrThrow({ where: { id: result.deviceId } });
+    return {
+      tokens: result.tokens,
+      user: this.userDto(user),
+      device: await this.devices.toDto(device, device.id),
     };
   }
 
   /**
-   * Rotates a refresh token.
+   * Rotates a refresh token and slides the session forward.
    *
    * Refresh tokens are single-use. Presenting a consumed one is not a race to tolerate — it means
-   * the token was captured, so the entire device session is revoked and the client must sign in
-   * again. Losing a legitimate session occasionally is the right trade against a silent takeover.
+   * the token was captured, so the device is signed out and must sign in again.
    */
   async refresh(refreshToken: string): Promise<TokenPair> {
-    const tokenHash = this.hashToken(refreshToken);
+    const now = new Date();
     const stored = await this.prisma.refreshToken.findUnique({
-      where: { tokenHash },
-      include: { device: true },
+      where: { tokenHash: hashRefreshToken(refreshToken) },
+      include: { device: true, user: true },
     });
 
     if (!stored) throw new AppError('TOKEN_EXPIRED', 'unknown refresh token');
 
     if (stored.usedAt || stored.revokedAt) {
-      this.logger.warn(
-        `refresh token reuse detected for device ${stored.deviceId}; revoking session`,
+      if (stored.usedAt && !stored.revokedAt) {
+        this.logger.warn(`refresh token reuse on device ${stored.deviceId}; signing it out`);
+        await this.prisma.$transaction((tx) => this.devices.endSession(tx, stored.deviceId, now));
+      }
+      throw new AppError(
+        stored.device.sessionId ? 'TOKEN_EXPIRED' : 'DEVICE_SIGNED_OUT',
+        'refresh token no longer valid',
       );
-      await this.prisma.refreshToken.updateMany({
-        where: { deviceId: stored.deviceId, revokedAt: null },
-        data: { revokedAt: new Date() },
+    }
+    if (stored.expiresAt <= now) throw new AppError('TOKEN_EXPIRED');
+    if (stored.device.revokedAt) throw new AppError('DEVICE_REVOKED');
+    if (!stored.device.sessionId) throw new AppError('DEVICE_SIGNED_OUT');
+    if (stored.user.status === 'suspended') throw new AppError('ACCOUNT_SUSPENDED');
+
+    const sessionId = stored.device.sessionId;
+    return this.prisma.$transaction(async (tx) => {
+      // Conditional on still being unused, so two concurrent refreshes cannot both succeed.
+      const claimed = await tx.refreshToken.updateMany({
+        where: { id: stored.id, usedAt: null, revokedAt: null },
+        data: { usedAt: now },
       });
-      throw new AppError('TOKEN_EXPIRED', 'refresh token already used');
-    }
+      if (claimed.count !== 1) throw new AppError('TOKEN_EXPIRED', 'refresh token already used');
 
-    if (stored.expiresAt < new Date()) {
-      throw new AppError('TOKEN_EXPIRED');
-    }
-
-    if (stored.device.revokedAt) {
-      throw new AppError('DEVICE_REVOKED');
-    }
-
-    await this.prisma.refreshToken.update({
-      where: { id: stored.id },
-      data: { usedAt: new Date() },
+      await this.devices.extendSession(
+        tx,
+        stored.deviceId,
+        new Date(now.getTime() + this.tokens.refreshTtlMs),
+      );
+      return this.tokens.issue(tx, {
+        userId: stored.userId,
+        role: stored.user.role,
+        deviceId: stored.deviceId,
+        sessionId,
+      });
     });
-
-    return this.issueTokens(stored.userId, stored.deviceId);
   }
 
+  /** Signs this device out, which frees its slot. */
   async logout(deviceId: string): Promise<void> {
-    await this.prisma.refreshToken.updateMany({
-      where: { deviceId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
+    await this.prisma.$transaction((tx) => this.devices.endSession(tx, deviceId, new Date()));
   }
 
-  private async issueTokens(userId: string, deviceId: string): Promise<TokenPair> {
-    const accessTtl = this.config.getOrThrow('ACCESS_TOKEN_TTL', { infer: true });
-    const refreshTtl = this.config.getOrThrow('REFRESH_TOKEN_TTL', { infer: true });
+  async changePassword(userId: string, deviceId: string, body: ChangePasswordBody): Promise<void> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const ok = user.passwordHash
+      ? await this.hasher.verify(user.passwordHash, body.currentPassword)
+      : false;
+    if (!ok) throw new AppError('INVALID_CREDENTIALS', 'current password is wrong');
 
-    // The device id is inside the access token, so every downstream check — playback, downloads,
-    // licences — knows which device is asking without trusting a body parameter.
-    const accessToken = await this.jwt.signAsync(
-      { sub: userId, did: deviceId },
-      { expiresIn: accessTtl },
-    );
+    const problem = checkPasswordPolicy(body.newPassword, user.phone);
+    if (problem) throw new AppError('PASSWORD_TOO_WEAK', problem);
+    if (body.newPassword === body.currentPassword) {
+      throw new AppError('PASSWORD_TOO_WEAK', 'same as the current password');
+    }
 
-    const refreshToken = randomBytes(48).toString('base64url');
-    const refreshExpiresAt = new Date(Date.now() + parseDuration(refreshTtl));
-
-    await this.prisma.refreshToken.create({
-      data: {
-        id: newId('user').replace('usr_', 'rt_'),
-        userId,
-        deviceId,
-        tokenHash: this.hashToken(refreshToken),
-        expiresAt: refreshExpiresAt,
-      },
+    const now = new Date();
+    const passwordHash = await this.hasher.hash(body.newPassword);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { passwordHash, passwordChangedAt: now, mustChangePassword: false },
+      });
+      if (body.signOutOtherDevices) await this.devices.endAllSessions(tx, userId, now, deviceId);
     });
+    this.logger.log(`password changed for user ${userId}`);
+  }
 
-    const decoded = this.jwt.decode(accessToken) as { exp: number };
-
+  userDto(user: User): AuthSession['user'] {
     return {
-      accessToken,
-      refreshToken,
-      accessExpiresAt: new Date(decoded.exp * 1000).toISOString(),
-      refreshExpiresAt: refreshExpiresAt.toISOString(),
+      id: user.id,
+      phoneMasked: maskPhone(user.phone),
+      displayName: user.displayName,
+      role: user.role,
+      status: user.status,
+      mustChangePassword: user.mustChangePassword,
+      createdAt: user.createdAt.toISOString(),
     };
   }
-
-  /** Argon2 with a server-side pepper: a stolen database cannot be brute-forced for live codes. */
-  private async hashOtp(phone: string, code: string): Promise<string> {
-    return argon2.hash(this.otpMaterial(phone, code), { type: argon2.argon2id });
-  }
-
-  /** Binding the phone into the hash stops a code issued for one number verifying another. */
-  private otpMaterial(phone: string, code: string): string {
-    const pepper = this.config.getOrThrow('OTP_PEPPER', { infer: true });
-    return `${pepper}:${phone}:${code}`;
-  }
-
-  /**
-   * Refresh tokens are stored hashed, not encrypted: the API never needs to read one back, only to
-   * recognise it. SHA-256 rather than Argon2 because these are 48 random bytes, not a password —
-   * there is nothing to brute-force, and the lookup is on the hot path.
-   */
-  private hashToken(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
-  }
-}
-
-/** Parses the `15m` / `30d` forms used in configuration. */
-export function parseDuration(value: string): number {
-  const match = /^(\d+)([smhd])$/.exec(value.trim());
-  if (!match) throw new Error(`invalid duration: ${value}`);
-  const amount = Number(match[1]);
-  const unit = match[2];
-  const multipliers: Record<string, number> = {
-    s: 1000,
-    m: 60_000,
-    h: 3_600_000,
-    d: 86_400_000,
-  };
-  const multiplier = unit === undefined ? undefined : multipliers[unit];
-  if (multiplier === undefined) throw new Error(`invalid duration unit in: ${value}`);
-  return amount * multiplier;
 }

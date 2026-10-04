@@ -2,7 +2,7 @@
   "name": "@tihe/crypto",
   "version": "0.1.0",
   "private": true,
-  "description": "Server-side cryptography: content keys, KEK wrapping, device key wrapping, licence signing",
+  "description": "Server-side cryptography: content keys, KEK wrapping, device key wrapping, licence signing, password hashing",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -23,7 +23,8 @@
     "emit-fixtures": "tsx tools/emit-license-fixture.ts"
   },
   "dependencies": {
-    "cbor-x": "^1.6.0"
+    "cbor-x": "^1.6.0",
+    "argon2": "^0.41.1"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

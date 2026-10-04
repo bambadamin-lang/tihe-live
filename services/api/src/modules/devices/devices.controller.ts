@@ -13,8 +13,8 @@ export class DevicesController {
   @ApiOperation({
     summary: "List the user's devices",
     description:
-      'Includes what each device holds offline, so the student can decide which one to release ' +
-      'when they hit the device limit.',
+      'Signed-in devices first: they count towards the limit of devices signed in at once. ' +
+      'Includes what each holds offline, so the student can see what signing one out costs.',
   })
   async list(@CurrentUser() auth: AuthContext) {
     return { items: await this.devices.listForUser(auth.userId, auth.deviceId) };
@@ -23,12 +23,12 @@ export class DevicesController {
   @Delete(':id')
   @HttpCode(204)
   @ApiOperation({
-    summary: 'Release a device',
+    summary: 'Sign a device out',
     description:
-      'Revokes the device, ends its sessions, and expires its offline downloads — otherwise the ' +
-      'released machine would keep playing content it already holds.',
+      'Frees its slot, ends its sessions and playback, and expires its offline downloads — ' +
+      'otherwise the signed-out machine would keep playing content it already holds.',
   })
-  async release(@CurrentUser() auth: AuthContext, @Param('id') id: string) {
-    await this.devices.release(auth.userId, id);
+  async signOut(@CurrentUser() auth: AuthContext, @Param('id') id: string) {
+    await this.devices.signOut(auth.userId, id);
   }
 }

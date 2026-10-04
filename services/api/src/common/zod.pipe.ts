@@ -1,5 +1,5 @@
 import { type ArgumentMetadata, Injectable, type PipeTransform } from '@nestjs/common';
-import type { ZodSchema } from 'zod';
+import type { ZodSchema, z } from 'zod';
 
 /**
  * Validates a payload against a schema from @tihe/contracts.
@@ -16,4 +16,12 @@ export class ZodValidationPipe implements PipeTransform {
   transform(value: unknown, _metadata: ArgumentMetadata) {
     return this.schema.parse(value);
   }
+}
+
+/**
+ * Parses one value against a schema, for routes with more than one input (a path id and a body).
+ * A ZodError becomes VALIDATION_FAILED in the global error filter, like the pipe's.
+ */
+export function parseOrThrow<S extends ZodSchema>(schema: S, value: unknown): z.infer<S> {
+  return schema.parse(value) as z.infer<S>;
 }

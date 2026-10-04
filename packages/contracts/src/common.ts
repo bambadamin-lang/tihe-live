@@ -17,6 +17,9 @@ export const ID_PREFIXES = {
   download: 'dl',
   recording: 'rec',
   playbackSession: 'ps',
+  refreshToken: 'rt',
+  loginAttempt: 'lgn',
+  enrollment: 'enr',
   chapter: 'chp',
   attachment: 'att',
   quiz: 'qz',
@@ -130,6 +133,16 @@ export const ERROR_CODES = [
   'CAPABILITY_MISSING',
   'REMOVED_FROM_CLASS',
   'JOINED_ELSEWHERE',
+  // Phone + password accounts (ADR-0013) and devices signed in at once (ADR-0014)
+  'INVALID_CREDENTIALS',
+  'LOGIN_RATE_LIMITED',
+  'PASSWORD_TOO_WEAK',
+  'PASSWORD_CHANGE_REQUIRED',
+  'DEVICE_SIGNED_OUT',
+  'ACCOUNT_SUSPENDED',
+  'PHONE_TAKEN',
+  // Recording detected and not stopped in time (ADR-0011, amended)
+  'REMOVED_FOR_RECORDING',
 ] as const;
 
 export const errorCodeSchema = z.enum(ERROR_CODES);

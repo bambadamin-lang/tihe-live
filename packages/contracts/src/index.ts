@@ -16,6 +16,7 @@ export * from './entities/catalog.js';
 export * from './entities/protection.js';
 
 export * from './endpoints/auth.js';
+export * from './endpoints/admin.js';
 export * from './endpoints/catalog.js';
 export * from './endpoints/progress.js';
 export * from './endpoints/playback.js';

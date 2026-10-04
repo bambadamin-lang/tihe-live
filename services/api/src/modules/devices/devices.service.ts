@@ -1,48 +1,48 @@
+import { createHash, randomBytes } from 'node:crypto';
+
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import type { Device as DeviceDto, DeviceIdentity } from '@tihe/contracts';
-import type { Device } from '@tihe/db';
-import { createHash } from 'node:crypto';
+import type { Device as DeviceDto, DeviceIdentity, SignedInDevice } from '@tihe/contracts';
+import { newId, type Device, type Prisma } from '@tihe/db';
 
 import { AppError } from '../../common/app-error.js';
-import { newId } from '@tihe/db';
 import { PrismaService } from '../../common/prisma.service.js';
-import type { Env } from '../../config/configuration.js';
+import { isSignedIn } from './sessions.js';
+
+type Db = PrismaService | Prisma.TransactionClient;
 
 /**
- * Device registration and the device allowance.
+ * Devices and their sign-in sessions (ADR-0014).
  *
  * Devices are the anchor of offline protection: content keys are wrapped to a device's public key,
- * never to a user, so this table is what decides whether a downloaded file can ever be opened.
+ * never to a user, so this table is what decides whether a downloaded file can ever be opened. The
+ * session on each row is what decides whether the device counts towards the limit of devices
+ * signed in at once.
  */
 @Injectable()
 export class DevicesService {
   private readonly logger = new Logger(DevicesService.name);
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly config: ConfigService<Env, true>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Registers a device, or updates the record of one already seen.
+   * Registers a device, or updates the record of one already seen. Does not check the limit: that
+   * happens when a session starts, inside the same locked transaction.
    *
    * Keyed on the fingerprint hash so reopening the app, or reinstalling without losing app data,
-   * does not consume a second slot. A returning device that was revoked stays revoked — the
-   * student must release it deliberately.
+   * reuses the row. A revoked device stays revoked: an admin barred it.
    */
-  async registerOrUpdate(userId: string, identity: DeviceIdentity): Promise<Device> {
+  async registerOrUpdate(db: Db, userId: string, identity: DeviceIdentity): Promise<Device> {
     const fingerprintHash = this.hashFingerprint(identity.fingerprint);
 
-    const existing = await this.prisma.device.findUnique({
+    const existing = await db.device.findUnique({
       where: { userId_fingerprintHash: { userId, fingerprintHash } },
     });
 
     if (existing) {
       if (existing.revokedAt) {
-        throw new AppError('DEVICE_REVOKED', 'this device was released and must be re-added');
+        throw new AppError('DEVICE_REVOKED', 'this device was barred for this account');
       }
-      return this.prisma.device.update({
+      return db.device.update({
         where: { id: existing.id },
         data: {
           name: identity.name,
@@ -57,9 +57,7 @@ export class DevicesService {
       });
     }
 
-    await this.assertSlotAvailable(userId);
-
-    const device = await this.prisma.device.create({
+    const device = await db.device.create({
       data: {
         id: newId('device'),
         userId,
@@ -78,89 +76,126 @@ export class DevicesService {
     return device;
   }
 
-  /**
-   * Enforces the device allowance.
-   *
-   * Counted over non-revoked devices only, so releasing a device genuinely frees the slot rather
-   * than leaving the student stuck with a number they cannot reduce.
-   */
-  private async assertSlotAvailable(userId: string): Promise<void> {
-    const limit = await this.limitFor(userId);
-    const active = await this.prisma.device.count({ where: { userId, revokedAt: null } });
-
-    if (active >= limit) {
-      throw new AppError('DEVICE_LIMIT_REACHED', `device limit of ${limit} reached`, {
-        limit,
-        active,
-      });
-    }
-  }
-
-  /**
-   * The allowance for a user: the most generous of their enrolled courses, falling back to the
-   * global default.
-   *
-   * Taking the maximum rather than the minimum is deliberate — a student enrolled in one strict
-   * course and one lenient one should not be locked down to the strict course's limit for
-   * everything. Per-course enforcement happens at playback, where the course is known.
-   */
-  async limitFor(userId: string): Promise<number> {
-    const fallback = this.config.getOrThrow('DEFAULT_MAX_DEVICES', { infer: true });
-
-    const result = await this.prisma.enrollment.findMany({
-      where: { userId, status: 'active' },
-      select: { course: { select: { maxDevices: true } } },
+  /** The account's devices signed in right now, other than `exceptDeviceId`. */
+  signedInOthers(db: Db, userId: string, exceptDeviceId: string, now: Date): Promise<Device[]> {
+    return db.device.findMany({
+      where: {
+        userId,
+        id: { not: exceptDeviceId },
+        revokedAt: null,
+        sessionId: { not: null },
+        sessionExpiresAt: { gt: now },
+      },
+      orderBy: [{ lastSeenAt: 'desc' }, { createdAt: 'desc' }],
     });
-
-    if (result.length === 0) return fallback;
-    return Math.max(...result.map((e) => e.course.maxDevices));
   }
 
-  async listForUser(userId: string, currentDeviceId: string): Promise<DeviceDto[]> {
-    const devices = await this.prisma.device.findMany({
-      where: { userId, revokedAt: null },
-      orderBy: { createdAt: 'asc' },
+  countSignedIn(db: Db, userId: string, now: Date): Promise<number> {
+    return db.device.count({
+      where: { userId, revokedAt: null, sessionId: { not: null }, sessionExpiresAt: { gt: now } },
     });
-
-    return Promise.all(devices.map((d) => this.toDto(d, currentDeviceId)));
   }
 
   /**
-   * Releases a device: revokes it, kills its sessions, and expires whatever it holds offline.
-   *
-   * Expiring the downloads matters — without it, a student could release a device to free a slot
-   * while the released machine keeps playing everything it already has.
+   * Starts a new sign-in on a device. The session id goes into every access token as `sid`, so
+   * ending the session ends those tokens at once rather than when they expire.
    */
-  async release(userId: string, deviceId: string): Promise<void> {
+  async startSession(db: Db, deviceId: string, now: Date, ttlMs: number): Promise<string> {
+    const sessionId = randomBytes(18).toString('base64url');
+    // A sign-in replaces whatever session the device had: its old refresh tokens die with it.
+    await db.refreshToken.updateMany({
+      where: { deviceId, revokedAt: null },
+      data: { revokedAt: now },
+    });
+    await db.device.update({
+      where: { id: deviceId },
+      data: {
+        sessionId,
+        sessionStartedAt: now,
+        sessionExpiresAt: new Date(now.getTime() + ttlMs),
+        lastSeenAt: now,
+      },
+    });
+    return sessionId;
+  }
+
+  /** Every refresh slides the session forward, so only an idle device times out. */
+  async extendSession(db: Db, deviceId: string, until: Date): Promise<void> {
+    await db.device.update({
+      where: { id: deviceId },
+      data: { sessionExpiresAt: until, lastSeenAt: new Date() },
+    });
+  }
+
+  /**
+   * Signs a device out: ends its session, its refresh tokens, its playback, and whatever it holds
+   * offline.
+   *
+   * Expiring the downloads matters — without it, signing a device out to free a slot and signing
+   * in elsewhere would leave the first device playing everything it already has, and more than N
+   * devices could watch at once. An offline device learns of it at its next contact, bounded by
+   * the offline window (docs/03, Layer 5).
+   */
+  async endSession(db: Db, deviceId: string, now: Date): Promise<void> {
+    await db.device.update({
+      where: { id: deviceId },
+      data: { sessionId: null, sessionExpiresAt: null },
+    });
+    await db.refreshToken.updateMany({
+      where: { deviceId, revokedAt: null },
+      data: { revokedAt: now },
+    });
+    await db.download.updateMany({
+      where: { deviceId, state: { in: ['queued', 'downloading', 'complete'] } },
+      data: { state: 'expired', expiresAt: now },
+    });
+    await db.licenseDevice.updateMany({
+      where: { deviceId, releasedAt: null },
+      data: { releasedAt: now },
+    });
+    await db.playbackSession.updateMany({
+      where: { deviceId, endedAt: null },
+      data: { endedAt: now },
+    });
+  }
+
+  /** Signs out every device of an account, e.g. after an admin sets a new password. */
+  async endAllSessions(db: Db, userId: string, now: Date, exceptDeviceId?: string): Promise<void> {
+    const devices = await db.device.findMany({
+      where: {
+        userId,
+        sessionId: { not: null },
+        ...(exceptDeviceId ? { id: { not: exceptDeviceId } } : {}),
+      },
+      select: { id: true },
+    });
+    for (const device of devices) await this.endSession(db, device.id, now);
+  }
+
+  /** Signs out one of the caller's own devices: from the account screen or another device. */
+  async signOut(userId: string, deviceId: string): Promise<void> {
     const device = await this.prisma.device.findFirst({ where: { id: deviceId, userId } });
     if (!device) throw AppError.notFound('device');
-
-    const now = new Date();
-
-    await this.prisma.$transaction([
-      this.prisma.device.update({ where: { id: deviceId }, data: { revokedAt: now } }),
-      this.prisma.refreshToken.updateMany({
-        where: { deviceId, revokedAt: null },
-        data: { revokedAt: now },
-      }),
-      this.prisma.download.updateMany({
-        where: { deviceId, state: { in: ['queued', 'downloading', 'complete'] } },
-        data: { state: 'expired', expiresAt: now },
-      }),
-      this.prisma.licenseDevice.updateMany({
-        where: { deviceId, releasedAt: null },
-        data: { releasedAt: now },
-      }),
-      this.prisma.playbackSession.updateMany({
-        where: { deviceId, endedAt: null },
-        data: { endedAt: now },
-      }),
-    ]);
-
-    this.logger.log(`released device ${deviceId} for user ${userId}`);
+    await this.prisma.$transaction((tx) => this.endSession(tx, deviceId, new Date()));
+    this.logger.log(`signed out device ${deviceId} of user ${userId}`);
   }
 
-  async toDto(device: Device, currentDeviceId: string): Promise<DeviceDto> {
+  /** The account's devices, signed-in ones first. Revoked devices are not shown. */
+  async listForUser(userId: string, currentDeviceId: string): Promise<DeviceDto[]> {
+    const now = new Date();
+    const devices = await this.prisma.device.findMany({
+      where: { userId, revokedAt: null },
+      orderBy: [{ lastSeenAt: 'desc' }, { createdAt: 'desc' }],
+    });
+    const dtos = await Promise.all(devices.map((d) => this.toDto(d, currentDeviceId, now)));
+    return dtos.sort((a, b) => Number(b.signedIn) - Number(a.signedIn));
+  }
+
+  async toDto(
+    device: Device,
+    currentDeviceId: string | null,
+    now = new Date(),
+  ): Promise<DeviceDto> {
     const offlineVideoCount = await this.prisma.download.count({
       where: { deviceId: device.id, state: 'complete' },
     });
@@ -173,7 +208,19 @@ export class DevicesService {
       revokedAt: device.revokedAt?.toISOString() ?? null,
       lastSeenAt: device.lastSeenAt?.toISOString() ?? null,
       isCurrent: device.id === currentDeviceId,
+      signedIn: isSignedIn(device, now),
+      signedInAt: isSignedIn(device, now) ? (device.sessionStartedAt?.toISOString() ?? null) : null,
       offlineVideoCount,
+    };
+  }
+
+  toSignedInDto(device: Device): SignedInDevice {
+    return {
+      id: device.id,
+      platform: device.platform,
+      name: device.name,
+      signedInAt: device.sessionStartedAt?.toISOString() ?? null,
+      lastSeenAt: device.lastSeenAt?.toISOString() ?? null,
     };
   }
 
@@ -184,7 +231,7 @@ export class DevicesService {
    * string the client holds, so a database leak does not hand an attacker values they could replay
    * as another student's device.
    */
-  private hashFingerprint(fingerprint: string): string {
+  hashFingerprint(fingerprint: string): string {
     return createHash('sha256').update(`tihe-device:${fingerprint}`).digest('hex');
   }
 }

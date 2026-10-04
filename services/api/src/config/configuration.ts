@@ -39,22 +39,21 @@ export const envSchema = z.object({
   LICENSE_PRIVATE_KEY_BASE64: z.string().min(1, 'LICENSE_PRIVATE_KEY_BASE64 is required'),
   LICENSE_PUBLIC_KEY_BASE64: z.string().min(1, 'LICENSE_PUBLIC_KEY_BASE64 is required'),
   JWT_SECRET: base64of(32, 'JWT_SECRET'),
-  OTP_PEPPER: base64of(16, 'OTP_PEPPER'),
+  /** Mixed into every password hash, so a database dump alone cannot be brute-forced. */
+  PASSWORD_PEPPER: base64of(16, 'PASSWORD_PEPPER'),
+  /** Shared with services/live, which calls the internal directory with it (ADR-0012). */
+  INTERNAL_API_TOKEN: z.string().min(32, 'INTERNAL_API_TOKEN must be at least 32 characters'),
 
   ACCESS_TOKEN_TTL: z.string().default('15m'),
   REFRESH_TOKEN_TTL: z.string().default('30d'),
 
-  SMS_PROVIDER: z.enum(['console', 'kavenegar']).default('console'),
-  SMS_API_KEY: z.string().optional(),
-  SMS_SENDER: z.string().optional(),
-  OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(5),
-  OTP_TTL_SECONDS: z.coerce.number().int().positive().default(120),
-  OTP_RESEND_AFTER_SECONDS: z.coerce.number().int().positive().default(60),
-  OTP_MAX_PER_PHONE_PER_HOUR: z.coerce.number().int().positive().default(5),
-  OTP_MAX_PER_IP_PER_HOUR: z.coerce.number().int().positive().default(20),
-  OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+  /** Failed sign-ins allowed per phone number, and per address, within the window. */
+  LOGIN_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
+  LOGIN_MAX_FAILURES_PER_PHONE: z.coerce.number().int().positive().default(10),
+  LOGIN_MAX_FAILURES_PER_IP: z.coerce.number().int().positive().default(50),
 
-  DEFAULT_MAX_DEVICES: z.coerce.number().int().positive().default(2),
+  /** Devices signed in at once, until an admin sets the institute default in the app. */
+  DEFAULT_MAX_DEVICES: z.coerce.number().int().min(1).max(20).default(2),
   DEFAULT_MAX_CONCURRENT_STREAMS: z.coerce.number().int().positive().default(1),
   DEFAULT_OFFLINE_WINDOW_DAYS: z.coerce.number().int().positive().default(30),
   PLAYBACK_SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(7200),

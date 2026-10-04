@@ -1,21 +1,22 @@
 import { Body, Controller, Get, HttpCode, Post, Req, UsePipes } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
-  maskPhone,
-  otpRequestBodySchema,
-  otpVerifyBodySchema,
+  changePasswordBodySchema,
+  loginBodySchema,
   refreshBodySchema,
-  type OtpRequestBody,
-  type OtpVerifyBody,
+  replaceDeviceBodySchema,
+  type ChangePasswordBody,
+  type LoginBody,
   type RefreshBody,
+  type ReplaceDeviceBody,
 } from '@tihe/contracts';
 import type { Request } from 'express';
 
 import { PrismaService } from '../../common/prisma.service.js';
 import { ZodValidationPipe } from '../../common/zod.pipe.js';
 import { DevicesService } from '../devices/devices.service.js';
+import { AllowPendingPasswordChange, Public } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
-import { Public } from './auth.guard.js';
 import { CurrentUser, type AuthContext } from './current-user.decorator.js';
 
 @ApiTags('auth')
@@ -28,41 +29,43 @@ export class AuthController {
   ) {}
 
   @Public()
-  @Post('otp/request')
-  @UsePipes(new ZodValidationPipe(otpRequestBodySchema))
+  @Post('login')
+  @HttpCode(200)
+  @UsePipes(new ZodValidationPipe(loginBodySchema))
   @ApiOperation({
-    summary: 'Request an SMS code',
+    summary: 'Sign in with phone and password',
     description:
-      'The response is identical whether or not the number belongs to a registered student, so ' +
-      'this endpoint cannot be used to enumerate who studies here. In development the code is ' +
-      'returned as devCode and also printed to the API log.',
+      'An unknown number and a wrong password answer the same INVALID_CREDENTIALS. When the ' +
+      'account already has its limit of devices signed in, answers DEVICE_LIMIT_REACHED with ' +
+      'those devices and a five-minute ticket for POST /auth/login/replace.',
   })
-  async requestOtp(@Body() body: OtpRequestBody, @Req() req: Request) {
-    return this.auth.requestOtp(body.phone, req.ip, req.header('user-agent'));
+  async login(@Body() body: LoginBody, @Req() req: Request) {
+    return this.auth.login(body, req.ip);
   }
 
   @Public()
-  @Post('otp/verify')
-  @UsePipes(new ZodValidationPipe(otpVerifyBodySchema))
+  @Post('login/replace')
+  @HttpCode(200)
+  @UsePipes(new ZodValidationPipe(replaceDeviceBodySchema))
   @ApiOperation({
-    summary: 'Verify a code and sign in',
+    summary: 'Sign another device out and finish signing in',
     description:
-      'Registers the device on first sight, so a student is never authenticated but unable to ' +
-      'play anything for lack of a registered device. Fails with DEVICE_LIMIT_REACHED when the ' +
-      'allowance is used up; the client should then offer to release a device.',
+      'Takes the ticket from DEVICE_LIMIT_REACHED, so the password is not typed twice. The ' +
+      'ticket only works from the device it was issued to.',
   })
-  async verifyOtp(@Body() body: OtpVerifyBody, @Req() req: Request) {
-    return this.auth.verifyOtp(body.phone, body.code, body.device, req.ip);
+  async replace(@Body() body: ReplaceDeviceBody) {
+    return this.auth.replaceDevice(body);
   }
 
   @Public()
   @Post('refresh')
+  @HttpCode(200)
   @UsePipes(new ZodValidationPipe(refreshBodySchema))
   @ApiOperation({
     summary: 'Rotate tokens',
     description:
-      'Refresh tokens are single-use. Presenting a consumed token revokes the whole device ' +
-      'session, because that indicates the token was captured rather than a benign race.',
+      'Refresh tokens are single-use. Presenting a consumed token signs the device out, because ' +
+      'that indicates the token was captured rather than a benign race.',
   })
   async refresh(@Body() body: RefreshBody) {
     return this.auth.refresh(body.refreshToken);
@@ -70,12 +73,30 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(204)
-  @ApiOperation({ summary: 'Revoke this device session' })
+  @AllowPendingPasswordChange()
+  @ApiOperation({ summary: 'Sign this device out, which frees its slot' })
   async logout(@CurrentUser() auth: AuthContext) {
     await this.auth.logout(auth.deviceId);
   }
 
+  @Post('password')
+  @HttpCode(204)
+  @AllowPendingPasswordChange()
+  @ApiOperation({
+    summary: 'Change the password',
+    description: 'Signs the other devices out unless signOutOtherDevices is false.',
+  })
+  // The pipe goes on the body alone: a method-level pipe would also run on @CurrentUser, which
+  // Nest treats as pipeable, and reject the caller's own auth context.
+  async changePassword(
+    @CurrentUser() auth: AuthContext,
+    @Body(new ZodValidationPipe(changePasswordBodySchema)) body: ChangePasswordBody,
+  ) {
+    await this.auth.changePassword(auth.userId, auth.deviceId, body);
+  }
+
   @Get('me')
+  @AllowPendingPasswordChange()
   @ApiOperation({
     summary: 'Current user, device and revocation epoch',
     description:
@@ -89,14 +110,7 @@ export class AuthController {
     ]);
 
     return {
-      user: {
-        id: user.id,
-        phoneMasked: maskPhone(user.phone),
-        displayName: user.displayName,
-        role: user.role,
-        status: user.status,
-        createdAt: user.createdAt.toISOString(),
-      },
+      user: this.auth.userDto(user),
       device: await this.devices.toDto(device, auth.deviceId),
       revocationEpoch: user.revocationEpoch,
     };

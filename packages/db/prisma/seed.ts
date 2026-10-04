@@ -12,7 +12,7 @@
  */
 import { randomBytes } from 'node:crypto';
 
-import { wrapContentKeyWithKek } from '@tihe/crypto';
+import { PasswordHasher, wrapContentKeyWithKek } from '@tihe/crypto';
 import { PrismaClient } from '@prisma/client';
 import { ulid } from 'ulid';
 
@@ -28,40 +28,53 @@ async function main() {
     );
   }
 
+  const pepper = process.env.PASSWORD_PEPPER;
+  if (!pepper) {
+    throw new Error('PASSWORD_PEPPER is required to seed. Run ./infra/scripts/generate-secrets.sh');
+  }
+  // One known password for the three fixtures, so a developer can sign in as each role. Set
+  // SEED_PASSWORD to choose it; these accounts must never exist on a real deployment.
+  const password = process.env.SEED_PASSWORD ?? 'tihe-demo-1405';
+  const passwordHash = await new PasswordHasher(pepper).hash(password);
+  const credentials = { passwordHash, passwordChangedAt: new Date(), mustChangePassword: false };
+
   console.log('seeding…');
 
   // ── People ──
   // Phone numbers in the 0912555xxxx range so they are obviously fixtures.
   const admin = await prisma.user.upsert({
     where: { phone: '+989125550001' },
-    update: {},
+    update: credentials,
     create: {
       id: id('usr'),
       phone: '+989125550001',
       displayName: 'مدیر سامانه',
       role: 'admin',
+      ...credentials,
     },
   });
 
   const teacher = await prisma.user.upsert({
     where: { phone: '+989125550002' },
-    update: {},
+    update: credentials,
     create: {
       id: id('usr'),
       phone: '+989125550002',
       displayName: 'دکتر رضایی',
       role: 'teacher',
+      ...credentials,
     },
   });
 
   const student = await prisma.user.upsert({
     where: { phone: '+989125550003' },
-    update: {},
+    update: credentials,
     create: {
       id: id('usr'),
       phone: '+989125550003',
       displayName: 'دانشجوی نمونه',
       role: 'student',
+      ...credentials,
     },
   });
 
@@ -240,12 +253,13 @@ async function main() {
   console.log(`  term     ${term.title}`);
   console.log(`  courses  ${course.title} (2 sections, 5 videos)`);
   console.log(`           ${strictCourse.title} (downloads off, 1 device)`);
-  console.log('\nsign in with any of these — the OTP prints to the API log:');
+  console.log(
+    `\nsign in with any of these, password ${process.env.SEED_PASSWORD ? '$SEED_PASSWORD' : password}:`,
+  );
   console.log(`  student  09125550003  (${student.id})`);
   console.log(`  teacher  09125550002  (${teacher.id})`);
   console.log(`  admin    09125550001  (${admin.id})`);
-  console.log('\nNote: video segments do not exist yet — media-worker arrives in M2. Catalog,');
-  console.log('search, progress and licence issuing are fully exercisable now.');
+  console.log('\nPackage a real video with: pnpm --filter @tihe/media-worker package <file.mp4>');
 }
 
 main()
