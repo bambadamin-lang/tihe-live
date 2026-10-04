@@ -18,6 +18,9 @@
   With -BundleVcRuntime, Visual C++ runtime DLLs the bundle needs are first copied in from
   System32 (app-local deployment, which Microsoft permits), until nothing more is needed.
 
+  DLLs in $removeIfUnimported are deleted from the bundle first when nothing in it imports
+  them, and the build fails if something does.
+
 .EXAMPLE
   ./check-dependencies.ps1 -Bundle ..\..\build\windows\x64\runner\Release -BundleVcRuntime
 #>
@@ -82,6 +85,21 @@ function Get-Needs {
 }
 
 function Test-Bundled([string] $dll) { Test-Path (Join-Path $bundleDir $dll) }
+
+# Shipped by a prebuilt archive but imported by nothing in the bundle. Each entry says why it
+# has to go rather than ship.
+$removeIfUnimported = @{
+  'zlib.dll' = 'media_kit_libs_windows_video copies it from its prebuilt ANGLE archive, as a debug build that needs the Visual C++ debug runtime (ucrtbased.dll, vcruntime140d.dll), which no student PC has and which may not be redistributed. ANGLE links zlib statically.'
+}
+$needs = Get-Needs
+foreach ($dll in $removeIfUnimported.Keys) {
+  if (-not (Test-Bundled $dll)) { continue }
+  if ($needs.ContainsKey($dll)) {
+    throw "$dll is imported by $(($needs[$dll].By | Sort-Object -Unique) -join ', '): it cannot be removed, so bundle a release build of it instead"
+  }
+  Remove-Item (Join-Path $bundleDir $dll)
+  Write-Host "Removed $dll, which nothing imports ($($removeIfUnimported[$dll]))"
+}
 
 do {
   $needs = Get-Needs
