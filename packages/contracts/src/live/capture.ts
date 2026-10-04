@@ -19,6 +19,11 @@ export const CAPTURE_SIGNALS = [
   'remote_session',
   /** The OS refused the capture block (e.g. SetWindowDisplayAffinity failed). */
   'block_failed',
+  /**
+   * The recording outlasted `recordingGraceSeconds`, so the app took the participant out of
+   * the class. An instant, sent as the client leaves; they may rejoin once the recorder is closed.
+   */
+  'removed_for_recording',
 ] as const;
 export const captureSignalSchema = z.enum(CAPTURE_SIGNALS);
 export type CaptureSignal = z.infer<typeof captureSignalSchema>;
@@ -48,6 +53,11 @@ export const capturePolicySchema = z.object({
   iosSecureLayer: z.boolean(),
   /** How often desktop clients rescan processes. */
   scanIntervalMs: z.number().int().min(1000).max(60000),
+  /**
+   * Censoring is immediate; a recording still running this long after takes the participant
+   * out of the class (ADR-0011, amended). Null when capture is allowed for the course.
+   */
+  recordingGraceSeconds: z.number().int().min(3).max(120).nullable(),
 });
 export type CapturePolicy = z.infer<typeof capturePolicySchema>;
 

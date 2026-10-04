@@ -19,7 +19,10 @@ enum CaptureSignal {
   remoteSession('remote_session'),
 
   /// The OS refused to block capture.
-  blockFailed('block_failed');
+  blockFailed('block_failed'),
+
+  /// The recording outlasted the grace period and the app left the class. Sent once, as it goes.
+  removedForRecording('removed_for_recording');
 
   const CaptureSignal(this.wire);
   final String wire;

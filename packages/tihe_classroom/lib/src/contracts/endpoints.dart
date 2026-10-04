@@ -136,6 +136,7 @@ class CapturePolicySpec {
     required this.recorderProcessesMacos,
     required this.iosSecureLayer,
     required this.scanIntervalMs,
+    required this.recordingGraceSeconds,
   });
 
   factory CapturePolicySpec.fromJson(Json j) {
@@ -149,6 +150,7 @@ class CapturePolicySpec {
       recorderProcessesMacos: listOf<String>(processes['macos']),
       iosSecureLayer: j['iosSecureLayer'] as bool,
       scanIntervalMs: j['scanIntervalMs'] as int,
+      recordingGraceSeconds: j['recordingGraceSeconds'] as int?,
     );
   }
 
@@ -163,6 +165,10 @@ class CapturePolicySpec {
   final bool iosSecureLayer;
   final int scanIntervalMs;
 
+  /// A recording still running this long after censoring takes the student out of the class.
+  /// Null when the course allows capture.
+  final int? recordingGraceSeconds;
+
   Json toJson() => {
     'block': block,
     'windowsAffinity': windowsAffinity,
@@ -174,6 +180,7 @@ class CapturePolicySpec {
     },
     'iosSecureLayer': iosSecureLayer,
     'scanIntervalMs': scanIntervalMs,
+    'recordingGraceSeconds': recordingGraceSeconds,
   };
 }
 

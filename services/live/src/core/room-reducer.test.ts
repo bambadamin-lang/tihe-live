@@ -434,6 +434,19 @@ describe('capture reports', () => {
     expect(effectsOf(r, 'audit')[0]!.audit.kind).toBe('capture.screenshot');
   });
 
+  it('tells the host and audits it when a recording outlasts the grace period', () => {
+    ok(cmd(ALI, { type: 'capture.report', capturing: true, signals: ['recorder_process'] }));
+    const r = ok(
+      cmd(ALI, {
+        type: 'capture.report',
+        capturing: true,
+        signals: ['recorder_process', 'removed_for_recording'],
+      }),
+    );
+    expect(r.events.map((e) => e.evt.type)).toEqual(['capture.alert']);
+    expect(effectsOf(r, 'audit')[0]!.audit.kind).toBe('capture.removed');
+  });
+
   it('alerts the host when the OS refused to block capture', () => {
     const r = ok(cmd(ALI, { type: 'capture.report', capturing: false, signals: ['block_failed'] }));
     expect(r.events.map((e) => e.evt.type)).toEqual(['capture.alert']);

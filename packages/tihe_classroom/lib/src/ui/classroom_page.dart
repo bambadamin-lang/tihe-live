@@ -141,6 +141,7 @@ class _Classroom extends ConsumerWidget {
         type: MaterialType.transparency,
         child: CensorScreen(
           verdict: ref.watch(classroomViewProvider.select((v) => v.capture)),
+          deadline: ref.read(classroomSessionProvider).recordingDeadline,
         ),
       );
     }
