@@ -3,7 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 
-import 'package:tihe_classroom/tihe_classroom.dart' show GlassBackdrop, PeydaFonts;
+import 'package:tihe_classroom/tihe_classroom.dart' show ClassroomFonts, GlassBackdrop;
 
 import 'core/preferences.dart';
 import 'core/router/app_router.dart';
@@ -13,7 +13,10 @@ import 'l10n/l10n.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Peyda before the first frame, so no screen is ever drawn in a fallback font and re-laid out.
-  await PeydaFonts.ensureLoaded();
+  // The whole app, the classroom included, is set in Peyda (the institute's choice), rather
+  // than the classroom package's own Modam.
+  ClassroomFonts.use(AppTheme.fontFamily);
+  await ClassroomFonts.ensureLoaded();
 
   // media_kit backs playback on Windows, where the first-party plugin is weak (docs/adr/0001).
   // Must run before any player is constructed.

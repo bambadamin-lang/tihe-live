@@ -24,7 +24,7 @@ export interface Preview {
 }
 
 export const LASER_FADE_MS = 1200;
-export const FONT_STACK = 'Peyda, Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+export const FONT_STACK = 'Peyda, Modam, Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
 
 const pairs = (flat: readonly number[]): [number, number][] => {
   const out: [number, number][] = [];

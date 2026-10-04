@@ -75,6 +75,25 @@ class ScreenSource {
 
 enum VideoSlot { camera, screen }
 
+/// The inputs the dock's device pickers choose between.
+enum MediaDeviceKind { microphone, camera }
+
+/// A microphone or camera offered in a device picker.
+@immutable
+class MediaDeviceOption {
+  const MediaDeviceOption({
+    required this.id,
+    required this.label,
+    this.selected = false,
+  });
+
+  final String id;
+  final String label;
+
+  /// The one in use.
+  final bool selected;
+}
+
 abstract class ClassroomMedia {
   MediaState get state;
   Stream<MediaState> get changes;
@@ -87,6 +106,11 @@ abstract class ClassroomMedia {
   Future<List<ScreenSource>> screenSources();
   Future<void> startScreenShare([ScreenSource? source]);
   Future<void> stopScreenShare();
+
+  /// Microphones or cameras to choose from, the one in use marked. Empty where the operating
+  /// system chooses.
+  Future<List<MediaDeviceOption>> devices(MediaDeviceKind kind);
+  Future<void> selectDevice(MediaDeviceKind kind, String deviceId);
 
   /// Censoring mutes the class too: capture blocking never covers audio (ADR-0011).
   Future<void> setRemoteAudioMuted(bool muted);

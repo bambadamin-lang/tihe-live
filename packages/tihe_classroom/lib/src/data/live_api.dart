@@ -91,4 +91,22 @@ class LiveApi {
       );
 
   void close() => _http.close();
+
+  /// Whether services/live answers at [baseUrl] — its health check needs no token. For a
+  /// launcher's status lamp; any failure, including a slow answer, counts as unreachable.
+  static Future<bool> reachable(String baseUrl, {http.Client? client}) async {
+    final uri = Uri.tryParse('${baseUrl.trim()}/health');
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) return false;
+    final httpClient = client ?? http.Client();
+    try {
+      final response = await httpClient
+          .get(uri, headers: {'accept': 'application/json'})
+          .timeout(const Duration(seconds: 5));
+      return response.statusCode == 200;
+    } on Object {
+      return false;
+    } finally {
+      if (client == null) httpClient.close();
+    }
+  }
 }

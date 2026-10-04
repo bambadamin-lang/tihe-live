@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'cursor.dart';
 import 'motion.dart';
 
 /// Opens a dialog that rises and sharpens into place over the dimmed class, and leaves quicker
@@ -20,8 +21,25 @@ Future<T?> showGlassDialog<T>({
     barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
     barrierColor: barrierColor ?? Colors.black54,
     transitionDuration: Motion.of(context, Motion.medium),
-    pageBuilder: (context, _, _) =>
-        themes.wrap(SafeArea(child: Builder(builder: builder))),
+    pageBuilder: (context, _, _) => themes.wrap(
+      Stack(
+        children: [
+          // Covers the barrier, which would show the system arrow; a tap still dismisses.
+          Positioned.fill(
+            child: MouseRegion(
+              cursor: GlowCursors.basic,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: barrierDismissible
+                    ? () => Navigator.of(context).maybePop()
+                    : null,
+              ),
+            ),
+          ),
+          SafeArea(child: Builder(builder: builder)),
+        ],
+      ),
+    ),
     transitionBuilder: (context, animation, _, child) {
       final curved = CurvedAnimation(
         parent: animation,

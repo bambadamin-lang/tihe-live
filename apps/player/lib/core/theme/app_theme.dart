@@ -16,13 +16,14 @@ class AppTheme {
   const AppTheme._();
 
   /// Peyda, the institute's typeface, registered at start-up from the classroom package
-  /// (PeydaFonts). Vazirmatn, bundled with the app, covers anything Peyda lacks.
-  static const fontFamily = PeydaFonts.family;
+  /// (ClassroomFonts.use). Vazirmatn, bundled with the app, covers anything Peyda lacks.
+  static const fontFamily = 'Peyda';
   static const fontFallback = ['Vazirmatn', 'Noto Sans Arabic', 'Tahoma'];
 
-  static ThemeData dark() => _build(AppColors.dark, ClassroomTheme.dark);
+  static ThemeData dark() => _build(AppColors.dark, ClassroomTheme.forBrightness(Brightness.dark));
 
-  static ThemeData light() => _build(AppColors.light, ClassroomTheme.light);
+  static ThemeData light() =>
+      _build(AppColors.light, ClassroomTheme.forBrightness(Brightness.light));
 
   static ThemeData of(Brightness brightness) => brightness == Brightness.dark ? dark() : light();
 

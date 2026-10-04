@@ -4,7 +4,7 @@
  * 1920 × 1080 — the size Egress records (H264_1080P_30).
  */
 :root {
-  --font: Peyda, Vazirmatn, 'Noto Sans Arabic', Tahoma, sans-serif;
+  --font: Peyda, Modam, Vazirmatn, 'Noto Sans Arabic', Tahoma, sans-serif;
   --paper-hi: #efe9dc;
   --paper-lo: #cdc3ad;
   --ink: #2a2118;
