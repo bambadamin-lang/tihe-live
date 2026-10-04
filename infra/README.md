@@ -88,3 +88,35 @@ Notes for when this gets built (M2–M3):
   LiveKit if classes are recorded while older ones are still transcoding.
 - Backups: nightly `pg_dump`, MinIO replication or `mc mirror` to a second location, and the
   KEK held somewhere neither of those backups reaches.
+
+## Run the server on a PC
+
+Until there is a VPS, the whole server (API, live classroom, recording, video processing,
+storage, databases) runs on one PC with Docker. On a new PC, from the repository folder:
+
+```powershell
+# Windows, Docker Desktop (as administrator, so it can open the firewall ports)
+powershell -ExecutionPolicy Bypass -File infra\scripts\server-setup.ps1 -AdminPhone 09121234567 -AdminName "مدیر"
+```
+
+```bash
+# Linux, macOS or WSL
+./infra/scripts/server-setup.sh --admin-phone 09121234567 --admin-name "مدیر"
+```
+
+It finds the PC's network address (or pass `-HostAddress` / `--host`), writes the secrets once
+into `infra/docker/server/.env`, builds and starts everything
+([`docker/compose.server.yml`](docker/compose.server.yml)), and creates the first admin with a
+temporary password it prints. Then it prints the one address to give the app and its
+installer, `http://<this PC>:8080`.
+
+- **Back up `infra/docker/server/.env`** privately. The database and `KEK_BASE64` together
+  decrypt every video; without the file nobody can sign in again.
+- Running the setup again is safe: it keeps the secrets and the data, applies new migrations
+  and rebuilds what changed. Use it after `git pull` to update the server.
+- Ports: 8080 (the app), 9000 (video downloads), 7880–7881/TCP and 50000–50100/UDP (live
+  media). Devices on the same network work out of the box; reaching the PC from the internet
+  needs those ports forwarded on the router and the router's public address as `--host`.
+- Moving to a VPS later: copy `.env` and the Docker volumes, run the setup there with the new
+  address, and update the server address students use (the installer's default, or the
+  sign-in screen's "change server").

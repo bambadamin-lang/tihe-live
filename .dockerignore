@@ -1,0 +1,14 @@
+# The server image needs the Node workspace only.
+**/node_modules
+**/dist
+**/.turbo
+**/build
+**/.dart_tool
+apps/player
+packages/tihe_classroom
+packages/capture_guard
+packages/secure-core/target
+.git
+.env
+infra/docker/server/.env
+infra/docker/server/generated

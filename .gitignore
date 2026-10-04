@@ -67,3 +67,7 @@ packages/secure-core/target/
 
 # prisma
 services/api/prisma/*.db
+
+# Server secrets and generated LiveKit/Egress config (infra/scripts/server-config.mjs).
+infra/docker/server/.env
+infra/docker/server/generated/
