@@ -60,38 +60,24 @@ void main() {
     await Future<void>.delayed(const Duration(seconds: 2));
 
     // 1. The library, scrolled up and down.
-    await binding.traceAction(
-      () async {
-        for (var i = 0; i < 3; i++) {
-          await tester.fling(
-            find.byType(CustomScrollView).first,
-            const Offset(0, -900),
-            2500,
-          );
-          await Future<void>.delayed(const Duration(milliseconds: 900));
-          await tester.fling(
-            find.byType(CustomScrollView).first,
-            const Offset(0, 900),
-            2500,
-          );
-          await Future<void>.delayed(const Duration(milliseconds: 900));
-        }
-      },
-      reportKey: 'library_scroll',
-    );
+    await binding.traceAction(() async {
+      for (var i = 0; i < 3; i++) {
+        await tester.fling(find.byType(CustomScrollView).first, const Offset(0, -900), 2500);
+        await Future<void>.delayed(const Duration(milliseconds: 900));
+        await tester.fling(find.byType(CustomScrollView).first, const Offset(0, 900), 2500);
+        await Future<void>.delayed(const Duration(milliseconds: 900));
+      }
+    }, reportKey: 'library_scroll');
 
     // 2. Opening a course and going back.
-    await binding.traceAction(
-      () async {
-        for (var i = 0; i < 3; i++) {
-          router.push('/course/crs_1');
-          await Future<void>.delayed(const Duration(milliseconds: 700));
-          router.pop();
-          await Future<void>.delayed(const Duration(milliseconds: 700));
-        }
-      },
-      reportKey: 'navigate',
-    );
+    await binding.traceAction(() async {
+      for (var i = 0; i < 3; i++) {
+        router.push('/course/crs_1');
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+        router.pop();
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+      }
+    }, reportKey: 'navigate');
 
     // 3. The player, paused: controls up, the watermark drifting.
     router.push('/watch/vid_2');
