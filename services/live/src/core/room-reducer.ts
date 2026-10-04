@@ -651,12 +651,12 @@ function decideCapture(
   const kind: AuditKind = removed
     ? 'capture.removed'
     : capturing
-    ? 'capture.detected'
-    : screenshot
-      ? 'capture.screenshot'
-      : blockFailed
-        ? 'capture.block_failed'
-        : 'capture.cleared';
+      ? 'capture.detected'
+      : screenshot
+        ? 'capture.screenshot'
+        : blockFailed
+          ? 'capture.block_failed'
+          : 'capture.cleared';
   const effects: Effect[] = [
     audit({ kind, actorId: actor.userId, targetId: actor.userId, detail: { signals, detail } }),
   ];
