@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:tihe_classroom/tihe_classroom.dart' show GlowCursors;
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/tokens.dart';
@@ -112,8 +113,7 @@ class _PressableState extends State<Pressable> {
         SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
         SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
       },
-      mouseCursor:
-          widget.mouseCursor ?? (_enabled ? SystemMouseCursors.click : SystemMouseCursors.basic),
+      mouseCursor: widget.mouseCursor ?? (_enabled ? GlowCursors.click : GlowCursors.basic),
       onShowHoverHighlight: (value) => setState(() => _hovered = value),
       onShowFocusHighlight: (value) => setState(() => _focused = value),
       child: GestureDetector(

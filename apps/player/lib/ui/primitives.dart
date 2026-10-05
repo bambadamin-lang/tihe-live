@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tihe_classroom/tihe_classroom.dart' as live;
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/tokens.dart';
@@ -145,62 +146,15 @@ class Monogram extends StatelessWidget {
   }
 }
 
-/// The product mark: a play glyph in an accent square.
+/// The product mark: the classroom's two lit play wedges, so the app, its classes and the
+/// installer all carry one mark (docs/11 §11).
 class BrandMark extends StatelessWidget {
   const BrandMark({this.size = 28, super.key});
 
   final double size;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: colors.accent,
-        borderRadius: BorderRadius.circular(size * 0.28),
-      ),
-      child: CustomPaint(painter: _PlayGlyph(color: colors.onAccent)),
-    );
-  }
-}
-
-class _PlayGlyph extends CustomPainter {
-  _PlayGlyph({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    // A slightly rounded triangle, optically centred (nudged right of true centre).
-    final path = Path()
-      ..moveTo(w * 0.39, h * 0.30)
-      ..lineTo(w * 0.70, h * 0.50)
-      ..lineTo(w * 0.39, h * 0.70)
-      ..close();
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = color
-        ..style = PaintingStyle.fill
-        ..strokeJoin = StrokeJoin.round
-        ..strokeWidth = w * 0.06,
-    );
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeJoin = StrokeJoin.round
-        ..strokeWidth = w * 0.06,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_PlayGlyph old) => old.color != color;
+  Widget build(BuildContext context) => live.BrandMark(size: size);
 }
 
 /// Metadata items separated by a dot: "Teacher · 12 sessions · 4 h".

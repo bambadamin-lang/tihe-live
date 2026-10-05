@@ -8,6 +8,7 @@ import '../../core/providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/window_frame.dart';
 import '../../l10n/l10n.dart';
 import '../../ui/ui.dart';
 
@@ -105,7 +106,7 @@ class _AppShellState extends ConsumerState<AppShell> {
 
     if (size.isCompact) {
       return Scaffold(
-        body: widget.child,
+        body: _framed(widget.child),
         bottomNavigationBar: _BottomBar(
           // Devices is reached through Account on a phone.
           current: current == Destination.devices || current == Destination.admin
@@ -117,18 +118,29 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
 
     return Scaffold(
-      body: Row(
-        children: [
-          if (size.isExpanded)
-            _Sidebar(current: current, onSelect: _go)
-          else
-            _Rail(current: current, onSelect: _go),
-          Container(width: 1, color: colors.border),
-          Expanded(child: widget.child),
-        ],
+      body: _framed(
+        Row(
+          children: [
+            if (size.isExpanded)
+              _Sidebar(current: current, onSelect: _go)
+            else
+              _Rail(current: current, onSelect: _go),
+            Container(width: 1, color: colors.border),
+            Expanded(child: widget.child),
+          ],
+        ),
       ),
     );
   }
+
+  /// Where the app draws its own window frame, the window buttons get a bar of their own above
+  /// everything, the rest of it a handle to drag the window by.
+  Widget _framed(Widget body) => Column(
+    children: [
+      const WindowBar(),
+      Expanded(child: body),
+    ],
+  );
 }
 
 class _Sidebar extends ConsumerWidget {
@@ -507,15 +519,22 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            BrandMark(size: 40),
-            SizedBox(height: AppSpace.x6),
-            AppSpinner(size: 16),
-          ],
-        ),
+      body: Column(
+        children: [
+          WindowBar(),
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  BrandMark(size: 40),
+                  SizedBox(height: AppSpace.x6),
+                  AppSpinner(size: 16),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

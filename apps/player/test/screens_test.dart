@@ -6,10 +6,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tihe_classroom/tihe_classroom.dart' show ClassroomFonts;
+import 'package:tihe_classroom/tihe_classroom.dart'
+    show ClassroomFonts, WelcomeField, WindowButtons, WindowChrome;
 import 'package:tihe_player/core/preferences.dart';
 import 'package:tihe_player/core/providers.dart';
 import 'package:tihe_player/core/router/app_router.dart';
+import 'package:tihe_player/core/server.dart';
 import 'package:tihe_player/core/theme/app_theme.dart';
 import 'package:tihe_player/features/player/player_controls.dart';
 import 'package:tihe_player/main.dart';
@@ -52,6 +54,7 @@ void main() {
     (Size, TargetPlatform) size, {
     AuthState? auth,
     ThemeMode mode = ThemeMode.dark,
+    Widget Function(Widget page)? frame,
   }) async {
     tester.view.physicalSize = size.$1;
     tester.view.devicePixelRatio = 1;
@@ -70,12 +73,16 @@ void main() {
         courseProvider.overrideWith((ref, id) async => fakeCourse),
         devicesProvider.overrideWith((ref) async => fakeDevices),
         searchProvider.overrideWith((ref, query) async => FakeCatalog().search(query)),
+        serverPingProvider.overrideWithValue((_) async => true),
       ],
     );
     addTearDown(container.dispose);
 
     await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const TiheApp()),
+      UncontrolledProviderScope(
+        container: container,
+        child: TiheApp(frame: frame),
+      ),
     );
     await tester.pump();
     return container;
@@ -120,12 +127,30 @@ void main() {
         final container = await pumpApp(tester, size, auth: const AuthSignedOut());
         await go(tester, container, '/sign-in');
         expect(tester.takeException(), isNull);
-        // Phone and password.
-        expect(find.byType(AppTextField), findsNWidgets(2));
+        // The server, the phone and the password.
+        expect(find.byType(WelcomeField), findsNWidgets(3));
         debugDefaultTargetPlatformOverride = null;
       });
     });
   }
+
+  testWidgets('where the app draws its own window frame, every screen has the window buttons', (
+    tester,
+  ) async {
+    Widget frame(Widget page) => WindowChrome(
+      controls: WindowButtons(onMinimise: () {}, onMaximise: () {}, onClose: () {}),
+      dragArea: (bar) => bar,
+      child: page,
+    );
+    for (final size in sizes.values) {
+      final container = await pumpApp(tester, size, frame: frame);
+      for (final location in ['/home', '/library', '/account', '/watch/vid_2']) {
+        await go(tester, container, location);
+        expect(find.byType(WindowButtons), findsOneWidget, reason: location);
+      }
+    }
+    debugDefaultTargetPlatformOverride = null;
+  });
 
   testWidgets('navigation follows the window: bottom bar on a phone, sidebar on desktop', (
     tester,

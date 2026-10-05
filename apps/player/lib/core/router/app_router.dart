@@ -8,7 +8,6 @@ import '../../features/admin/admin_user_screen.dart';
 import '../../features/auth/change_password_screen.dart';
 import '../../features/auth/sign_in_screen.dart';
 import '../../features/home/home_screen.dart';
-import '../../features/live/demo_screen.dart';
 import '../../features/live/live_screen.dart';
 import '../../features/course/course_screen.dart';
 import '../../features/devices/devices_screen.dart';
@@ -38,8 +37,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (auth is AuthUnknown) return state.matchedLocation == '/' ? null : '/';
 
       final at = state.matchedLocation;
-      // The demo needs no account and no server.
-      if (at == '/demo') return null;
       if (auth is! AuthSignedIn) return at == '/sign-in' ? null : '/sign-in';
 
       final user = auth.session.user;
@@ -56,7 +53,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/change-password',
         builder: (_, __) => const ChangePasswordScreen(forced: true),
       ),
-      GoRoute(path: '/demo', builder: (_, __) => const DemoScreen()),
 
       // Everything signed-in sits in the shell (sidebar, rail or bottom bar), except the player.
       ShellRoute(

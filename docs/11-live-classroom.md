@@ -306,9 +306,14 @@ Ordering that matters for the pipeline:
   the window buttons (`window_manager`) — and passes the buttons and dragging to the classroom
   through `WindowChrome`, so the class's top bar is also the window's title bar. Elsewhere the
   platform's own frame stays.
-- **Welcome.** The launcher is two cards on the same sky: a demo class (role, starting layout)
-  and a real one (server address, session id, token), under a lamp that checks the server's
-  `/health` so "آنلاین" means the classes can actually be reached.
+- **Welcome.** The front door is two cards on the same sky, under a title bar with the mark and
+  a lamp that checks the server's `/health`, so "آنلاین" means the classes can actually be
+  reached. In the standalone classroom the cards are a demo class (role, starting layout) and a
+  real one (server address, session id, token); in the one TIHE app they are signing in (server
+  address, phone, password) and the demo class. Both are the package's `WelcomePage`
+  (`welcome.dart`), so the two front doors cannot drift apart.
+- **Icon.** The apps' icon is the mark — alone on Windows (the window, the taskbar and the setup
+  wizard), on a night-sky tile on Android — not Flutter's.
 - **Light and dark.** `ClassroomPage` follows the host app's theme unless given a `brightness`;
   a switch in the top bar flips it for the rest of the class and reports the choice through
   `onBrightnessChanged`, so the host app can remember it.
@@ -343,8 +348,8 @@ Ordering that matters for the pipeline:
     display's fastest mode. iOS allows ProMotion through `CADisableMinimumFrameDurationOnPhone`.
 - The theme lives in `tihe_classroom/lib/src/ui/theme/`: tokens in one `ClassroomTheme` object
   (`ClassroomTheme.light` / `.dark`), the sky and glass controls in `glass.dart`, the mark and
-  window frame in `brand.dart`, menus in `menu.dart`, the cursor in `cursor.dart`, and motion in
-  `motion.dart` and `transitions.dart`.
+  window frame in `brand.dart`, the welcome page in `welcome.dart`, menus in `menu.dart`, the
+  cursor in `cursor.dart`, and motion in `motion.dart` and `transitions.dart`.
 
 ## 12. Manual device checklist
 

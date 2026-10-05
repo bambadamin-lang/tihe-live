@@ -257,492 +257,98 @@ class _LauncherState extends State<Launcher> {
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
     final dark = t.isDark;
-    final chrome = WindowChrome.maybeOf(context);
-    final narrow = MediaQuery.sizeOf(context).width < 560;
     final (lampColor, lampLabel) = switch (_serverState) {
       _ServerState.checking => (t.warning, 'در حال بررسی'),
       _ServerState.online => (t.success, 'آنلاین'),
       _ServerState.offline => (t.danger, 'سرور در دسترس نیست'),
     };
 
-    // The brand and the server lamp at the physical left, the window buttons at the right —
-    // where Windows keeps them in every language.
-    final titleBar = Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 14, 6),
-      child: Directionality(
-        textDirection: TextDirection.ltr,
-        child: Row(
-          children: [
-            const BrandLockup(),
-            const BarDivider(height: 26),
-            Tooltip(
-              message: 'وضعیت سرور کلاس‌ها',
-              child: Directionality(
-                textDirection: TextDirection.rtl,
-                child: StatusPill(
-                  color: lampColor,
-                  label: lampLabel,
-                  pulsing: _serverState == _ServerState.checking,
-                ),
-              ),
-            ),
-            const Spacer(),
-            ?chrome?.controls,
-          ],
-        ),
-      ),
-    );
-
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        body: GlassBackdrop(
-          child: SafeArea(
-            child: Column(
-              children: [
-                chrome == null ? titleBar : chrome.dragArea(titleBar),
-                Expanded(
-                  child: Center(
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(
-                        narrow ? 16 : 24,
-                        8,
-                        narrow ? 16 : 24,
-                        28,
-                      ),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 720),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _Header(
-                              dark: dark,
-                              narrow: narrow,
-                              onToggle: () => widget.onBrightnessChanged(
-                                dark ? Brightness.light : Brightness.dark,
-                              ),
-                            ),
-                            SizedBox(height: narrow ? 18 : 24),
-                            Appear(
-                              offset: const Offset(0, 16),
-                              child: _Card(
-                                icon: ClassroomIcons.play,
-                                title: 'کلاس نمایشی',
-                                hint:
-                                    'بدون سرور، فقط برای تجربه و آشنایی با فضای کلاس اجرا می‌شود.',
-                                children: [
-                                  GlassTabs<String>(
-                                    expand: true,
-                                    selected: _as,
-                                    onSelected: (v) => setState(() => _as = v),
-                                    options: const [
-                                      (
-                                        value: DemoClassroom.host,
-                                        label: 'میزبان',
-                                        icon: ClassroomIcons.person,
-                                      ),
-                                      (
-                                        value: DemoClassroom.cohost,
-                                        label: 'دستیار',
-                                        icon: ClassroomIcons.assistant,
-                                      ),
-                                      (
-                                        value: DemoClassroom.ali,
-                                        label: 'دانشجو',
-                                        icon: ClassroomIcons.person,
-                                      ),
-                                    ],
-                                  ),
-                                  _LayoutField(
-                                    value: _layout,
-                                    onChanged: (p) =>
-                                        setState(() => _layout = p),
-                                  ),
-                                  GlowButton(
-                                    label: 'ورود به کلاس نمایشی',
-                                    icon: ClassroomIcons.play,
-                                    onPressed: _demo,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                            Appear(
-                              delay: const Duration(milliseconds: 80),
-                              offset: const Offset(0, 16),
-                              child: _Card(
-                                icon: ClassroomIcons.server,
-                                title: 'اتصال به سرور',
-                                hint:
-                                    // Isolated and joined, so the path stays whole and in one line.
-                                    'ورود به سرور جلسات واقعی روی \u2066services/\u2060live\u2069.',
-                                children: [
-                                  _Field(
-                                    icon: ClassroomIcons.link,
-                                    label: 'نشانی سرور',
-                                    controller: _server,
-                                  ),
-                                  _Field(
-                                    icon: ClassroomIcons.hash,
-                                    label: 'شناسهٔ جلسه (ses_…)',
-                                    controller: _session,
-                                  ),
-                                  _Field(
-                                    icon: ClassroomIcons.key,
-                                    label: 'توکن دسترسی',
-                                    controller: _token,
-                                    obscure: true,
-                                  ),
-                                  if (_error != null) _ErrorNote(_error!),
-                                  GlowButton(
-                                    label: _joining
-                                        ? 'در حال ورود…'
-                                        : 'ورود به کلاس',
-                                    icon: ClassroomIcons.join,
-                                    busy: _joining,
-                                    onPressed: _joining ? null : _connect,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+      child: WelcomePage(
+        title: 'تیهه لایو — کلاس آنلاین',
+        onToggleBrightness: () => widget.onBrightnessChanged(
+          dark ? Brightness.light : Brightness.dark,
+        ),
+        status: Tooltip(
+          message: 'وضعیت سرور کلاس‌ها',
+          child: StatusPill(
+            color: lampColor,
+            label: lampLabel,
+            pulsing: _serverState == _ServerState.checking,
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// The app's name with its mark, centred, and the light/dark switch at the end.
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.dark,
-    required this.narrow,
-    required this.onToggle,
-  });
-
-  final bool dark;
-  final bool narrow;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = ClassroomTheme.of(context);
-    final toggle = Glass(
-      radius: 999,
-      shadow: false,
-      padding: const EdgeInsets.all(3),
-      child: GlassIconButton(
-        icon: dark ? ClassroomIcons.light : ClassroomIcons.dark,
-        tooltip: dark ? 'پوستهٔ روشن' : 'پوستهٔ تیره',
-        size: 42,
-        iconSize: 20,
-        radius: 999,
-        onPressed: onToggle,
-      ),
-    );
-    return SizedBox(
-      height: 64,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: narrow ? 56 : 64),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconTile(
-                  icon: ClassroomIcons.play,
-                  size: narrow ? 44 : 54,
-                  solid: true,
-                ),
-                const SizedBox(width: 16),
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      'تیهه لایو — کلاس آنلاین',
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontSize: narrow ? 21 : 28,
-                        fontWeight: FontWeight.w800,
-                        height: 1.3,
-                        color: t.text,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          PositionedDirectional(end: 0, child: toggle),
-        ],
-      ),
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  const _Card({
-    required this.icon,
-    required this.title,
-    required this.hint,
-    required this.children,
-  });
-
-  final IconData icon;
-  final String title;
-  final String hint;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = ClassroomTheme.of(context);
-    return Glass(
-      radius: 26,
-      padding: const EdgeInsets.fromLTRB(24, 22, 24, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+        cards: [
+          WelcomeCard(
+            icon: ClassroomIcons.play,
+            title: 'کلاس نمایشی',
+            hint:
+                'بدون سرور، فقط برای تجربه و آشنایی با فضای کلاس اجرا می‌شود.',
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                        color: t.text,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      hint,
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        height: 1.6,
-                        color: t.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              IconTile(icon: icon, size: 58),
-            ],
-          ),
-          for (final child in children) ...[const SizedBox(height: 16), child],
-        ],
-      ),
-    );
-  }
-}
-
-/// A text field in the design's shape: icon and label at the start, the value (which is Latin
-/// — addresses, ids, tokens) at the end.
-class _Field extends StatefulWidget {
-  const _Field({
-    required this.icon,
-    required this.label,
-    required this.controller,
-    this.obscure = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final TextEditingController controller;
-  final bool obscure;
-
-  @override
-  State<_Field> createState() => _FieldState();
-}
-
-class _FieldState extends State<_Field> {
-  final _focus = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    _focus.addListener(() => setState(() {}));
-  }
-
-  @override
-  void dispose() {
-    _focus.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = ClassroomTheme.of(context);
-    final focused = _focus.hasFocus;
-    return GestureDetector(
-      onTap: _focus.requestFocus,
-      child: AnimatedContainer(
-        duration: Motion.of(context, Motion.fast),
-        height: 56,
-        padding: const EdgeInsetsDirectional.only(start: 18, end: 18),
-        decoration: BoxDecoration(
-          color: t.field,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(
-            color: focused ? t.accent : t.fieldBorder,
-            width: focused ? 1.5 : 1,
-          ),
-          boxShadow: focused ? t.accentGlow(strength: 0.35) : null,
-        ),
-        child: Row(
-          children: [
-            Icon(
-              widget.icon,
-              size: 20,
-              color: focused ? t.accentText : t.textSecondary,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              widget.label,
-              style: TextStyle(fontSize: 14.5, color: t.textSecondary),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Semantics(
-                label: widget.label,
-                child: TextField(
-                  controller: widget.controller,
-                  focusNode: _focus,
-                  obscureText: widget.obscure,
-                  textDirection: TextDirection.ltr,
-                  style: TextStyle(fontSize: 15.5, color: t.text),
-                  decoration: const InputDecoration(
-                    filled: false,
-                    isCollapsed: true,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
+              GlassTabs<String>(
+                expand: true,
+                selected: _as,
+                onSelected: (v) => setState(() => _as = v),
+                options: const [
+                  (
+                    value: DemoClassroom.host,
+                    label: 'میزبان',
+                    icon: ClassroomIcons.person,
                   ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The starting layout, as a field that opens a glass menu of the six presets.
-class _LayoutField extends StatelessWidget {
-  const _LayoutField({required this.value, required this.onChanged});
-
-  final LayoutPreset value;
-  final ValueChanged<LayoutPreset> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = ClassroomTheme.of(context);
-    return GlassPressable(
-      semanticLabel: 'چیدمان آغازین: ${layoutPresets[value]!.name}',
-      radius: 15,
-      onTap: () async {
-        final chosen = await showGlassMenu<LayoutPreset>(
-          context: context,
-          width: null,
-          entries: [
-            for (final p in LayoutPreset.values)
-              GlassMenuItem(
-                value: p,
-                label: layoutPresets[p]!.name,
-                checked: p == value,
-              ),
-          ],
-        );
-        if (chosen != null) onChanged(chosen);
-      },
-      builder: (context, s) => AnimatedContainer(
-        duration: Motion.of(context, Motion.fast),
-        height: 60,
-        padding: const EdgeInsetsDirectional.only(start: 18, end: 16),
-        decoration: BoxDecoration(
-          color: s.hovered ? Color.alphaBlend(t.glassHover, t.field) : t.field,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: t.fieldBorder),
-        ),
-        child: Row(
-          children: [
-            Icon(ClassroomIcons.screen, size: 20, color: t.textSecondary),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'چیدمان آغازین',
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.3,
-                      color: t.textTertiary,
-                    ),
+                  (
+                    value: DemoClassroom.cohost,
+                    label: 'دستیار',
+                    icon: ClassroomIcons.assistant,
                   ),
-                  Text(
-                    layoutPresets[value]!.name,
-                    style: TextStyle(
-                      fontSize: 15.5,
-                      height: 1.4,
-                      fontWeight: FontWeight.w700,
-                      color: t.text,
-                    ),
+                  (
+                    value: DemoClassroom.ali,
+                    label: 'دانشجو',
+                    icon: ClassroomIcons.person,
                   ),
                 ],
               ),
-            ),
-            Icon(ClassroomIcons.chevronDown, size: 20, color: t.textSecondary),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorNote extends StatelessWidget {
-  const _ErrorNote(this.message);
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = ClassroomTheme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-      decoration: BoxDecoration(
-        color: t.dangerSubtle,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: t.danger.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(ClassroomIcons.alert, size: 18, color: t.danger),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                color: t.danger,
-                height: 1.6,
-                fontWeight: FontWeight.w500,
+              WelcomeLayoutField(
+                value: _layout,
+                onChanged: (p) => setState(() => _layout = p),
               ),
-            ),
+              GlowButton(
+                label: 'ورود به کلاس نمایشی',
+                icon: ClassroomIcons.play,
+                onPressed: _demo,
+              ),
+            ],
+          ),
+          WelcomeCard(
+            icon: ClassroomIcons.server,
+            title: 'اتصال به سرور',
+            hint:
+                // Isolated and joined, so the path stays whole and in one line.
+                'ورود به سرور جلسات واقعی روی \u2066services/\u2060live\u2069.',
+            children: [
+              WelcomeField(
+                icon: ClassroomIcons.link,
+                label: 'نشانی سرور',
+                controller: _server,
+              ),
+              WelcomeField(
+                icon: ClassroomIcons.hash,
+                label: 'شناسهٔ جلسه (ses_…)',
+                controller: _session,
+              ),
+              WelcomeField(
+                icon: ClassroomIcons.key,
+                label: 'توکن دسترسی',
+                controller: _token,
+                obscure: true,
+              ),
+              if (_error != null) WelcomeNote(_error!),
+              GlowButton(
+                label: _joining ? 'در حال ورود…' : 'ورود به کلاس',
+                icon: ClassroomIcons.join,
+                busy: _joining,
+                onPressed: _joining ? null : _connect,
+              ),
+            ],
           ),
         ],
       ),

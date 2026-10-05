@@ -3,11 +3,13 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 
-import 'package:tihe_classroom/tihe_classroom.dart' show ClassroomFonts, GlassBackdrop;
+import 'package:tihe_classroom/tihe_classroom.dart'
+    show ClassroomFonts, GlassBackdrop, GlowCursorScope, GlowCursors;
 
 import 'core/preferences.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/window_frame.dart';
 import 'l10n/l10n.dart';
 
 Future<void> main() async {
@@ -16,6 +18,8 @@ Future<void> main() async {
   // The whole app, the classroom included, is set in the one family (the institute's choice).
   ClassroomFonts.use(AppTheme.fontFamily);
   await ClassroomFonts.ensureLoaded();
+  // On Windows the app draws its own title bar, as the classroom always has.
+  await setUpWindowFrame();
 
   // media_kit backs playback on Windows, where the first-party plugin is weak (docs/adr/0001).
   // Must run before any player is constructed.
@@ -25,7 +29,11 @@ Future<void> main() async {
 }
 
 class TiheApp extends ConsumerWidget {
-  const TiheApp({super.key});
+  const TiheApp({super.key, this.frame});
+
+  /// Wraps every page in the window frame the app draws itself. Null decides by platform:
+  /// [AppWindowFrame] on Windows, none elsewhere.
+  final Widget Function(Widget page)? frame;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -52,6 +60,9 @@ class TiheApp extends ConsumerWidget {
       ],
 
       builder: (context, child) {
+        final framed =
+            frame ??
+            (ownsWindowFrame ? (Widget page) => AppWindowFrame(child: page) : (page) => page);
         // RTL is asserted rather than inferred, so a widget that forgets Directionality still lays
         // out correctly.
         return Directionality(
@@ -61,8 +72,14 @@ class TiheApp extends ConsumerWidget {
           child: MediaQuery.withClampedTextScaling(
             minScaleFactor: 0.9,
             maxScaleFactor: 1.4,
-            // One frosted canvas behind every page, as in class.
-            child: GlassBackdrop(child: child ?? const SizedBox.shrink()),
+            // The brand's glowing arrow everywhere, dialogs included (docs/11 §11).
+            child: GlowCursorScope(
+              child: MouseRegion(
+                cursor: GlowCursors.basic,
+                // One frosted canvas behind every page, as in class.
+                child: GlassBackdrop(child: framed(child ?? const SizedBox.shrink())),
+              ),
+            ),
           ),
         );
       },

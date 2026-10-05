@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tihe_classroom/tihe_classroom.dart' show WindowChrome;
 
 import '../../core/api/api_error.dart';
 import '../../core/api/models.dart';
@@ -429,8 +430,9 @@ class _TopBar extends StatelessWidget {
     final colors = context.colors;
     final l10n = context.l10n;
     final compact = context.windowSize.isCompact;
+    final chrome = WindowChrome.maybeOf(context);
 
-    return SafeArea(
+    final bar = SafeArea(
       bottom: false,
       child: SizedBox(
         height: 52,
@@ -438,6 +440,8 @@ class _TopBar extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: compact ? AppSpace.x2 : AppSpace.x4),
           child: Row(
             children: [
+              // RTL: first is the physical right, where Windows keeps its buttons.
+              if (chrome != null) ...[chrome.controls, const SizedBox(width: AppSpace.x2)],
               AppIconButton(icon: AppIcons.back, tooltip: l10n.back, onPressed: onBack),
               const SizedBox(width: AppSpace.x2),
               if (courseTitle != null)
@@ -467,6 +471,7 @@ class _TopBar extends StatelessWidget {
         ),
       ),
     );
+    return chrome == null ? bar : chrome.dragArea(bar);
   }
 }
 

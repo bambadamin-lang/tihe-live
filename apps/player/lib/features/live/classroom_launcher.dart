@@ -75,12 +75,18 @@ Future<void> startLiveClass(BuildContext context, {required String classId}) asy
 }
 
 /// The demo class: a lecture in progress, served in-process, as [as] (one of [DemoClassroom]'s
-/// people). Works with no server at all.
-Future<void> openDemoClass(BuildContext context, {required String as}) {
+/// people), starting in [layout]. Works with no server at all.
+Future<void> openDemoClass(
+  BuildContext context, {
+  required String as,
+  live.LayoutPreset layout = live.LayoutPreset.whiteboard,
+}) {
   final container = ProviderScope.containerOf(context, listen: false);
   final demo = DemoClassroom.build(
     as: as,
-    layout: live.layoutPresets[live.LayoutPreset.whiteboard],
+    layout: live.layoutPresets[layout],
+    // Layouts built around a shared screen open with the host sharing one.
+    hostSharing: layout == live.LayoutPreset.presentation || layout == live.LayoutPreset.split,
   );
   return showClassroom(context, container, demo.session);
 }

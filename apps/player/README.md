@@ -28,11 +28,12 @@ lib/
 │   ├── theme/          design tokens, colours, type scale, icons, Jalali formatting
 │   ├── router/         go_router with the auth redirect and the app shell
 │   ├── preferences.dart  appearance (dark by default), app version
+│   ├── window_frame.dart the app's own title bar on Windows (window_manager)
 │   └── providers.dart  Riverpod wiring
 ├── ui/                 the design system: buttons, fields, rows, tabs, dialogs, states…
 ├── features/
 │   ├── shell/          sidebar / rail / bottom bar, splash
-│   ├── auth/           phone + OTP sign-in
+│   ├── auth/           the welcome page: phone + password sign-in, the demo class
 │   ├── library/        home: continue learning, all courses
 │   ├── search/         courses and sessions
 │   ├── course/         sections and sessions
@@ -49,13 +50,22 @@ product:
 
 - **Colour** — `AppColors` (a `ThemeExtension`): neutral surfaces carry the interface; the single
   accent marks what is primary, selected, focused or in progress. Dark and light are both complete.
-- **Type** — Vazirmatn at 400/500/600, scale in `AppTheme.textTheme`. Letter spacing stays zero:
-  tracking breaks Persian joins.
+- **Type** — Modam at 400/500/600 (registered at start-up from the classroom package), scale in
+  `AppTheme.textTheme`; Vazirmatn covers the few characters Modam lacks. Letter spacing stays
+  zero: tracking breaks Persian joins.
 - **Spacing, radius, motion** — `AppSpace` (4-pt grid), `AppRadius` (6/8/12), `AppMotion` (120–260 ms).
 - **Icons** — Lucide only, through `AppIcons`. Directional glyphs mirror under RTL; player
   transport never does.
 - **Interaction** — every clickable thing is a `Pressable`, so hover, press, keyboard focus ring and
-  disabled behave the same everywhere.
+  disabled behave the same everywhere. The pointer is the classroom's glow cursor
+  (`GlowCursorScope` at the root, `GlowCursors` on pressables and stock controls).
+- **Front door** — sign-in is the classroom package's `WelcomePage`, the same page as the
+  standalone classroom's launcher: the mark and the server lamp in the title bar, then a card to
+  sign in (server address, phone, password) and one for the demo class.
+- **Window** — on Windows the app draws its own title bar (`core/window_frame.dart`): the welcome
+  page and the shell carry the window buttons in theirs, the player and the class in their top
+  bars. The icon is the mark (`windows/runner/resources/app_icon.ico`, which the setup wizard
+  uses too).
 - **Layout** — `WindowSize` switches pattern, not scale: bottom bar under 600 px, icon rail to
   1024 px, sidebar above. Pages centre at a readable width with a gutter that grows with the window.
 

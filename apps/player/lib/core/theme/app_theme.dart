@@ -21,6 +21,9 @@ class AppTheme {
   static const fontFamily = 'Modam';
   static const fontFallback = ['Vazirmatn', 'Noto Sans Arabic', 'Tahoma'];
 
+  /// The brand's glowing arrow on everything clickable, as in class (docs/11 §11).
+  static const _clickable = WidgetStatePropertyAll<MouseCursor?>(GlowCursors.click);
+
   static ThemeData dark() => _build(AppColors.dark, ClassroomTheme.forBrightness(Brightness.dark));
 
   static ThemeData light() =>
@@ -169,6 +172,8 @@ class AppTheme {
           shape: const RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
           textStyle: text.labelLarge,
           elevation: 0,
+          enabledMouseCursor: GlowCursors.click,
+          disabledMouseCursor: GlowCursors.basic,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -178,6 +183,8 @@ class AppTheme {
           padding: const EdgeInsets.symmetric(horizontal: AppSpace.x3),
           shape: const RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
           textStyle: text.labelLarge,
+          enabledMouseCursor: GlowCursors.click,
+          disabledMouseCursor: GlowCursors.basic,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -188,6 +195,8 @@ class AppTheme {
           padding: const EdgeInsets.symmetric(horizontal: AppSpace.x4),
           shape: const RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
           textStyle: text.labelLarge,
+          enabledMouseCursor: GlowCursors.click,
+          disabledMouseCursor: GlowCursors.basic,
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
@@ -195,8 +204,14 @@ class AppTheme {
           foregroundColor: c.textSecondary,
           iconSize: 18,
           shape: const RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
+          enabledMouseCursor: GlowCursors.click,
+          disabledMouseCursor: GlowCursors.basic,
         ),
       ),
+      radioTheme: const RadioThemeData(mouseCursor: _clickable),
+      checkboxTheme: const CheckboxThemeData(mouseCursor: _clickable),
+      switchTheme: const SwitchThemeData(mouseCursor: _clickable),
+      listTileTheme: const ListTileThemeData(mouseCursor: _clickable),
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: c.accent,
         linearTrackColor: c.surfaceHover,
@@ -246,6 +261,7 @@ class AppTheme {
         elevation: 8,
         shadowColor: c.shadow,
         textStyle: text.bodyMedium,
+        mouseCursor: _clickable,
         shape: RoundedRectangleBorder(
           borderRadius: AppRadius.lgAll,
           side: BorderSide(color: c.border),

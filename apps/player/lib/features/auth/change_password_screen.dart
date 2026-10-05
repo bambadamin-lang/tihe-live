@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:tihe_classroom/tihe_classroom.dart' show Glass;
+import 'package:tihe_classroom/tihe_classroom.dart' show WelcomeCard, WelcomePage;
 
 import '../../core/api/api_error.dart';
+import '../../core/preferences.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
@@ -157,42 +158,22 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       );
     }
 
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpace.x5),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Glass(
-                radius: 24,
-                strong: true,
-                padding: const EdgeInsets.all(AppSpace.x6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Center(child: BrandMark(size: 40)),
-                    const SizedBox(height: AppSpace.x5),
-                    Text(
-                      l10n.chooseOwnPasswordTitle,
-                      style: theme.textTheme.titleLarge,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: AppSpace.x2),
-                    Text(
-                      l10n.chooseOwnPasswordBody,
-                      style: theme.textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: AppSpace.x6),
-                    form,
-                  ],
-                ),
-              ),
-            ),
-          ),
+    final dark = theme.brightness == Brightness.dark;
+    return WelcomePage(
+      // The app paints the sky behind every route.
+      backdrop: false,
+      title: l10n.signInTitle,
+      onToggleBrightness: () =>
+          ref.read(themeModeProvider.notifier).set(dark ? ThemeMode.light : ThemeMode.dark),
+      cards: [
+        WelcomeCard(
+          icon: AppIcons.code,
+          title: l10n.chooseOwnPasswordTitle,
+          hint: l10n.chooseOwnPasswordBody,
+          // The checkboxes' list tiles draw on a Material, which glass is not.
+          children: [Material(type: MaterialType.transparency, child: form)],
         ),
-      ),
+      ],
     );
   }
 }

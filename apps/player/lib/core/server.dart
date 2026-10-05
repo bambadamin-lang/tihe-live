@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tihe_classroom/tihe_classroom.dart' show LiveApi;
 
 import 'security/app_log.dart';
 
@@ -84,6 +85,12 @@ class ServerController extends Notifier<ServerConfig> {
 }
 
 final serverProvider = NotifierProvider<ServerController, ServerConfig>(ServerController.new);
+
+/// Whether the server at an API address answers (`GET …/health`): the lamp in the welcome page's
+/// title bar. A provider so tests can answer for it.
+final serverPingProvider = Provider<Future<bool> Function(String apiBaseUrl)>(
+  (ref) => LiveApi.reachable,
+);
 
 /// The address the Windows installer wrote next to the executable (installer/windows), so a
 /// student never has to type it. Reads the old classroom app's `liveApiBaseUrl` too.

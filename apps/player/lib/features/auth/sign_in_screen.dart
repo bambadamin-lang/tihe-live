@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:tihe_classroom/tihe_classroom.dart' show Glass;
+import 'package:tihe_classroom/demo.dart' show DemoClassroom;
+import 'package:tihe_classroom/tihe_classroom.dart' as live;
 
 import '../../core/api/api_error.dart';
 import '../../core/api/models.dart';
@@ -20,12 +20,15 @@ import '../../core/theme/tokens.dart';
 import '../../l10n/l10n.dart';
 import '../../ui/ui.dart';
 import '../devices/device_icon.dart';
+import '../live/classroom_launcher.dart';
 
-/// Phone + password sign-in (ADR-0013).
+/// The welcome page (docs/11 §11): phone + password sign-in (ADR-0013), and the demo class.
 ///
-/// One card, two fields, one button: the student types what the institute gave them and presses
-/// Enter. At the device limit (ADR-0014) the screen does not dead-end: it lists the devices signed
-/// in and signs one out on a tap, without asking for the password again.
+/// The classroom package's welcome page, as in the standalone classroom: the brand and the
+/// server's lamp in the title bar, then two cards — signing in, with the server's address beside
+/// the phone and password, and the demo class, which needs no server at all. At the device limit
+/// (ADR-0014) the screen does not dead-end: it lists the devices signed in and signs one out on a
+/// tap, without asking for the password again.
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
 
@@ -33,26 +36,68 @@ class SignInScreen extends ConsumerStatefulWidget {
   ConsumerState<SignInScreen> createState() => _SignInScreenState();
 }
 
+enum _Lamp { checking, online, offline }
+
 class _SignInScreenState extends ConsumerState<SignInScreen> {
+  late final _server = TextEditingController(
+    text: ref.read(serverProvider).serverUrl.replaceFirst('http://', ''),
+  );
   final _phone = TextEditingController();
   final _password = TextEditingController();
   final _passwordFocus = FocusNode();
 
   bool _busy = false;
   bool _showPassword = false;
+  String? _serverError;
   String? _phoneError;
   String? _passwordError;
   String? _error;
   int _waitSeconds = 0;
   Timer? _waitTimer;
 
+  String _demoAs = DemoClassroom.host;
+  live.LayoutPreset _demoLayout = live.LayoutPreset.whiteboard;
+
+  _Lamp _lamp = _Lamp.checking;
+  Timer? _recheck;
+  Timer? _debounce;
+  int _pingGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _server.addListener(_serverEdited);
+    _check();
+    // The lamp stays honest while the page sits open.
+    _recheck = Timer.periodic(const Duration(seconds: 20), (_) => _check());
+  }
+
   @override
   void dispose() {
     _waitTimer?.cancel();
+    _recheck?.cancel();
+    _debounce?.cancel();
+    _server.dispose();
     _phone.dispose();
     _password.dispose();
     _passwordFocus.dispose();
     super.dispose();
+  }
+
+  void _serverEdited() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 600), _check);
+  }
+
+  Future<void> _check() async {
+    final generation = ++_pingGeneration;
+    final url = ServerConfig.normalize(_server.text);
+    if (url == null) return setState(() => _lamp = _Lamp.offline);
+    if (_lamp != _Lamp.checking) setState(() => _lamp = _Lamp.checking);
+    final ok = await ref.read(serverPingProvider)(ServerConfig(url).apiBaseUrl);
+    // An older answer, for an address since edited, is not news.
+    if (!mounted || generation != _pingGeneration) return;
+    setState(() => _lamp = ok ? _Lamp.online : _Lamp.offline);
   }
 
   void _startWait(int seconds) {
@@ -67,18 +112,24 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   Future<void> _signIn() async {
     final l10n = context.l10n;
+    final server = ServerConfig.normalize(_server.text);
     final phone = Phone.normalize(_phone.text);
     setState(() {
       _error = null;
+      _serverError = server == null ? l10n.serverInvalid : null;
       _phoneError = _phone.text.trim().isEmpty
           ? l10n.fieldRequired
           : (phone == null ? l10n.phoneInvalid : null);
       _passwordError = _password.text.isEmpty ? l10n.fieldRequired : null;
     });
-    if (_phoneError != null || _passwordError != null || phone == null) return;
+    if (server == null || phone == null || _phoneError != null || _passwordError != null) return;
 
     setState(() => _busy = true);
     try {
+      // The address the student typed is the one signed in to, and remembered.
+      if (server != ref.read(serverProvider).serverUrl) {
+        await ref.read(serverProvider.notifier).set(server);
+      }
       final device = await ref.read(deviceIdentityProvider).describe();
       final session = await ref
           .read(authRepositoryProvider)
@@ -124,106 +175,110 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     }
   }
 
-  Future<void> _editServer() async {
-    await showDialog<void>(context: context, builder: (_) => const _ServerDialog());
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final colors = context.colors;
-    final compact = context.windowSize.isCompact;
-    final server = ref.watch(serverProvider);
-    final themeMode = ref.watch(themeModeProvider);
-    final dark =
-        themeMode == ThemeMode.dark ||
-        (themeMode == ThemeMode.system &&
-            MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+    final glass = live.ClassroomTheme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final (lampColor, lampLabel) = switch (_lamp) {
+      _Lamp.checking => (glass.warning, l10n.serverChecking),
+      _Lamp.online => (glass.success, l10n.serverOnline),
+      _Lamp.offline => (glass.danger, l10n.serverOffline),
+    };
+    final waiting = _waitSeconds > 0;
 
-    final card = Glass(
-      radius: 24,
-      strong: true,
-      padding: const EdgeInsets.fromLTRB(AppSpace.x6, AppSpace.x8, AppSpace.x6, AppSpace.x6),
-      child: AutofillGroup(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    return live.WelcomePage(
+      // The app paints the sky behind every route.
+      backdrop: false,
+      title: l10n.signInTitle,
+      onToggleBrightness: () =>
+          ref.read(themeModeProvider.notifier).set(dark ? ThemeMode.light : ThemeMode.dark),
+      status: Tooltip(
+        message: l10n.serverStatus,
+        child: live.StatusPill(
+          color: lampColor,
+          label: lampLabel,
+          pulsing: _lamp == _Lamp.checking,
+        ),
+      ),
+      cards: [
+        live.WelcomeCard(
+          icon: AppIcons.account,
+          title: l10n.accountTitle,
+          hint: l10n.signInSubtitle,
           children: [
-            const Center(child: BrandMark(size: 44)),
-            const SizedBox(height: AppSpace.x5),
-            Text(
-              l10n.signInTitle,
-              style: theme.textTheme.headlineSmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpace.x2),
-            Text(
-              l10n.signInSubtitle,
-              style: theme.textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpace.x6),
-            AppTextField(
-              controller: _phone,
-              autofocus: true,
-              label: l10n.phoneLabel,
-              hint: l10n.phoneHint,
-              prefixIcon: AppIcons.phoneInput,
-              size: AppTextFieldSize.large,
-              errorText: _phoneError,
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.next,
-              autofillHints: const [AutofillHints.telephoneNumber, AutofillHints.username],
-              // The number is data, not display text: LTR so the digits read in entry order.
-              textDirection: TextDirection.ltr,
-              textAlign: TextAlign.left,
-              // Persian and Arabic-Indic digits pass: they are what a Persian keyboard types.
-              inputFormatters: [
-                LengthLimitingTextInputFormatter(16),
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9+۰-۹٠-٩\s-]')),
-              ],
-              onChanged: (_) => _phoneError == null ? null : setState(() => _phoneError = null),
-              onSubmitted: (_) => _passwordFocus.requestFocus(),
-            ),
-            const SizedBox(height: AppSpace.x4),
-            AppTextField(
-              controller: _password,
-              focusNode: _passwordFocus,
-              label: l10n.passwordLabel,
-              prefixIcon: AppIcons.code,
-              size: AppTextFieldSize.large,
-              errorText: _passwordError,
-              obscureText: !_showPassword,
-              textInputAction: TextInputAction.go,
-              autofillHints: const [AutofillHints.password],
-              textDirection: TextDirection.ltr,
-              textAlign: TextAlign.left,
-              suffix: AppIconButton(
-                icon: _showPassword ? AppIcons.hidePassword : AppIcons.showPassword,
-                tooltip: _showPassword ? l10n.hidePassword : l10n.showPassword,
-                onPressed: () => setState(() => _showPassword = !_showPassword),
+            AutofillGroup(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  live.WelcomeField(
+                    icon: AppIcons.server,
+                    label: l10n.serverLabel,
+                    controller: _server,
+                    error: _serverError,
+                    keyboardType: TextInputType.url,
+                    textInputAction: TextInputAction.next,
+                    onChanged: (_) =>
+                        _serverError == null ? null : setState(() => _serverError = null),
+                  ),
+                  const SizedBox(height: 16),
+                  live.WelcomeField(
+                    icon: AppIcons.phoneInput,
+                    label: l10n.phoneLabel,
+                    hint: l10n.phoneHint,
+                    controller: _phone,
+                    autofocus: true,
+                    error: _phoneError,
+                    keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.next,
+                    autofillHints: const [AutofillHints.telephoneNumber, AutofillHints.username],
+                    // Persian and Arabic-Indic digits pass: they are what a Persian keyboard types.
+                    inputFormatters: [
+                      LengthLimitingTextInputFormatter(16),
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9+۰-۹٠-٩\s-]')),
+                    ],
+                    onChanged: (_) =>
+                        _phoneError == null ? null : setState(() => _phoneError = null),
+                    onSubmitted: (_) => _passwordFocus.requestFocus(),
+                  ),
+                  const SizedBox(height: 16),
+                  live.WelcomeField(
+                    icon: AppIcons.code,
+                    label: l10n.passwordLabel,
+                    controller: _password,
+                    focusNode: _passwordFocus,
+                    obscure: !_showPassword,
+                    error: _passwordError,
+                    textInputAction: TextInputAction.go,
+                    autofillHints: const [AutofillHints.password],
+                    trailing: live.GlassIconButton(
+                      icon: _showPassword ? AppIcons.hidePassword : AppIcons.showPassword,
+                      tooltip: _showPassword ? l10n.hidePassword : l10n.showPassword,
+                      size: 36,
+                      iconSize: 18,
+                      onPressed: () => setState(() => _showPassword = !_showPassword),
+                    ),
+                    onChanged: (_) =>
+                        _passwordError == null ? null : setState(() => _passwordError = null),
+                    onSubmitted: (_) => _busy || waiting ? null : _signIn(),
+                  ),
+                ],
               ),
-              onChanged: (_) =>
-                  _passwordError == null ? null : setState(() => _passwordError = null),
-              onSubmitted: (_) => _busy || _waitSeconds > 0 ? null : _signIn(),
             ),
-            if (_error != null) ...[
-              const SizedBox(height: AppSpace.x4),
-              InlineAlert(
-                message: _waitSeconds > 0
+            if (_error != null)
+              live.WelcomeNote(
+                waiting
                     ? '$_error ${l10n.retryAfter(JalaliFormat.toPersianDigits('$_waitSeconds'))}'
                     : _error!,
               ),
-            ],
-            const SizedBox(height: AppSpace.x5),
-            AppButton.primary(
+            live.GlowButton(
               label: l10n.signInButton,
-              size: AppButtonSize.large,
-              expand: true,
-              loading: _busy,
-              onPressed: _waitSeconds > 0 ? null : _signIn,
+              icon: live.ClassroomIcons.join,
+              busy: _busy,
+              onPressed: _busy || waiting ? null : _signIn,
             ),
-            const SizedBox(height: AppSpace.x4),
             Text(
               l10n.forgotPasswordHint,
               style: theme.textTheme.bodySmall?.copyWith(color: colors.textTertiary),
@@ -231,68 +286,37 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             ),
           ],
         ),
-      ),
-    );
-
-    return Scaffold(
-      body: SafeArea(
-        child: Stack(
+        live.WelcomeCard(
+          icon: live.ClassroomIcons.play,
+          title: l10n.demoTitle,
+          hint: l10n.demoSubtitle,
           children: [
-            Align(
-              // On a phone the form sits high, clear of the keyboard; elsewhere it is centred.
-              alignment: compact ? const Alignment(0, -0.5) : Alignment.center,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpace.x5, vertical: AppSpace.x8),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      card,
-                      const SizedBox(height: AppSpace.x5),
-                      Wrap(
-                        alignment: WrapAlignment.center,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: AppSpace.x2,
-                        runSpacing: AppSpace.x2,
-                        children: [
-                          AppButton.ghost(
-                            label: l10n.serverCurrent(_hostOf(server.serverUrl)),
-                            icon: AppIcons.server,
-                            size: AppButtonSize.small,
-                            onPressed: _busy ? null : _editServer,
-                          ),
-                          AppButton.ghost(
-                            label: l10n.tryDemo,
-                            icon: AppIcons.demo,
-                            size: AppButtonSize.small,
-                            onPressed: _busy ? null : () => context.push('/demo'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            live.GlassTabs<String>(
+              expand: true,
+              selected: _demoAs,
+              onSelected: (as) => setState(() => _demoAs = as),
+              options: [
+                (value: DemoClassroom.host, label: l10n.demoAsHost, icon: AppIcons.teacher),
+                (value: DemoClassroom.cohost, label: l10n.demoAsCohost, icon: AppIcons.users),
+                (value: DemoClassroom.ali, label: l10n.demoAsStudent, icon: AppIcons.account),
+              ],
             ),
-            Positioned(
-              top: AppSpace.x3,
-              left: AppSpace.x3,
-              child: AppIconButton(
-                icon: dark ? AppIcons.themeLight : AppIcons.themeDark,
-                tooltip: dark ? l10n.themeLight : l10n.themeDark,
-                onPressed: () => ref
-                    .read(themeModeProvider.notifier)
-                    .set(dark ? ThemeMode.light : ThemeMode.dark),
-              ),
+            live.WelcomeLayoutField(
+              value: _demoLayout,
+              onChanged: (layout) => setState(() => _demoLayout = layout),
+            ),
+            live.GlowButton(
+              label: l10n.demoEnter,
+              icon: live.ClassroomIcons.play,
+              onPressed: _busy
+                  ? null
+                  : () => openDemoClass(context, as: _demoAs, layout: _demoLayout),
             ),
           ],
         ),
-      ),
+      ],
     );
   }
-
-  static String _hostOf(String url) => url.replaceFirst(RegExp(r'^https?://'), '');
 }
 
 /// The devices signed in at the limit, one to sign out. Returns the chosen device.
@@ -353,60 +377,6 @@ class _DeviceLimitDialogState extends State<_DeviceLimitDialog> {
           label: l10n.signOutAndContinue,
           onPressed: _chosen == null ? null : () => Navigator.of(context).pop(_chosen),
         ),
-      ],
-    );
-  }
-}
-
-class _ServerDialog extends ConsumerStatefulWidget {
-  const _ServerDialog();
-
-  @override
-  ConsumerState<_ServerDialog> createState() => _ServerDialogState();
-}
-
-class _ServerDialogState extends ConsumerState<_ServerDialog> {
-  late final _controller = TextEditingController(
-    text: ref.read(serverProvider).serverUrl.replaceFirst('http://', ''),
-  );
-  String? _error;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final ok = await ref.read(serverProvider.notifier).set(_controller.text);
-    if (!mounted) return;
-    if (ok) {
-      Navigator.of(context).pop();
-    } else {
-      setState(() => _error = context.l10n.serverInvalid);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return AppDialog(
-      title: l10n.serverLabel,
-      body: AppTextField(
-        controller: _controller,
-        autofocus: true,
-        hint: l10n.serverHint,
-        helper: l10n.serverHelp,
-        errorText: _error,
-        prefixIcon: AppIcons.server,
-        keyboardType: TextInputType.url,
-        textDirection: TextDirection.ltr,
-        textAlign: TextAlign.left,
-        onSubmitted: (_) => _save(),
-      ),
-      actions: [
-        AppButton(label: l10n.cancel, onPressed: () => Navigator.of(context).pop()),
-        AppButton.primary(label: l10n.serverSave, onPressed: _save),
       ],
     );
   }

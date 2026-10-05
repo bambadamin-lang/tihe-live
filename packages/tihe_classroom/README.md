@@ -43,6 +43,10 @@ Two optional pieces go at the app's root, in `MaterialApp.builder`:
 - `WindowChrome`: for an app that hides the system title bar (the example does on Windows). Its
   window buttons then sit in the classroom's top bar, and dragging the bar moves the window.
 
+An app's front door is `WelcomePage`: the title bar with the mark and a server lamp, the page's
+name, and `WelcomeCard`s of `WelcomeField`s and `GlowButton`s. The example's launcher and the one
+TIHE app's sign-in are both built from it.
+
 ## Inside
 
 ```
