@@ -250,6 +250,11 @@ Ordering that matters for the pipeline:
 
 ## 11. Look and language
 
+This design is the institute's choice for every version of every app, and it is locked
+(CLAUDE.md, rule 11): `packages/tihe_classroom/test/design_lock_test.dart` pins its colours, its
+font, its cursor and its mark, so a change to any of them is a decision taken in a pull request,
+never the side effect of a merge or a refactor.
+
 - Persian, right-to-left, everywhere in the classroom: Persian digits in the UI, Jalali dates,
   and Persian error messages from `messageFa`.
 - **Font: Modam** (مُدام, by Naser Khadem, FontIran), all eight weights of its standard cut, in

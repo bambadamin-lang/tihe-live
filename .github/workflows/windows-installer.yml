@@ -32,6 +32,20 @@ jobs:
         shell: pwsh
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history for a tag's build, to check it against main (below). The falsy 0 goes
+          # last: in the middle of && || it would fall through to the other value.
+          fetch-depth: ${{ github.ref_type != 'tag' && 1 || 0 }}
+
+      # Releases are what students install, so they come from main only: a tag on a branch that
+      # missed main's work (the design, CLAUDE.md rule 11) would ship an older app under a newer
+      # number. Pull-request builds are checked out merged with main already.
+      - name: Release only what is on main
+        if: github.ref_type == 'tag'
+        run: |
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor $env:GITHUB_SHA FETCH_HEAD
+          if ($LASTEXITCODE -ne 0) { throw "${{ github.ref_name }} is not on main; tag a commit on main." }
 
       - uses: subosito/flutter-action@v2
         with:
