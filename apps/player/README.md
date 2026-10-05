@@ -94,8 +94,10 @@ implementations. Reasoning in [`docs/adr/0001`](../../docs/adr/0001-flutter-for-
   formatters. The database is UTC; conversion happens only here.
 - Text scaling is clamped to 0.9–1.4 so a large system font cannot break the player controls while
   still respecting a student who needs bigger text.
-- Vazirmatn carries both Persian and Latin glyphs, so a mixed title does not change face mid-line.
-  Licensed under the OFL; see `assets/fonts/OFL.txt`.
+- The app is set in Modam, registered from the classroom package at start-up, so the app and its
+  classes share one family. Its standard cut carries Latin glyphs too, so a mixed title does not
+  change face mid-line. Vazirmatn (OFL; see `assets/fonts/OFL.txt`) covers the few characters
+  Modam lacks.
 
 ## Testing
 

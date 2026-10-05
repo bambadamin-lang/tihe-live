@@ -14,5 +14,7 @@ its standard cut, `Modam-ExtraLight.ttf` to `Modam-Black.ttf`. `ClassroomFonts` 
 - **Recordings.** `services/live/egress-template/public/fonts/` holds the regular, medium and bold
   files too, so recordings are set in the same type.
 - **Licence.** Modam is commercial software ("To use this font, it is necessary to obtain the
-  license from www.fontiran.com"). The institute's licence must cover embedding it in the app
-  and its installer. Keep these files out of any public copy of the repository.
+  license from www.fontiran.com"; terms: https://fontiran.com/licenses/). The installer and the
+  auto-update releases embed it and are published to students, so the institute needs
+  FontIran's application licence, not only a desktop one; confirm it before a public release.
+  Keep these files out of any public copy of the repository.

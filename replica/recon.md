@@ -21,7 +21,7 @@ app's user interface; the product is TIHE throughout.
 | 4 | University of Waterloo KB: meeting functions in depth | https://uwaterloo.atlassian.net/wiki/spaces/ISTKB/pages/270565553 | a teaching institution's view of the same features |
 | 5 | SpotPlayer licence API (third-party PHP client docs) | https://packagist.org/packages/abdal/spotplayer-php | licence fields: courses, watermark, offline days, devices per platform, concurrent use, test mode |
 | 6 | SpotPlayer licence by SMS (WordPress plugin) | https://www.melipayamak.com/lab/sms-spotplayer-plugin/ | the licence-key-per-purchase flow |
-| 7 | TIHE requirements and decisions | [docs/01-requirements.md](../docs/01-requirements.md) | protection is the product; four platforms; Peyda; glass theme |
+| 7 | TIHE requirements and decisions | [docs/01-requirements.md](../docs/01-requirements.md) | protection is the product; four platforms; Modam; glass theme |
 | 8 | TIHE live classroom design | [docs/11-live-classroom.md](../docs/11-live-classroom.md) | the classroom recon already done for the live side |
 | 9 | The institute's new requirements (2026-10-04) | this PR | phone + password, N devices at once set by an admin, one app with a dashboard, recording ends the session |
 
@@ -148,7 +148,7 @@ requirements, marked `original=no`, which parity leaves out). Baseline parity: 4
 ## Out of scope (cannot or should not be cloned)
 
 - Both products' names, logos, icons, colours, copy and installers. TIHE has its own glass theme
-  and the Peyda font.
+  and the Modam font.
 - Adobe Connect's breakout rooms, polls and Q&A: deferred by the institute (docs/10, Q6).
 - Adobe Connect's web/browser client: protected playback in a browser needs commercial DRM
   (docs/10, Q2).

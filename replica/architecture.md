@@ -133,7 +133,7 @@ so both surfaces enforce the same rule. The host's alert says the student was re
 ```
 
 - Theme: the classroom's glass theme (light and dark, `ClassroomTheme`) for every screen, with
-  Peyda registered at start-up.
+  Modam registered at start-up.
 - Server address: one setting (the installer writes it; the sign-in screen can change it).
   The API is at `/v1`, the classroom at `/v1/live`, so one address serves both behind the
   Compose stack's gateway.

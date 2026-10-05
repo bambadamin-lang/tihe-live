@@ -1,25 +1,19 @@
 /**
- * Registers the app's typefaces from ./fonts (see public/fonts/README.md), so a recording is set
- * in the same type the class was seen in: Peyda in the one TIHE app, Modam in the standalone
- * classroom. Each file registers its own family; styles.css puts Peyda first. A missing file is
- * fine: the stack falls back to a system Persian font.
+ * Registers Modam, the classroom's typeface, from ./fonts (see public/fonts/README.md), so the
+ * recording is set in the same type as the app. A missing file is fine: the stack falls back
+ * to a system Persian font.
  */
 const FACES = [
-  ['Peyda', 'Peyda-Regular.ttf', '400'],
-  ['Peyda', 'Peyda-Medium.ttf', '500'],
-  ['Peyda', 'Peyda-SemiBold.ttf', '600'],
-  ['Peyda', 'Peyda-Bold.ttf', '700'],
-  ['Peyda', 'Peyda-ExtraBold.ttf', '800'],
-  ['Modam', 'Modam-Regular.ttf', '400'],
-  ['Modam', 'Modam-Medium.ttf', '500'],
-  ['Modam', 'Modam-Bold.ttf', '700'],
+  ['Modam-Regular.ttf', '400'],
+  ['Modam-Medium.ttf', '500'],
+  ['Modam-Bold.ttf', '700'],
 ] as const;
 
 export async function loadFonts(): Promise<void> {
   await Promise.all(
-    FACES.map(async ([family, file, weight]) => {
+    FACES.map(async ([file, weight]) => {
       try {
-        const face = new FontFace(family, `url(${new URL(`fonts/${file}`, document.baseURI)})`, {
+        const face = new FontFace('Modam', `url(${new URL(`fonts/${file}`, document.baseURI)})`, {
           weight,
         });
         document.fonts.add(await face.load());

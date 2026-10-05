@@ -238,7 +238,7 @@ class ClassroomTheme extends ThemeExtension<ClassroomTheme> {
     scrim: Color(0x4D0F1830),
   );
 
-  /// [dark] or [light], set in [ClassroomFonts.family] (Peyda in the one TIHE app).
+  /// [dark] or [light], set in [ClassroomFonts.family] (Modam unless the app chose another).
   static ClassroomTheme forBrightness(Brightness brightness) {
     final theme = brightness == Brightness.dark ? dark : light;
     return ClassroomFonts.family == theme.fontFamily

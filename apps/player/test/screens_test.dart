@@ -6,9 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tihe_classroom/tihe_classroom.dart' show ClassroomFonts;
 import 'package:tihe_player/core/preferences.dart';
 import 'package:tihe_player/core/providers.dart';
 import 'package:tihe_player/core/router/app_router.dart';
+import 'package:tihe_player/core/theme/app_theme.dart';
 import 'package:tihe_player/features/player/player_controls.dart';
 import 'package:tihe_player/main.dart';
 import 'package:tihe_player/ui/ui.dart';
@@ -38,6 +40,9 @@ void main() {
       }
       await loader.load();
     }
+    // The app's own family is registered at runtime, as main() does, not declared in pubspec.
+    ClassroomFonts.use(AppTheme.fontFamily);
+    expect(await ClassroomFonts.ensureLoaded(), isTrue);
   });
 
   late FakePlayback playback;

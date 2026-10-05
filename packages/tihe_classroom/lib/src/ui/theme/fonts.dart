@@ -7,8 +7,8 @@ import 'package:flutter/services.dart';
 /// `packages/tihe_classroom/Modam`). Every asset under `assets/fonts/` named `Modam-*.ttf` is
 /// loaded into the one family; the engine reads each file's weight from the file itself.
 ///
-/// An app with its own typeface calls [use] first: the one TIHE app sets Peyda, so the class is
-/// in the same type as the rest of the app.
+/// An app with its own typeface calls [use] first, so the class is in the same type as the rest
+/// of the app. The one TIHE app is set in Modam too.
 abstract final class ClassroomFonts {
   static const defaultFamily = 'Modam';
   static String _family = defaultFamily;

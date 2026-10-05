@@ -48,6 +48,6 @@ Admin creates students and enrolls them,admin,should,no,no,
 Change password,account,should,no,no,
 One dashboard leading to live classes or the library,dashboard,must,no,no,
 Recording in class or on a video ends the session after a grace period,protection,must,no,no,
-Persian UI in Peyda with the glass theme in light and dark,platform,must,no,partial,classroom only
+Persian UI in Modam with the glass theme in light and dark,platform,must,no,partial,classroom only
 Demo mode without a server,platform,should,no,partial,classroom demo only
 Whole server on one PC with Docker until a VPS exists,platform,should,no,no,

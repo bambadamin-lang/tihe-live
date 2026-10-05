@@ -12,9 +12,8 @@ import 'l10n/l10n.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Peyda before the first frame, so no screen is ever drawn in a fallback font and re-laid out.
-  // The whole app, the classroom included, is set in Peyda (the institute's choice), rather
-  // than the classroom package's own Modam.
+  // Modam before the first frame, so no screen is ever drawn in a fallback font and re-laid out.
+  // The whole app, the classroom included, is set in the one family (the institute's choice).
   ClassroomFonts.use(AppTheme.fontFamily);
   await ClassroomFonts.ensureLoaded();
 

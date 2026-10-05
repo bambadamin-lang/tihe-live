@@ -15,9 +15,10 @@ import 'tokens.dart';
 class AppTheme {
   const AppTheme._();
 
-  /// Peyda, the institute's typeface, registered at start-up from the classroom package
-  /// (ClassroomFonts.use). Vazirmatn, bundled with the app, covers anything Peyda lacks.
-  static const fontFamily = 'Peyda';
+  /// Modam, the institute's typeface, registered at start-up from the classroom package
+  /// (ClassroomFonts), so the app and its classes share one family. Vazirmatn, bundled with the
+  /// app, covers anything Modam lacks ("…", "·", "²").
+  static const fontFamily = 'Modam';
   static const fontFallback = ['Vazirmatn', 'Noto Sans Arabic', 'Tahoma'];
 
   static ThemeData dark() => _build(AppColors.dark, ClassroomTheme.forBrightness(Brightness.dark));
