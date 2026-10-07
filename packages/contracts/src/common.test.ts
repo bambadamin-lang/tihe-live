@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ERROR_CODES, id, maskPhone, phoneSchema } from './common.js';
+import { ERROR_CODES, id, localPhone, maskPhone, phoneSchema } from './common.js';
 import { ERROR_CATALOG } from './errors.js';
 
 describe('phoneSchema', () => {
@@ -44,6 +44,12 @@ describe('maskPhone', () => {
 
   it('degrades safely on malformed input rather than echoing it', () => {
     expect(maskPhone('+9891')).not.toContain('91');
+  });
+});
+
+describe('localPhone', () => {
+  it('writes every digit in the local form', () => {
+    expect(localPhone('+989123456789')).toBe('09123456789');
   });
 });
 

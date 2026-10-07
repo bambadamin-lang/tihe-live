@@ -4,6 +4,9 @@
 ; hand on Windows (see ../../../README.md):
 ;   iscc /DAppVersion=0.1.0 /DDefaultServer=https://… installer\windows\tihe_live.iss
 ; Silent install for IT staff: TIHE-Live-Setup.exe /VERYSILENT /server=https://…
+; Self-update: the installed app downloads a newer Setup.exe from GitHub releases and runs it
+; with /SILENT /update=1 (example/lib/updater.dart); the wizard keeps the last server address
+; and starts the app again when done.
 
 #ifndef AppVersion
   #define AppVersion "0.1.0"
@@ -87,6 +90,9 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchApp}"; Flags: nowait postinstall skipifsilent
+; After a self-update the app comes back on its own. As the signed-in user, not as the
+; administrator an all-users update may have run as.
+Filename: "{app}\{#AppExe}"; Flags: nowait runasoriginaluser; Check: IsSelfUpdate
 
 [UninstallDelete]
 Type: files; Name: "{app}\tihe_live.json"
@@ -94,6 +100,11 @@ Type: files; Name: "{app}\tihe_live.json"
 [Code]
 var
   ServerPage: TInputQueryWizardPage;
+
+function IsSelfUpdate: Boolean;
+begin
+  Result := ExpandConstant('{param:update|0}') = '1';
+end;
 
 function IsValidServer(const Url: String): Boolean;
 var

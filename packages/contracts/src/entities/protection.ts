@@ -12,12 +12,21 @@ import { id, platformSchema } from '../common.js';
  * Rendered in the native view layer, never as a Dart widget. See docs/03-content-protection.md.
  */
 export const watermarkSchema = z.object({
-  /** Already masked, e.g. "0912•••6789 · #48213". The API never sends a full number. */
+  /**
+   * One row per line (`\n`), drawn top to bottom: the owner's name with their full phone number
+   * beneath it — e.g. "علی کریمی\n09121234503". The full number goes only to its owner, in their
+   * own session response, and is never logged.
+   */
   text: z.string(),
   opacity: z.number().min(0.05).max(1),
   fontSize: z.number().int().min(8).max(48),
+  /**
+   * `corners`: jumps between the four corners and the exact centre at seeded random intervals
+   * (the centre is there because a camera zoomed past the corners cropped a corners-only mark
+   * out). `drift`: a slow pseudo-random drift.
+   */
   movement: z.enum(['static', 'drift', 'corners']),
-  /** Seconds for one full movement cycle. */
+  /** Average seconds between movements; each stay lasts 0.5–1.5 times this. */
   periodSeconds: z.number().int().positive(),
   /** Per-session seed for the drift path. */
   seed: z.number().int(),

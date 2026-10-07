@@ -220,14 +220,22 @@ be tuned without an app release.
 
 ## 9. Watermark
 
-- **Text**: masked phone and short account id, plus the current time — `0912•••6789 ·
-  #48213 · 14:32`. The id and time use ASCII digits so OCR on a leaked copy is reliable.
-  `watermarkShortId` in contracts derives the short id, and the M6 leak-lookup tool uses the
-  same function.
-- **Placement**: a corner of the **stage** (not the window, since a camera aimed at the slides
-  would crop the window corners). It jumps to another corner at seeded random intervals (the
-  existing `watermarkSchema` with `movement: 'corners'`), so cropping one corner never removes
-  it.
+- **Text**: the viewer's full name with their **full** phone number beneath it, and nothing
+  else — the institute asked for no id or clock beside them:
+
+  ```
+       علی کریمی
+      09121234503
+  ```
+
+  Every digit is legible, so a leaked copy names its source without a lookup. The number uses
+  ASCII digits so OCR on a leaked copy is reliable.
+- **Placement**: one mark, over the **stage** (not the window, since a camera aimed at the
+  slides would crop the window edges), in exactly one of five spots: the four corners of the
+  stage or its exact centre. It jumps to a different spot at seeded random intervals
+  (`movement: 'corners'`, `WatermarkHopper` in the classroom). The centre spot is there because
+  a camera zoomed in past the corners cropped a corners-only mark out. It does not glide, and
+  there is no second, background copy — the institute asked for one mark in fixed spots.
 - **Rendering**: a Flutter overlay above the stage. In the classroom the video is a Flutter
   texture, so a Dart overlay sits above it exactly as a native layer would (ADR-0011).
 - **Privacy**: the phone number is never placed in LiveKit metadata or attributes, which
@@ -369,7 +377,7 @@ These cannot run in CI. Run them before each release on real hardware.
 | 10 | iOS 17+ | Control Centre recording; AirPlay mirror | censor screen + host alert |
 | 11 | iOS | Presenter broadcast extension | no self-alert while sharing |
 | 12 | all | Revoke mic from a speaking student | track muted within 1 s; re-publish refused |
-| 13 | all | Watermark | visible on the stage and changing corners; masked phone correct |
+| 13 | all | Watermark | one mark, jumping between the four corners and the centre; full name and full phone beneath it, nothing else |
 | 14 | all | Kill network for 10 s, restore | gateway resumes and the board, hands and chat are intact |
 
 ## 13. What it looks like

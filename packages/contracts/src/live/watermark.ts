@@ -1,10 +1,13 @@
+import { localPhone } from '../common.js';
+
 /**
- * The short account id printed in every identity watermark, live and recorded.
+ * The short account id, for the leak-lookup tool (M6). It is not printed in the live watermark,
+ * which shows the name and phone only.
  *
  * Five ASCII digits derived from the user id with FNV-1a, so the leak-lookup tool (M6) can map a
  * watermark read off a leaked frame back to candidate accounts by recomputing it — no lookup
- * table to keep in sync. Five digits collide across a large user base, which is why the
- * watermark also carries the masked phone: together they identify one account.
+ * table to keep in sync. Five digits collide across a large user base; the name and phone printed
+ * beside it identify one account.
  *
  * ASCII, not Persian digits, because OCR on a re-encoded camera copy reads them far better.
  * The Dart implementation in tihe_classroom must return identical results; both are tested
@@ -19,7 +22,16 @@ export function watermarkShortId(userId: string): string {
   return String(hash % 100000).padStart(5, '0');
 }
 
-/** `0912•••6789 · #48213`. The client appends the current time when it draws the mark. */
-export function liveWatermarkText(phoneMasked: string, userId: string): string {
-  return `${phoneMasked} · #${watermarkShortId(userId)}`;
+/**
+ * The live watermark, one row per line: the full name with the full phone number beneath it —
+ * `علی کریمی\n09121234503` — and nothing else, as the institute asked. A row with nothing to
+ * show is left out.
+ */
+export function liveWatermarkText(who: {
+  displayName: string | null;
+  phone: string | null;
+}): string {
+  return [who.displayName?.trim() || null, who.phone ? localPhone(who.phone) : null]
+    .filter((row): row is string => row !== null)
+    .join('\n');
 }

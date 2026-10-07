@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { id, roleSchema } from '../common.js';
+import { id, phoneSchema, roleSchema } from '../common.js';
 
 /**
  * The internal API services/live calls on services/api (ADR-0012), behind its
@@ -26,8 +26,13 @@ export const directoryEnrollmentSchema = z.object({
 export const directoryProfileSchema = z.object({
   id: id('user'),
   displayName: z.string().nullable(),
-  /** Masked, e.g. 0912•••6789. Used for this user's own watermark only. */
+  /** Masked, e.g. 0912•••6789. For anything that is logged or shown to others. */
   phoneMasked: z.string(),
+  /**
+   * The full number in E.164. Only for this user's own watermark, where the institute wants
+   * every digit legible (docs/11 §9). Never logged, never put in LiveKit.
+   */
+  phone: phoneSchema,
   role: roleSchema,
 });
 export type DirectoryProfile = z.infer<typeof directoryProfileSchema>;
