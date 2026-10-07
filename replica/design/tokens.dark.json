@@ -1,0 +1,74 @@
+{
+  "_about": "TIHE glass theme, dark mode, exported from ClassroomTheme (packages/tihe_classroom/lib/src/ui/theme/classroom_theme.dart). Translucent glass is flattened over the canvas, the worst case: the backdrop glows only add light in dark mode and colour in light mode. Check with: python3 contrast.py tokens.dark.json",
+  "color": {
+    "bg": "#07080b",
+    "surface": "#161719",
+    "surface-strong": "#101115",
+    "text": "#f2f3f5",
+    "text-secondary": "#a3a7b3",
+    "text-tertiary": "#6e7380",
+    "accent": "#266bf9",
+    "on-accent": "#ffffff",
+    "accent-text": "#8ab0ff",
+    "success": "#3db57f",
+    "warning": "#e2a336",
+    "danger": "#ee7272",
+    "danger-surface": "#41292b"
+  },
+  "pairs": [
+    ["text", "bg"],
+    ["text", "surface"],
+    ["text", "surface-strong"],
+    ["text-secondary", "bg"],
+    ["text-secondary", "surface"],
+    ["text-secondary", "surface-strong"],
+    ["text-tertiary", "surface", "large"],
+    ["accent-text", "surface"],
+    ["on-accent", "accent"],
+    ["danger", "surface"],
+    ["danger", "danger-surface"],
+    ["success", "surface"],
+    ["warning", "surface", "large"]
+  ],
+  "font": {
+    "sans": "Modam, Vazirmatn, system-ui"
+  },
+  "type": {
+    "caption": {
+      "size": 12,
+      "line": 16,
+      "weight": 500
+    },
+    "body": {
+      "size": 14,
+      "line": 22,
+      "weight": 400
+    },
+    "title": {
+      "size": 15,
+      "line": 22,
+      "weight": 600
+    },
+    "heading": {
+      "size": 20,
+      "line": 28,
+      "weight": 600
+    },
+    "display": {
+      "size": 28,
+      "line": 36,
+      "weight": 800
+    }
+  },
+  "space": [0, 4, 8, 12, 16, 20, 24, 32, 48],
+  "radius": {
+    "sm": 10,
+    "md": 14,
+    "lg": 20,
+    "pill": 999
+  },
+  "motion": {
+    "fast": "120ms",
+    "base": "220ms"
+  }
+}

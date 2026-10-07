@@ -15,7 +15,8 @@ export type ClientAction =
   | 'reauthenticate'
   | 'open_device_manager'
   | 'contact_support'
-  | 'wait_and_retry';
+  | 'wait_and_retry'
+  | 'change_password';
 
 export const ERROR_CATALOG: Record<
   ErrorCode,
@@ -63,7 +64,8 @@ export const ERROR_CATALOG: Record<
   },
   DEVICE_LIMIT_REACHED: {
     http: 409,
-    messageFa: 'به حداکثر تعداد دستگاه مجاز رسیده‌اید. یکی از دستگاه‌ها را حذف کنید.',
+    messageFa:
+      'با این حساب روی بیشترین تعداد دستگاه مجاز وارد شده‌اید. از یکی خارج شوید تا ادامه دهید.',
     action: 'open_device_manager',
   },
   DEVICE_REVOKED: {
@@ -159,6 +161,47 @@ export const ERROR_CATALOG: Record<
   JOINED_ELSEWHERE: {
     http: 409,
     messageFa: 'با همین حساب از دستگاه دیگری وارد کلاس شده‌اید.',
+    action: 'none',
+  },
+  INVALID_CREDENTIALS: {
+    http: 401,
+    messageFa: 'شمارهٔ موبایل یا رمز عبور درست نیست.',
+    action: 'retry',
+  },
+  LOGIN_RATE_LIMITED: {
+    http: 429,
+    messageFa: 'تلاش‌های ناموفق زیاد بود. چند دقیقهٔ دیگر دوباره امتحان کنید.',
+    action: 'wait_and_retry',
+  },
+  PASSWORD_TOO_WEAK: {
+    http: 400,
+    messageFa:
+      'رمز عبور باید دست‌کم ۸ نویسه داشته باشد و نباید شمارهٔ موبایل یا تکرار یک نویسه باشد.',
+    action: 'none',
+  },
+  PASSWORD_CHANGE_REQUIRED: {
+    http: 403,
+    messageFa: 'برای ادامه، یک رمز عبور تازه برای خودتان انتخاب کنید.',
+    action: 'change_password',
+  },
+  DEVICE_SIGNED_OUT: {
+    http: 401,
+    messageFa: 'این دستگاه از حساب شما خارج شده است. دوباره وارد شوید.',
+    action: 'reauthenticate',
+  },
+  ACCOUNT_SUSPENDED: {
+    http: 403,
+    messageFa: 'حساب کاربری شما غیرفعال شده است. با مؤسسه تماس بگیرید.',
+    action: 'contact_support',
+  },
+  PHONE_TAKEN: {
+    http: 409,
+    messageFa: 'این شمارهٔ موبایل پیش‌تر ثبت شده است.',
+    action: 'none',
+  },
+  REMOVED_FOR_RECORDING: {
+    http: 403,
+    messageFa: 'چون برنامهٔ ضبط صفحه باز بود، از کلاس خارج شدید. آن را ببندید و دوباره وارد شوید.',
     action: 'none',
   },
 };

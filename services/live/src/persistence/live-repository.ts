@@ -76,7 +76,12 @@ export interface LiveRepository {
     patch: Partial<Omit<ClassRecord, 'id' | 'createdAt'>>,
   ): Promise<ClassRecord>;
   findClass(id: string): Promise<ClassRecord | null>;
-  listClasses(filter: { courseId?: string; teacherId?: string }): Promise<ClassRecord[]>;
+  /** Every filter given must match; `courseIds` matches any of them. */
+  listClasses(filter: {
+    courseId?: string;
+    courseIds?: string[];
+    teacherId?: string;
+  }): Promise<ClassRecord[]>;
 
   createSession(record: SessionRecord): Promise<SessionRecord>;
   findSession(id: string): Promise<SessionRecord | null>;

@@ -9,6 +9,7 @@ import { id, roleSchema } from '../common.js';
  *   GET /v1/internal/courses/:courseId                     → directoryCourseSchema
  *   GET /v1/internal/enrollments/check?userId=&courseId=   → directoryEnrollmentSchema
  *   GET /v1/internal/users/:userId/profile                 → directoryProfileSchema
+ *   GET /v1/internal/users/:userId/courses                 → directoryUserCoursesSchema
  */
 export const directoryCourseSchema = z.object({
   id: id('course'),
@@ -31,3 +32,12 @@ export const directoryProfileSchema = z.object({
   role: roleSchema,
 });
 export type DirectoryProfile = z.infer<typeof directoryProfileSchema>;
+
+/**
+ * The courses someone attends or teaches: active, unexpired enrollments plus the courses they are
+ * the teacher of. What "my classes" lists, so a student's dashboard shows their classes.
+ */
+export const directoryUserCoursesSchema = z.object({
+  courseIds: z.array(id('course')),
+});
+export type DirectoryUserCourses = z.infer<typeof directoryUserCoursesSchema>;

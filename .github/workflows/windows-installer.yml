@@ -1,8 +1,12 @@
 name: Windows installer
 
-# Builds the classroom app for Windows and wraps it in the Persian setup wizard
-# (packages/tihe_classroom/example/installer/windows). The Setup.exe is attached to the run as
-# an artifact; tags also publish it as a GitHub release.
+# Builds the one TIHE app (apps/player: live classes + video library) for Windows and wraps it
+# in the Persian setup wizard (apps/player/installer/windows). The Setup.exe is attached to the
+# run as an artifact; tags also publish it as a GitHub release, here and in the public releases
+# repo that installed apps check for updates (apps/player/lib/core/update/updater.dart).
+#
+# Tags stay `live-v*`: installed classroom apps look for exactly that, so they update into
+# this app.
 on:
   workflow_dispatch:
     inputs:
@@ -13,6 +17,7 @@ on:
     tags: ['live-v*']
   pull_request:
     paths:
+      - 'apps/player/**'
       - 'packages/tihe_classroom/**'
       - 'packages/capture_guard/**'
       - '.github/workflows/windows-installer.yml'
@@ -23,13 +28,18 @@ concurrency:
 
 jobs:
   installer:
-    name: Build TIHE Live Setup.exe
+    name: Build TIHE Setup.exe
     runs-on: windows-latest
     permissions:
       contents: write
     defaults:
       run:
         shell: pwsh
+    env:
+      # Public and code-free, so the app reads it without a token. Create it with a README
+      # (a release needs a commit to tag) and give a RELEASES_TOKEN secret write access to it.
+      UPDATE_REPO: ${{ vars.TIHE_UPDATE_REPO || 'bambadamin-lang/tihe-live-releases' }}
+      OUTPUT_DIR: apps/player/installer/windows/Output
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,25 +68,33 @@ jobs:
           $v = '${{ github.event.inputs.version }}'
           if (-not $v -and '${{ github.ref_type }}' -eq 'tag') { $v = '${{ github.ref_name }}' -replace '^live-v', '' }
           if (-not $v) { $v = '0.1.${{ github.run_number }}' }
+          # The updater only understands major.minor.patch.
+          if ($v -notmatch '^\d+\.\d+\.\d+$') { throw "Version '$v' must look like 0.2.0" }
           "APP_VERSION=$v" >> $env:GITHUB_ENV
 
       - name: Build the Windows app
-        working-directory: packages/tihe_classroom/example
-        run: flutter build windows --release --build-name $env:APP_VERSION
+        working-directory: apps/player
+        # The first two defines switch the updater on; builds without them never update. The
+        # third is the server the app uses until the installer or the student sets one.
+        run: >
+          flutter build windows --release --build-name $env:APP_VERSION
+          --dart-define=TIHE_APP_VERSION=$env:APP_VERSION
+          --dart-define=TIHE_UPDATE_REPO=$env:UPDATE_REPO
+          --dart-define=TIHE_SERVER_URL=${{ vars.TIHE_SERVER_URL || 'http://localhost:8080' }}
 
       # Copies in the Visual C++ runtime DLLs the app imports (app-local, which Microsoft
       # permits), then fails if anything loaded at start-up is neither bundled nor part of
       # Windows, so Setup.exe never needs a separate runtime install.
       - name: Bundle the Visual C++ runtime and check dependencies
         run: >
-          ./packages/tihe_classroom/example/installer/windows/check-dependencies.ps1
-          -Bundle packages/tihe_classroom/example/build/windows/x64/runner/Release
+          ./apps/player/installer/windows/check-dependencies.ps1
+          -Bundle apps/player/build/windows/x64/runner/Release
           -BundleVcRuntime
 
       - name: Fetch the Persian wizard text
         continue-on-error: true
         run: >
-          Invoke-WebRequest -OutFile packages/tihe_classroom/example/installer/windows/Farsi.isl
+          Invoke-WebRequest -OutFile apps/player/installer/windows/Farsi.isl
           https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/Farsi.isl
 
       - name: Install Inno Setup
@@ -86,13 +104,30 @@ jobs:
         run: >
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           "/DAppVersion=$env:APP_VERSION"
-          "/DDefaultServer=${{ vars.TIHE_LIVE_URL || 'http://localhost:3100/v1/live' }}"
-          packages/tihe_classroom/example/installer/windows/tihe_live.iss
+          "/DDefaultServer=${{ vars.TIHE_SERVER_URL || 'http://localhost:8080' }}"
+          apps/player/installer/windows/tihe_live.iss
+
+      # What the app reads to find, size and verify the new wizard (ReleaseManifest).
+      - name: Write the update manifest
+        run: |
+          $exe = @(Get-ChildItem "$env:OUTPUT_DIR/*.exe")
+          if ($exe.Count -ne 1) { throw "Expected one setup wizard, found $($exe.Count)" }
+          [ordered]@{
+            version = $env:APP_VERSION
+            windows = [ordered]@{
+              file   = $exe[0].Name
+              sha256 = (Get-FileHash $exe[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              size   = $exe[0].Length
+            }
+          } | ConvertTo-Json | Set-Content -Encoding utf8NoBOM "$env:OUTPUT_DIR/latest.json"
+          Get-Content "$env:OUTPUT_DIR/latest.json"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: TIHE-Live-Setup-${{ env.APP_VERSION }}
-          path: packages/tihe_classroom/example/installer/windows/Output/*.exe
+          name: TIHE-Setup-${{ env.APP_VERSION }}
+          path: |
+            ${{ env.OUTPUT_DIR }}/*.exe
+            ${{ env.OUTPUT_DIR }}/latest.json
           if-no-files-found: error
 
       - name: Publish the release
@@ -100,6 +135,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >
-          gh release create '${{ github.ref_name }}' --title "TIHE Live $env:APP_VERSION"
-          --notes 'Windows setup wizard for TIHE Live.'
-          (Get-ChildItem packages/tihe_classroom/example/installer/windows/Output/*.exe).FullName
+          gh release create '${{ github.ref_name }}' --title "TIHE $env:APP_VERSION"
+          --notes 'Windows setup wizard for TIHE: live classes and the video library.'
+          (Get-ChildItem "$env:OUTPUT_DIR/*.exe").FullName
+
+      # Installed apps see the new version once this release is the public repo's latest.
+      - name: Publish the update
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          if (-not $env:GH_TOKEN) {
+            "::warning::RELEASES_TOKEN is not set, so installed apps will not be offered $env:APP_VERSION."
+            exit 0
+          }
+          gh release create '${{ github.ref_name }}' --repo $env:UPDATE_REPO --latest `
+            --title "TIHE $env:APP_VERSION" --notes 'Windows setup wizard for TIHE.' `
+            (Get-ChildItem "$env:OUTPUT_DIR/*.exe").FullName "$env:OUTPUT_DIR/latest.json"

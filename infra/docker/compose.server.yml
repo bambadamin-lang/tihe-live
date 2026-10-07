@@ -1,0 +1,212 @@
+# The whole TIHE server on one PC (or, later, one VPS): the API, the live classroom, video
+# processing, LiveKit with recording, storage and the databases, behind one address.
+#
+# Do not start this by hand the first time; run the setup, which writes the secrets this file
+# reads and creates the first admin:
+#
+#   ./infra/scripts/server-setup.sh          (Linux, macOS, WSL)
+#   .\infra\scripts\server-setup.ps1         (Windows, Docker Desktop)
+#
+# Afterwards: docker compose -f infra/docker/compose.server.yml --env-file infra/docker/server/.env up -d
+#
+# Ports this PC must allow through its firewall:
+#   8080/tcp         the app's one address (API + classroom)
+#   9000/tcp         video and recording downloads (presigned links)
+#   7880-7881/tcp    LiveKit signalling
+#   50000-50100/udp  LiveKit media
+
+name: tihe-server
+
+x-node: &node
+  restart: unless-stopped
+  environment: &node-env
+    NODE_ENV: production
+    REDIS_URL: redis://redis:6379
+    S3_ENDPOINT: http://storage:9000
+    S3_REGION: us-east-1
+    S3_ACCESS_KEY: ${STORAGE_ACCESS_KEY:?run the server setup first}
+    S3_SECRET_KEY: ${STORAGE_SECRET_KEY:?}
+    S3_BUCKET_RAW: tihe-raw
+    S3_BUCKET_VOD: tihe-vod
+    JWT_SECRET: ${JWT_SECRET:?}
+    LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?}
+    LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?}
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+    redis:
+      condition: service_healthy
+    storage-init:
+      condition: service_completed_successfully
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tihe
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: tihe
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale-provider=icu --icu-locale=fa-IR'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tihe -d tihe']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  storage:
+    image: rustfs/rustfs:latest
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${STORAGE_ACCESS_KEY:?}
+      RUSTFS_SECRET_KEY: ${STORAGE_SECRET_KEY:?}
+    # Clients download segments here by presigned link, never through the API.
+    ports:
+      - '9000:9000'
+    volumes:
+      - storage_data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/health']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  storage-init:
+    image: rustfs/rustfs:latest
+    depends_on:
+      storage:
+        condition: service_healthy
+    entrypoint: /bin/sh
+    volumes:
+      - ../scripts/storage-init.sh:/init.sh:ro
+    command: /init.sh
+    environment:
+      S3_ENDPOINT: http://storage:9000
+      S3_ACCESS_KEY: ${STORAGE_ACCESS_KEY:?}
+      S3_SECRET_KEY: ${STORAGE_SECRET_KEY:?}
+    restart: 'no'
+
+  migrate:
+    build: &build
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+      target: migrate
+    image: tihe/server-migrate
+    environment:
+      DATABASE_URL: postgresql://tihe:${POSTGRES_PASSWORD:?}@postgres:5432/tihe?schema=public
+      LIVE_DATABASE_URL: postgresql://tihe:${POSTGRES_PASSWORD:?}@postgres:5432/tihe_live?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    <<: *node
+    build:
+      <<: *build
+      target: api
+    image: tihe/server-api
+    environment:
+      <<: *node-env
+      PORT: 3000
+      DATABASE_URL: postgresql://tihe:${POSTGRES_PASSWORD:?}@postgres:5432/tihe?schema=public
+      # What presigned links point at: this PC, as students' devices reach it.
+      S3_PUBLIC_ENDPOINT: http://${TIHE_HOST:?}:9000
+      KEK_BASE64: ${KEK_BASE64:?}
+      LICENSE_PRIVATE_KEY_BASE64: ${LICENSE_PRIVATE_KEY_BASE64:?}
+      LICENSE_PUBLIC_KEY_BASE64: ${LICENSE_PUBLIC_KEY_BASE64:?}
+      PASSWORD_PEPPER: ${PASSWORD_PEPPER:?}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?}
+
+  live:
+    <<: *node
+    build:
+      <<: *build
+      target: live
+    image: tihe/server-live
+    environment:
+      <<: *node-env
+      PORT: 3100
+      LIVE_DATABASE_URL: postgresql://tihe:${POSTGRES_PASSWORD:?}@postgres:5432/tihe_live?schema=public
+      LIVE_TICKET_SECRET: ${LIVE_TICKET_SECRET:?}
+      # Given to the app: LiveKit and the classroom gateway as devices reach them.
+      LIVEKIT_URL: ws://${TIHE_HOST:?}:7880
+      PUBLIC_GATEWAY_URL: ws://${TIHE_HOST:?}:8080/v1/live/ws
+      # Used inside the server.
+      LIVEKIT_API_URL: http://livekit:7880
+      EGRESS_TEMPLATE_URL: http://live:3100/v1/live/egress-template/index.html
+      EGRESS_GATEWAY_URL: ws://live:3100/v1/live/ws
+      DIRECTORY_MODE: http
+      API_INTERNAL_URL: http://api:3000
+      API_INTERNAL_TOKEN: ${INTERNAL_API_TOKEN:?}
+      IOS_SECURE_LAYER: 'true'
+
+  media-worker:
+    <<: *node
+    build:
+      <<: *build
+      target: media-worker
+    image: tihe/server-media-worker
+    environment:
+      <<: *node-env
+      DATABASE_URL: postgresql://tihe:${POSTGRES_PASSWORD:?}@postgres:5432/tihe?schema=public
+      KEK_BASE64: ${KEK_BASE64:?}
+
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    ports:
+      - '7880:7880'
+      - '7881:7881'
+      - '50000-50100:50000-50100/udp'
+    volumes:
+      - ./server/generated/livekit.yaml:/etc/livekit.yaml:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  egress:
+    image: livekit/egress:latest
+    restart: unless-stopped
+    environment:
+      EGRESS_CONFIG_FILE: /etc/egress.yaml
+    volumes:
+      - ./server/generated/egress.yaml:/etc/egress.yaml:ro
+    shm_size: '1gb'
+    cap_add:
+      - SYS_ADMIN
+    depends_on:
+      - livekit
+      - redis
+
+  gateway:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./server/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - api
+      - live
+
+volumes:
+  postgres_data:
+  redis_data:
+  storage_data:

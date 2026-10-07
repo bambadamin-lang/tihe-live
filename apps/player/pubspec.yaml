@@ -1,0 +1,96 @@
+name: tihe_player
+description: TIHE — live classes and the protected course library in one app, for Windows, macOS, Android and iOS.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  # The classroom package needs Dart 3.10 and Flutter 3.38 (livekit_client 2.x, ADR-0009).
+  sdk: ^3.10.0
+  flutter: ">=3.38.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State and routing.
+  # One Riverpod for the whole app: the classroom package is on 3.
+  flutter_riverpod: ^3.0.0
+  go_router: ^14.6.2
+
+  # Networking. Dio for interceptors — token refresh and cert pinning both need them.
+  dio: ^5.7.0
+
+  # Secrets on device. Tokens only: content keys never reach Dart, they live in secure-core.
+  flutter_secure_storage: ^9.2.2
+
+  # The live classroom and the capture guard, shared with the classroom's own example app.
+  tihe_classroom:
+    path: ../../packages/tihe_classroom
+  capture_guard:
+    path: ../../packages/capture_guard
+
+  # Persian UI.
+  shamsi_date: ^1.1.0
+
+  # Video. Two engines behind one abstraction, per docs/adr/0001:
+  #   media_kit (libmpv) on Windows, where the first-party plugin is weak;
+  #   video_player (ExoPlayer) on Android/iOS, where it is the best option.
+  # Both receive plaintext HLS from the loopback server, so they get identical input.
+  media_kit: ^1.1.11
+  media_kit_video: ^1.2.5
+  media_kit_libs_video: ^1.0.5
+  video_player: ^2.9.2
+
+  # Device identity signals feeding the fingerprint (see secure-core::device).
+  device_info_plus: ^12.3.0
+  package_info_plus: ^8.1.2
+  path_provider: ^2.1.5
+
+  # FFI to secure-core.
+  ffi: ^2.1.3
+
+  crypto: ^3.0.6
+  # Self-update downloads (core/update).
+  http: ^1.2.0
+  intl: ^0.20.2
+
+  # UI. Lucide for one consistent line-icon set, with RTL-mirroring variants for directional glyphs.
+  lucide_icons_flutter: ^3.1.20
+  # Non-secret preferences only (appearance). Tokens stay in flutter_secure_storage.
+  shared_preferences: ^2.5.5
+  # Windows: the app draws its own title bar, in the night-sky design (core/window_frame.dart).
+  window_manager: ^0.5.2
+
+dev_dependencies:
+  flutter_driver:
+    sdk: flutter
+  flutter_test:
+    sdk: flutter
+  # Profile-mode performance runs: integration_test/perf_test.dart.
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  fake_async: ^1.3.0
+
+flutter:
+  uses-material-design: true
+  generate: true
+
+  assets:
+    - assets/
+
+  fonts:
+    # Vazirmatn: the de facto standard Persian UI font, and it carries Latin glyphs too, so mixed
+    # course titles do not fall back to a different face mid-line.
+    - family: Vazirmatn
+      fonts:
+        - asset: assets/fonts/Vazirmatn-Regular.ttf
+        - asset: assets/fonts/Vazirmatn-Medium.ttf
+          weight: 500
+        # Headings. Softer than Bold, which reads heavy in Persian script at title sizes.
+        - asset: assets/fonts/Vazirmatn-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Vazirmatn-Bold.ttf
+          weight: 700

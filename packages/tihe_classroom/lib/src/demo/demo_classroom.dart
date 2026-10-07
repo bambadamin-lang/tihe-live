@@ -303,7 +303,10 @@ abstract final class DemoClassroom {
     ),
   );
 
-  static JoinResponse join({required String as}) {
+  static JoinResponse join({
+    required String as,
+    int? recordingGraceSeconds = 10,
+  }) {
     final me = participants.firstWhere((p) => p.userId == as);
     return JoinResponse(
       session: const LiveSession(
@@ -335,7 +338,7 @@ abstract final class DemoClassroom {
         periodSeconds: 30,
         seed: 918273,
       ),
-      capturePolicy: const CapturePolicySpec(
+      capturePolicy: CapturePolicySpec(
         block: true,
         windowsAffinity: 'monitor',
         censorAudio: true,
@@ -344,6 +347,7 @@ abstract final class DemoClassroom {
         recorderProcessesMacos: ['obs'],
         iosSecureLayer: false,
         scanIntervalMs: 3000,
+        recordingGraceSeconds: recordingGraceSeconds,
       ),
     );
   }
@@ -406,6 +410,7 @@ abstract final class DemoClassroom {
     Layout? layout,
     bool hostSharing = false,
     CaptureMonitor? capture,
+    int? recordingGraceSeconds = 10,
   }) {
     final server = DemoClassroomServer(snapshot: snapshot(layout: layout))
       ..you = as;
@@ -415,7 +420,7 @@ abstract final class DemoClassroom {
       painter: (userId, slot) => DemoVideo(userId: userId, slot: slot),
     );
     final session = ClassroomSession(
-      join: join(as: as),
+      join: join(as: as, recordingGraceSeconds: recordingGraceSeconds),
       gateway: GatewayClient(
         url: Uri.parse('ws://demo/v1/live/ws'),
         firstTicket: 'demo-ticket',

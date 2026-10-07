@@ -1,0 +1,54 @@
+[
+  {
+    "id": "cls_01J8ZA00000000000000000001",
+    "courseId": "crs_01J8ZA00000000000000000001",
+    "sectionId": null,
+    "title": "ریاضی ۱ — جلسهٔ چهارم",
+    "description": null,
+    "teacherId": "usr_01J8ZB00000000000000000001",
+    "scheduledStartAt": "2026-10-04T06:30:00.000Z",
+    "durationMinutes": 90,
+    "settings": {
+      "autoRecord": true,
+      "defaultLayout": "whiteboard",
+      "policy": {
+        "participantsCanUnmute": false,
+        "participantsCanStartVideo": false,
+        "participantsCanShareScreen": false,
+        "participantsCanDraw": false,
+        "participantsCanChat": true,
+        "handRaiseEnabled": true,
+        "locked": false
+      },
+      "maxParticipants": 100
+    },
+    "liveSessionId": "ses_01J8ZC00000000000000000001",
+    "createdAt": "2026-10-01T08:00:00.000Z"
+  },
+  {
+    "id": "cls_01J8ZA00000000000000000002",
+    "courseId": "crs_01J8ZA00000000000000000001",
+    "sectionId": "sec_01J8ZA00000000000000000001",
+    "title": "رفع اشکال",
+    "description": "پیش از امتحان میان‌ترم",
+    "teacherId": "usr_01J8ZB00000000000000000001",
+    "scheduledStartAt": null,
+    "durationMinutes": 60,
+    "settings": {
+      "autoRecord": false,
+      "defaultLayout": "presentation",
+      "policy": {
+        "participantsCanUnmute": true,
+        "participantsCanStartVideo": false,
+        "participantsCanShareScreen": false,
+        "participantsCanDraw": true,
+        "participantsCanChat": true,
+        "handRaiseEnabled": true,
+        "locked": false
+      },
+      "maxParticipants": 100
+    },
+    "liveSessionId": null,
+    "createdAt": "2026-10-02T08:00:00.000Z"
+  }
+]

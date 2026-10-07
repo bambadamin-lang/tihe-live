@@ -1,0 +1,20 @@
+# The server's one address (port 8080): what the app and its installer are given.
+#   /v1/live/*  → services/live (REST and the classroom WebSocket)
+#   /v1/*       → services/api
+# The API's internal directory is for services/live only, over the private network.
+:8080 {
+	# In a handle of its own: a bare `respond` would run after the handles below.
+	handle /v1/internal* {
+		respond 404
+	}
+
+	handle /v1/live/* {
+		reverse_proxy live:3100
+	}
+	handle /v1/* {
+		reverse_proxy api:3000
+	}
+	handle {
+		respond "TIHE" 200
+	}
+}

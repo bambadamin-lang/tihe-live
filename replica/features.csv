@@ -1,0 +1,53 @@
+feature,area,priority,original,clone,notes
+Join a class from a list of live and upcoming classes,live classes,must,yes,no,
+Host starts and ends a class,live classes,must,yes,yes,services/live sessions
+Attendance report,live classes,should,yes,no,
+Host presenter and participant roles with per-person rights,classroom,must,yes,yes,services/live capabilities
+Webcam and microphone,classroom,must,yes,yes,tihe_classroom
+Screen share,classroom,must,yes,yes,tihe_classroom
+Pods on a stage: video share chat people,classroom,must,yes,yes,tihe_classroom
+Layouts the host switches for everyone,classroom,must,yes,yes,six presets
+Whiteboard with several pen types,classroom,must,yes,yes,
+Raise hand ordered by time,classroom,must,yes,yes,
+Chat,classroom,must,yes,yes,
+Server-side class recording,classroom,must,yes,yes,LiveKit Egress with the class template
+Share uploaded documents (PDF and slides) in the room,classroom,should,yes,no,
+Presenter-only area,classroom,could,yes,no,
+Attendee status (agree and disagree),classroom,could,yes,no,
+Breakout rooms,classroom,should,yes,skip,deferred by the institute (docs/10 Q6)
+Polls and Q&A pods,classroom,should,yes,skip,deferred by the institute (docs/10 Q6)
+Telephone dial-in audio,classroom,could,yes,skip,not offered in Iran-hosted deployments
+Encrypted video decrypted only in memory,player,must,yes,no,
+Player controls: seek speed quality fullscreen,player,must,yes,no,
+Resume where you left off,player,should,yes,no,
+Library of enrolled courses,library,must,yes,no,
+Course page with sections and videos,library,must,yes,no,
+Watermark naming the viewer,protection,must,yes,partial,classroom yes; player not yet
+Screen recording blocked or detected,protection,must,yes,partial,classroom yes; player not yet
+Playback stops while a recorder runs,protection,must,yes,no,
+Revoke a device remotely,protection,must,yes,partial,API releases devices; no admin UI
+Licence bound to the student's devices,protection,must,yes,partial,secure-core and API; not wired in the app
+Device limit per account,devices,must,yes,partial,counts registered devices not signed-in ones
+Concurrent use limit,devices,must,yes,no,
+Per-platform device limits,devices,could,yes,no,
+Offline download with an expiring licence,offline,should,yes,no,
+Test-mode licences,admin,could,yes,no,
+Licence keys sold and sent by SMS after purchase,admin,should,yes,skip,enrollment not purchase grants access (A6)
+Web player,platform,should,yes,skip,protected playback in a browser needs commercial DRM (docs/10 Q2)
+Browser classroom,platform,should,yes,skip,same reason as the web player
+Windows app,platform,must,yes,partial,classroom only
+Android app,platform,must,yes,partial,classroom only
+macOS app,platform,should,yes,partial,classroom only
+iOS app,platform,should,yes,partial,classroom only
+Installer wizard,platform,must,yes,partial,classroom only
+Automatic updates,platform,must,yes,partial,classroom only (PR #5)
+Phone and password sign in,sign in,must,no,no,replaces SMS codes (ADR-0007)
+Sign out another device from the sign-in screen at the limit,devices,must,no,no,
+Admin sets the default device limit and per-user limits,admin,must,no,no,
+Admin creates students and enrolls them,admin,should,no,no,
+Change password,account,should,no,no,
+One dashboard leading to live classes or the library,dashboard,must,no,no,
+Recording in class or on a video ends the session after a grace period,protection,must,no,no,
+Persian UI in Modam with the glass theme in light and dark,platform,must,no,partial,classroom only
+Demo mode without a server,platform,should,no,partial,classroom demo only
+Whole server on one PC with Docker until a VPS exists,platform,should,no,no,

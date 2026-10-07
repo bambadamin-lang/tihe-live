@@ -27,3 +27,4 @@ export 'src/ui/theme/glass.dart';
 export 'src/ui/theme/menu.dart';
 export 'src/ui/theme/motion.dart';
 export 'src/ui/theme/transitions.dart';
+export 'src/ui/theme/welcome.dart';

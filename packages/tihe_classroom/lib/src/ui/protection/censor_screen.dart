@@ -1,15 +1,22 @@
+import 'dart:async';
+
 import 'package:capture_guard/capture_guard.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/classroom_theme.dart';
+import '../../domain/persian.dart';
+import '../theme/classroom_theme.dart' show ClassroomTheme;
 import '../theme/glass.dart';
 
 /// Replaces the whole class while the screen is being recorded (ADR-0011). Opaque — nothing of
 /// the class shows through — and it explains what to do to get back in.
 class CensorScreen extends StatelessWidget {
-  const CensorScreen({super.key, required this.verdict});
+  const CensorScreen({super.key, required this.verdict, this.deadline});
 
   final CaptureVerdict verdict;
+
+  /// When the recording takes the student out of the class; null when the course allows it.
+  final DateTime? deadline;
 
   String get _why {
     if (verdict.signals.contains(CaptureSignal.recorderProcess)) {
@@ -91,15 +98,17 @@ class CensorScreen extends StatelessWidget {
                         color: t.glassHover,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Text(
-                        'کلاس به‌محض توقف ضبط برمی‌گردد. میزبان از این مورد باخبر شده است.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: t.textTertiary,
-                          fontSize: 12.5,
-                          height: 1.6,
-                        ),
-                      ),
+                      child: deadline != null
+                          ? _Countdown(deadline: deadline!)
+                          : Text(
+                              'کلاس به‌محض توقف ضبط برمی‌گردد. میزبان از این مورد باخبر شده است.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: t.textTertiary,
+                                fontSize: 12.5,
+                                height: 1.6,
+                              ),
+                            ),
                     ),
                   ],
                 ),
@@ -107,6 +116,53 @@ class CensorScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// "Close it within 7 seconds, or you leave the class" — ticking, so the stakes are plain.
+class _Countdown extends StatefulWidget {
+  const _Countdown({required this.deadline});
+
+  final DateTime deadline;
+
+  @override
+  State<_Countdown> createState() => _CountdownState();
+}
+
+class _CountdownState extends State<_Countdown> {
+  late final Timer _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(
+      const Duration(milliseconds: 250),
+      (_) => setState(() {}),
+    );
+  }
+
+  @override
+  void dispose() {
+    _tick.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = ClassroomTheme.of(context);
+    final ms = widget.deadline.difference(DateTime.now()).inMilliseconds;
+    final seconds = ms <= 0 ? 0 : (ms / 1000).ceil();
+    return Text(
+      'اگر تا ${toPersianDigits(seconds)} ثانیهٔ دیگر بسته نشود، از کلاس خارج می‌شوید. '
+      'کلاس به‌محض توقف ضبط برمی‌گردد و میزبان باخبر شده است.',
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: t.danger,
+        fontSize: 13,
+        height: 1.6,
+        fontWeight: FontWeight.w600,
       ),
     );
   }

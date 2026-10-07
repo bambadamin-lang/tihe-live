@@ -1,0 +1,735 @@
+// TIHE Live data model.
+//
+// Reasoning for each table is in docs/07-data-model.md — read that before changing the shape of
+// anything here. Conventions:
+//   * IDs are prefixed ULIDs (usr_, crs_, vid_) generated in application code.
+//   * All timestamps are UTC. Jalali conversion is client-side only.
+//   * snake_case in the database, camelCase in TypeScript.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────── Identity ───────────────────────────────
+
+enum Role {
+  student
+  teacher
+  admin
+}
+
+enum UserStatus {
+  active
+  suspended
+}
+
+model User {
+  id String @id
+
+  /// E.164 (+989…). Never returned to a client unmasked.
+  phone       String     @unique
+  displayName String?    @map("display_name")
+  role        Role       @default(student)
+  status      UserStatus @default(active)
+
+  /// Incremented to invalidate every licence this user holds. Clients compare their stored
+  /// epoch against this on each heartbeat, so a revocation lands within one interval.
+  revocationEpoch Int @default(0) @map("revocation_epoch")
+
+  /// Argon2id of the password with the server pepper (ADR-0013). Null: cannot sign in until an
+  /// admin sets one.
+  passwordHash       String?   @map("password_hash")
+  passwordChangedAt  DateTime? @map("password_changed_at")
+  /// Set when an admin chose the password, so the student picks their own before anything else.
+  mustChangePassword Boolean   @default(false) @map("must_change_password")
+  /// Devices this account may have signed in at once (ADR-0014). Null: the institute default.
+  maxDevices         Int?      @map("max_devices")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  devices       Device[]
+  refreshTokens RefreshToken[]
+  enrollments   Enrollment[]
+  licenses      License[]
+  downloads     Download[]
+  progress      WatchProgress[]
+  watchEvents   WatchEvent[]
+  taughtCourses Course[]         @relation("CourseTeacher")
+  notes         Note[]
+  quizAttempts  QuizAttempt[]
+  sessions      PlaybackSession[]
+
+  @@index([status])
+  @@map("users")
+}
+
+/// Every sign-in attempt, kept for rate limiting and abuse analysis: a burst from one address
+/// across many numbers is the signal that matters, and it is invisible if rows are deleted.
+model LoginAttempt {
+  id String @id
+
+  /// E.164, normalised, whether or not it belongs to an account.
+  phone     String
+  ip        String?
+  succeeded Boolean
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([phone, createdAt])
+  @@index([ip, createdAt])
+  @@map("login_attempts")
+}
+
+/// Institute-wide settings an admin changes in the app, e.g. `default_max_devices`.
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by")
+
+  @@map("settings")
+}
+
+enum Platform {
+  windows
+  android
+  ios
+  macos
+  linux
+}
+
+model Device {
+  id String @id
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// SHA-256 of platform signals. Recognises a returning device; not an auth factor.
+  fingerprintHash String   @map("fingerprint_hash")
+  platform        Platform
+  name            String
+
+  /// The device's X25519 public key. Content keys are wrapped to this; the private half never
+  /// leaves the platform keystore, which is what makes a copied .tihex file useless.
+  publicKey String @map("public_key")
+
+  /// False when the key is sealed in software only — visible to admins as a risk signal.
+  hardwareBackedKey Boolean @default(false) @map("hardware_backed_key")
+
+  appVersion String? @map("app_version")
+  osVersion  String? @map("os_version")
+
+  trustedAt  DateTime? @map("trusted_at")
+  revokedAt  DateTime? @map("revoked_at")
+  lastSeenAt DateTime? @map("last_seen_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  /// The current sign-in on this device (ADR-0014). Access tokens carry it as `sid`, so signing
+  /// out, here or from another device, ends the session at once rather than when the token
+  /// expires. Null while signed out.
+  sessionId        String?   @unique @map("session_id")
+  sessionStartedAt DateTime? @map("session_started_at")
+  /// Slides forward with every refresh. A device left alone this long times out and stops
+  /// counting towards the limit by itself.
+  sessionExpiresAt DateTime? @map("session_expires_at")
+
+  refreshTokens RefreshToken[]
+  downloads     Download[]
+  watchEvents   WatchEvent[]
+  licenses      LicenseDevice[]
+  sessions      PlaybackSession[]
+
+  /// One row per physical device per user, so re-registering does not consume a second slot.
+  @@unique([userId, fingerprintHash])
+  @@index([userId, revokedAt])
+  @@index([userId, sessionExpiresAt])
+  @@map("devices")
+}
+
+model RefreshToken {
+  id String @id
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  deviceId String @map("device_id")
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  /// Single-use. A second presentation of a consumed token revokes the whole device session:
+  /// that is theft, not a race.
+  usedAt    DateTime? @map("used_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId, deviceId])
+  @@map("refresh_tokens")
+}
+
+// ─────────────────────────────── Catalog ───────────────────────────────
+
+model Term {
+  id String @id
+
+  title     String
+  startsAt  DateTime @map("starts_at")
+  endsAt    DateTime @map("ends_at")
+  isCurrent Boolean  @default(false) @map("is_current")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  courses Course[]
+
+  @@map("terms")
+}
+
+enum CourseStatus {
+  draft
+  published
+  archived
+}
+
+model Course {
+  id String @id
+
+  termId String? @map("term_id")
+  term   Term?   @relation(fields: [termId], references: [id], onDelete: SetNull)
+
+  title       String
+  slug        String       @unique
+  description String?
+  status      CourseStatus @default(draft)
+  coverKey    String?      @map("cover_key")
+
+  teacherId String? @map("teacher_id")
+  teacher   User?   @relation("CourseTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+
+  // ── Protection policy ──
+  // Lives on the course, not the video, so an admin changes it once and every video inherits.
+  allowDownload        Boolean @default(true) @map("allow_download")
+  /// False blocks screen capture in the player. Per course because capture blocking also breaks
+  /// legitimate accessibility and remote-support tools.
+  allowCapture         Boolean @default(false) @map("allow_capture")
+  offlineWindowDays    Int     @default(30) @map("offline_window_days")
+  maxDevices           Int     @default(2) @map("max_devices")
+  maxConcurrentStreams Int     @default(1) @map("max_concurrent_streams")
+
+  /// normalize_fa(title || description), maintained by a trigger. See docs/07-data-model.md.
+  searchText String? @map("search_text")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  sections    CourseSection[]
+  videos      Video[]
+  enrollments Enrollment[]
+  recordings  Recording[]
+  attachments Attachment[]
+
+  @@index([termId, status])
+  @@map("courses")
+}
+
+model CourseSection {
+  id String @id
+
+  courseId String @map("course_id")
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  title String
+  order Int    @default(0)
+
+  videos Video[]
+
+  @@index([courseId, order])
+  @@map("course_sections")
+}
+
+enum EnrollmentStatus {
+  active
+  suspended
+  completed
+}
+
+model Enrollment {
+  id String @id
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  courseId String @map("course_id")
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  status     EnrollmentStatus @default(active)
+  enrolledAt DateTime         @default(now()) @map("enrolled_at")
+  expiresAt  DateTime?        @map("expires_at")
+
+  /// Checked on every catalog and playback request, so it must be unique and indexed.
+  @@unique([userId, courseId])
+  @@index([courseId, status])
+  @@map("enrollments")
+}
+
+// ─────────────────────────────── Media ───────────────────────────────
+
+enum VideoSource {
+  live_recording
+  upload
+}
+
+enum VideoStatus {
+  processing
+  pending_review
+  ready
+  failed
+}
+
+model Video {
+  id String @id
+
+  courseId String @map("course_id")
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  sectionId String?        @map("section_id")
+  section   CourseSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+
+  title       String
+  description String?
+  source      VideoSource @default(upload)
+  status      VideoStatus @default(processing)
+
+  durationMs Int     @default(0) @map("duration_ms")
+  posterKey  String? @map("poster_key")
+  spriteKey  String? @map("sprite_key")
+
+  /// When the live class was held, as opposed to when the video was published.
+  recordedAt  DateTime? @map("recorded_at")
+  publishedAt DateTime? @map("published_at")
+
+  /// Quiz/prerequisite gate (M5). JSON so the rule shape can evolve without a migration.
+  unlockRule Json? @map("unlock_rule")
+
+  searchText String? @map("search_text")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  assets      VideoAsset[]
+  contentKeys ContentKey[]
+  chapters    Chapter[]
+  attachments Attachment[]
+  progress    WatchProgress[]
+  watchEvents WatchEvent[]
+  downloads   Download[]
+  notes       Note[]
+  quizzes     Quiz[]
+  recording   Recording?
+  sessions    PlaybackSession[]
+
+  @@index([courseId, status])
+  @@index([sectionId])
+  @@map("videos")
+}
+
+model VideoAsset {
+  id String @id
+
+  videoId String @map("video_id")
+  video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  /// "1080p", "720p", "480p", "audio"
+  label      String
+  storageKey String  @map("storage_key")
+  width      Int?
+  height     Int?
+  bitrate    Int
+  codec      String?
+
+  segmentCount   Int @default(0) @map("segment_count")
+  targetDuration Int @default(6) @map("target_duration")
+  byteSize       BigInt @default(0) @map("byte_size")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([videoId, label])
+  @@map("video_assets")
+}
+
+model ContentKey {
+  id String @id
+
+  videoId String @map("video_id")
+  video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  /// The CEK encrypted with the KEK. A database dump yields wrapped keys only — the KEK lives
+  /// in the API environment, never in Postgres.
+  wrappedKey String @map("wrapped_key")
+  keyVersion Int    @default(1) @map("key_version")
+  algorithm  String @default("AES-128-CTR")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  retiredAt DateTime? @map("retired_at")
+
+  @@unique([videoId, keyVersion])
+  @@map("content_keys")
+}
+
+// ────────────────────── Live → VOD seam ──────────────────────
+
+enum RecordingStatus {
+  pending
+  ingesting
+  packaging
+  ready
+  failed
+  needs_attention
+}
+
+model Recording {
+  id String @id
+
+  /// From services/live. See docs/06-recording-pipeline.md.
+  classId   String @map("class_id")
+  sessionId String @map("session_id")
+
+  courseId String? @map("course_id")
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  /// Unique, and the reason webhook retries are idempotent: LiveKit redelivers, and a duplicate
+  /// must not create a second row or a second job.
+  egressId String @unique @map("egress_id")
+
+  rawStorageKey String?         @map("raw_storage_key")
+  status        RecordingStatus @default(pending)
+  error         String?
+  attempts      Int             @default(0)
+
+  /// The metadata.json written by services/live, kept verbatim so a filing mistake can be
+  /// reconstructed rather than guessed at.
+  metadata Json?
+
+  startedAt DateTime? @map("started_at")
+  endedAt   DateTime? @map("ended_at")
+
+  videoId String? @unique @map("video_id")
+  video   Video?  @relation(fields: [videoId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@index([classId, sessionId])
+  @@map("recordings")
+}
+
+// ─────────────────────── Licensing & offline ───────────────────────
+
+model License {
+  id String @id
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// { courseIds: [], videoIds: [] }
+  scope Json
+
+  notBefore DateTime @map("not_before")
+  notAfter  DateTime @map("not_after")
+
+  maxDevices           Int @default(2) @map("max_devices")
+  maxConcurrentStreams Int @default(1) @map("max_concurrent_streams")
+  offlineWindowDays    Int @default(30) @map("offline_window_days")
+
+  /// The user's revocation epoch at issue time. A client holding a lower value than the user's
+  /// current epoch knows its licence was superseded.
+  revocationEpoch Int @default(0) @map("revocation_epoch")
+
+  /// The exact signed bytes handed to the client, so support can always see what was issued
+  /// rather than regenerating and hoping it matches.
+  signedBlob String @map("signed_blob")
+  signature  String
+
+  revokedAt     DateTime? @map("revoked_at")
+  revokedReason String?   @map("revoked_reason")
+
+  issuedBy  String?  @map("issued_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  devices   LicenseDevice[]
+  downloads Download[]
+
+  @@index([userId, revokedAt])
+  @@map("licenses")
+}
+
+model LicenseDevice {
+  id String @id
+
+  licenseId String  @map("license_id")
+  license   License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  deviceId String @map("device_id")
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  boundAt    DateTime  @default(now()) @map("bound_at")
+  releasedAt DateTime? @map("released_at")
+
+  /// Its own table so the device allowance is a count, and a slot can be released without
+  /// reissuing the licence.
+  @@unique([licenseId, deviceId])
+  @@map("license_devices")
+}
+
+enum DownloadState {
+  queued
+  downloading
+  complete
+  expired
+  deleted
+}
+
+model Download {
+  id String @id
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  deviceId String @map("device_id")
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  videoId String @map("video_id")
+  video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  licenseId String?  @map("license_id")
+  license   License? @relation(fields: [licenseId], references: [id], onDelete: SetNull)
+
+  rendition String        @default("720p")
+  state     DownloadState @default(queued)
+
+  bytesDownloaded BigInt @default(0) @map("bytes_downloaded")
+  totalBytes      BigInt @default(0) @map("total_bytes")
+
+  expiresAt   DateTime? @map("expires_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  /// One download per video per device: the server knows exactly what sits where, which is what
+  /// makes remote expiry and "on 2 of 2 devices" possible.
+  @@unique([deviceId, videoId])
+  @@index([userId, state])
+  @@map("downloads")
+}
+
+// ─────────────────────────── Playback & watching ───────────────────────────
+
+model PlaybackSession {
+  id String @id
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  deviceId String @map("device_id")
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  videoId String @map("video_id")
+  video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  /// Short-lived rows, but persisted rather than kept in Redis alone: concurrent-stream limits
+  /// must survive an API restart, or the limit is trivially bypassed by waiting.
+  expiresAt     DateTime  @map("expires_at")
+  lastHeartbeat DateTime? @map("last_heartbeat")
+  endedAt       DateTime? @map("ended_at")
+
+  /// Watermark seed, so a leaked frame can be traced back to one session rather than one user.
+  watermarkSeed Int @map("watermark_seed")
+
+  /// What the client reported about its environment. A signal for investigation, never the
+  /// enforcement point.
+  environment Json?
+
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, videoId, endedAt])
+  @@index([expiresAt])
+  @@map("playback_sessions")
+}
+
+model WatchProgress {
+  id String @id
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  videoId String @map("video_id")
+  video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  positionMs Int      @default(0) @map("position_ms")
+  completed  Boolean  @default(false)
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  /// Small, mutable, read on every video open — the opposite shape to WatchEvent.
+  @@unique([userId, videoId])
+  @@map("watch_progress")
+}
+
+enum WatchEventKind {
+  start
+  heartbeat
+  seek
+  pause
+  complete
+}
+
+model WatchEvent {
+  id String @id
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  deviceId String? @map("device_id")
+  device   Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  videoId String @map("video_id")
+  video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  event      WatchEventKind
+  positionMs Int            @map("position_ms")
+
+  /// When it happened on the client, not when it arrived. An offline batch posted days later is
+  /// only meaningful with its original timing.
+  occurredAt DateTime @map("occurred_at")
+  offline    Boolean  @default(false)
+
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /// Append-only and fast-growing: partition by month from M2 and aggregate into rollups rather
+  /// than querying this live.
+  @@index([videoId, occurredAt])
+  @@index([userId, occurredAt])
+  @@map("watch_events")
+}
+
+// ──────────────── Phase 2 (M5) — created now so the schema does not churn ────────────────
+
+model Chapter {
+  id String @id
+
+  videoId String @map("video_id")
+  video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  /// SpotPlayer's "timed titles".
+  title   String
+  startMs Int    @map("start_ms")
+  order   Int    @default(0)
+
+  @@index([videoId, startMs])
+  @@map("chapters")
+}
+
+model Attachment {
+  id String @id
+
+  videoId String? @map("video_id")
+  video   Video?  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  courseId String? @map("course_id")
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  name       String
+  mime       String
+  storageKey String @map("storage_key")
+  byteSize   BigInt @default(0) @map("byte_size")
+
+  /// False means it renders in-app but cannot be exported — SpotPlayer's protected-file mode.
+  copyable Boolean @default(false)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([videoId])
+  @@index([courseId])
+  @@map("attachments")
+}
+
+model Note {
+  id String @id
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  videoId String @map("video_id")
+  video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  positionMs Int      @map("position_ms")
+  body       String
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, videoId])
+  @@map("notes")
+}
+
+model Quiz {
+  id String @id
+
+  videoId String @map("video_id")
+  video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  title String
+  /// Percentage needed to unlock whatever this quiz gates.
+  passingScore Int @default(70) @map("passing_score")
+  /// When true, the next video stays locked until this quiz is passed.
+  blocksNext   Boolean @default(true) @map("blocks_next")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@index([videoId])
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id String @id
+
+  quizId String @map("quiz_id")
+  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  prompt String
+  /// [{ id, text }]
+  choices Json
+  /// Kept out of any client-facing response — the API strips this before serialising.
+  correctChoiceId String @map("correct_choice_id")
+  order           Int    @default(0)
+
+  @@index([quizId, order])
+  @@map("quiz_questions")
+}
+
+model QuizAttempt {
+  id String @id
+
+  quizId String @map("quiz_id")
+  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  score  Int
+  passed Boolean
+  /// { questionId: choiceId }
+  answers Json
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, quizId])
+  @@map("quiz_attempts")
+}

@@ -76,6 +76,7 @@
       ]
     },
     "iosSecureLayer": true,
-    "scanIntervalMs": 3000
+    "scanIntervalMs": 3000,
+    "recordingGraceSeconds": 10
   }
 }

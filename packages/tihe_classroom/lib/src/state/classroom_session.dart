@@ -10,7 +10,16 @@ import '../domain/classroom_state.dart';
 import 'board_controller.dart';
 
 /// Why this client left the class — decides what the exit screen says.
-enum ClassroomExit { left, ended, removed, joinedElsewhere, lostAccess }
+enum ClassroomExit {
+  left,
+  ended,
+  removed,
+  joinedElsewhere,
+  lostAccess,
+
+  /// A recorder kept running past the grace period. Not a ban: closing it and joining again works.
+  removedForRecording,
+}
 
 enum NoticeTone { info, success, warning, alert }
 
@@ -186,6 +195,7 @@ class ClassroomSession {
   final _subscriptions = <StreamSubscription<Object?>>[];
   final _noticeTimers = <Timer>{};
   Timer? _sweep;
+  Timer? _recordingDeadline;
   bool _disposed = false;
   int _noticeCounter = 0;
 
@@ -244,7 +254,43 @@ class ClassroomSession {
     if (verdict.censor != wasCensored && _join.capturePolicy.censorAudio) {
       media.setRemoteAudioMuted(verdict.censor);
     }
+    // Censoring is immediate; a recording that is still running after the grace period ends
+    // the class for this student (ADR-0011, amended). Closing the recorder in time cancels it.
+    final grace = _join.capturePolicy.recordingGraceSeconds;
+    if (!verdict.censor) {
+      _recordingDeadline?.cancel();
+      _recordingDeadline = null;
+      _recordingDeadlineAt = null;
+    } else if (grace != null && _recordingDeadline == null && _v.exit == null) {
+      _recordingDeadlineAt = _clock().add(Duration(seconds: grace));
+      _recordingDeadline = Timer(Duration(seconds: grace), _removeForRecording);
+    }
   }
+
+  void _removeForRecording() {
+    _recordingDeadline = null;
+    if (_v.exit != null || !_v.capture.censor) return;
+    // Told to the host before the socket closes; the server writes it to the audit log.
+    send(
+      ReportCapture(
+        capturing: true,
+        signals: [
+          ...{for (final s in _v.capture.signals) s.wire},
+          CaptureSignal.removedForRecording.wire,
+        ],
+        detail: _v.capture.detail,
+      ),
+    );
+    _exit(
+      ClassroomExit.removedForRecording,
+      'چون برنامهٔ ضبط صفحه باز بود، از کلاس خارج شدید. آن را ببندید و دوباره وارد شوید.',
+    );
+  }
+
+  /// When a running recording takes this student out of class; null when not counting down.
+  /// The censor screen shows it, so the student knows exactly how long they have.
+  DateTime? get recordingDeadline => _recordingDeadlineAt;
+  DateTime? _recordingDeadlineAt;
 
   void _onMessage(ServerMessage msg) {
     switch (msg) {
@@ -304,7 +350,9 @@ class ClassroomSession {
         :final detail,
         :final signals,
       ):
-        final how = signals.contains('screenshot')
+        final how = signals.contains('removed_for_recording')
+            ? 'چون ضبط صفحه را نبست، از کلاس خارج شد'
+            : signals.contains('screenshot')
             ? 'از صفحه عکس گرفت'
             : signals.contains('block_failed')
             ? 'روی دستگاهی است که جلوی ضبط را نمی‌گیرد'
@@ -470,6 +518,7 @@ class ClassroomSession {
     _disposed = true;
     // Every timer stops synchronously, before anything is awaited.
     _sweep?.cancel();
+    _recordingDeadline?.cancel();
     for (final t in _noticeTimers) {
       t.cancel();
     }

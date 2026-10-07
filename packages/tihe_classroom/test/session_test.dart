@@ -186,6 +186,74 @@ void main() {
     },
   );
 
+  group('a recording that is not stopped', () {
+    ({ClassroomSession session, DemoClassroomServer server, _Platform platform})
+    build(int? grace) {
+      final platform = _Platform();
+      final demo = DemoClassroom.build(
+        as: DemoClassroom.ali,
+        recordingGraceSeconds: grace,
+        capture: CaptureMonitor(
+          platform: platform,
+          engine: CapturePolicyEngine(
+            recorderProcesses: ['obs64.exe'],
+            clearAfter: const Duration(milliseconds: 100),
+          ),
+          block: true,
+          windowsAffinity: WindowsAffinity.monitor,
+          iosSecureLayer: false,
+          scanInterval: const Duration(milliseconds: 50),
+        ),
+      );
+      return (session: demo.session, server: demo.server, platform: platform);
+    }
+
+    test(
+      'takes the student out after the grace period, and tells the host',
+      () async {
+        final c = build(1);
+        await c.session.open();
+        await until(() => c.session.view.value.room != null);
+        c.platform.processes = ['obs64.exe'];
+        await until(() => c.session.view.value.capture.censor);
+        expect(c.session.recordingDeadline, isNotNull);
+        expect(c.session.view.value.exit, isNull);
+
+        await until(() => c.session.view.value.exit != null);
+        expect(c.session.view.value.exit, ClassroomExit.removedForRecording);
+        final last =
+            c.server.received.lastWhere((m) => m['t'] == 'cmd')['cmd'] as Map;
+        expect(last['type'], 'capture.report');
+        expect(last['signals'], contains('removed_for_recording'));
+        await c.session.dispose();
+      },
+    );
+
+    test('closing the recorder in time cancels it', () async {
+      final c = build(1);
+      await c.session.open();
+      await until(() => c.session.view.value.room != null);
+      c.platform.processes = ['obs64.exe'];
+      await until(() => c.session.view.value.capture.censor);
+      c.platform.processes = [];
+      await until(() => !c.session.view.value.capture.censor);
+      expect(c.session.recordingDeadline, isNull);
+      await settle(1300);
+      expect(c.session.view.value.exit, isNull);
+      await c.session.dispose();
+    });
+
+    test('never removes anyone where the course allows capture', () async {
+      final c = build(null);
+      await c.session.open();
+      await until(() => c.session.view.value.room != null);
+      c.platform.processes = ['obs64.exe'];
+      await until(() => c.session.view.value.capture.censor);
+      expect(c.session.recordingDeadline, isNull);
+      await c.session.dispose();
+    });
+  });
+
   test(
     'a presenter is excluded from captures rather than shown as a black box',
     () async {

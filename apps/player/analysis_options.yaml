@@ -1,0 +1,34 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Protection-relevant: a key or token reaching a log is a real incident, and print() is how it
+    # happens. Logging goes through AppLog, which masks.
+    avoid_print: true
+
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    prefer_final_locals: true
+    require_trailing_commas: true
+    always_declare_return_types: true
+    avoid_empty_else: true
+    unnecessary_await_in_return: true
+    use_super_parameters: true
+
+analyzer:
+  errors:
+    # A missing await on an async call in the playback path can mean a key is used before it is
+    # unwrapped, or zeroed before it is used. Not a warning.
+    unawaited_futures: error
+    missing_required_param: error
+    missing_return: error
+  exclude:
+    - "**/*.g.dart"
+    - "**/generated/**"
+    - build/**
+    - android/**
+    - windows/**
+
+# The client was written at 100 columns; the formatter needs telling (Dart 3.7+ reads this).
+formatter:
+  page_width: 100

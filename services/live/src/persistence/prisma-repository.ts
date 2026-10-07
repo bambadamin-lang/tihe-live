@@ -66,9 +66,15 @@ export class PrismaLiveRepository implements LiveRepository {
     const row = await this.prisma.liveClass.findUnique({ where: { id } });
     return row ? toClass(row) : null;
   }
-  async listClasses(filter: { courseId?: string; teacherId?: string }) {
+  async listClasses(filter: { courseId?: string; courseIds?: string[]; teacherId?: string }) {
     const rows = await this.prisma.liveClass.findMany({
-      where: { courseId: filter.courseId, teacherId: filter.teacherId },
+      where: {
+        teacherId: filter.teacherId,
+        AND: [
+          ...(filter.courseId ? [{ courseId: filter.courseId }] : []),
+          ...(filter.courseIds ? [{ courseId: { in: filter.courseIds } }] : []),
+        ],
+      },
       orderBy: [{ scheduledStartAt: 'asc' }, { createdAt: 'asc' }],
     });
     return rows.map(toClass);

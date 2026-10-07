@@ -41,6 +41,7 @@ export type AuditKind =
   | 'capture.detected'
   | 'capture.cleared'
   | 'capture.screenshot'
+  | 'capture.removed'
   | 'capture.block_failed'
   | 'participant.removed'
   | 'participant.muted'
@@ -630,7 +631,8 @@ function decideCapture(
 ): Decision {
   const screenshot = signals.includes('screenshot');
   const blockFailed = signals.includes('block_failed');
-  if (capturing === actor.capturing && !screenshot && !blockFailed) return done();
+  const removed = signals.includes('removed_for_recording');
+  if (capturing === actor.capturing && !screenshot && !blockFailed && !removed) return done();
 
   const events: Out[] = [];
   if (capturing !== actor.capturing) events.push(updated({ ...actor, capturing }));
@@ -646,13 +648,15 @@ function decideCapture(
     audience: 'managers',
   });
 
-  const kind: AuditKind = capturing
-    ? 'capture.detected'
-    : screenshot
-      ? 'capture.screenshot'
-      : blockFailed
-        ? 'capture.block_failed'
-        : 'capture.cleared';
+  const kind: AuditKind = removed
+    ? 'capture.removed'
+    : capturing
+      ? 'capture.detected'
+      : screenshot
+        ? 'capture.screenshot'
+        : blockFailed
+          ? 'capture.block_failed'
+          : 'capture.cleared';
   const effects: Effect[] = [
     audit({ kind, actorId: actor.userId, targetId: actor.userId, detail: { signals, detail } }),
   ];

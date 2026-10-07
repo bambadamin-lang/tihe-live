@@ -8,6 +8,8 @@ export const userSchema = z.object({
   displayName: z.string().nullable(),
   role: roleSchema,
   status: z.enum(['active', 'suspended']),
+  /** Set when an admin chose the password: the app asks for a new one before anything else. */
+  mustChangePassword: z.boolean(),
   createdAt: z.string().datetime(),
 });
 export type User = z.infer<typeof userSchema>;
@@ -22,6 +24,9 @@ export const deviceSchema = z.object({
   lastSeenAt: z.string().datetime().nullable(),
   /** Whether this is the device making the current request — so the UI can say "این دستگاه". */
   isCurrent: z.boolean(),
+  /** Counts towards the limit of devices signed in at once (ADR-0014). */
+  signedIn: z.boolean(),
+  signedInAt: z.string().datetime().nullable(),
   /** How many videos this device holds offline, for the device manager screen. */
   offlineVideoCount: z.number().int().nonnegative(),
 });

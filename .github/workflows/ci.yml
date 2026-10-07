@@ -31,12 +31,28 @@ jobs:
         options: >-
           --health-cmd "redis-cli ping" --health-interval 10s
           --health-timeout 5s --health-retries 5
+      # S3-compatible storage. MinIO no longer publishes images, so its service container could
+      # not start; RustFS speaks the same API and the code only ever uses an S3 client.
+      storage:
+        image: rustfs/rustfs:latest
+        env:
+          RUSTFS_ACCESS_KEY: tihe_minio
+          RUSTFS_SECRET_KEY: tihe_minio_dev_password
+        ports: ['9000:9000']
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/health"
+          --health-interval 10s --health-timeout 5s --health-retries 5
     env:
       DATABASE_URL: postgresql://tihe:tihe@localhost:5432/tihe_test
       REDIS_URL: redis://localhost:6379
       # services/live integration tests: its own database (ADR-0012) and Redis.
       LIVE_TEST_DATABASE_URL: postgresql://tihe:tihe@localhost:5432/tihe_live_test
       LIVE_TEST_REDIS_URL: redis://localhost:6379
+      S3_ENDPOINT: http://localhost:9000
+      S3_ACCESS_KEY: tihe_minio
+      S3_SECRET_KEY: tihe_minio_dev_password
+      S3_BUCKET_RAW: tihe-raw
+      S3_BUCKET_VOD: tihe-vod
     steps:
       - uses: actions/checkout@v4
 
@@ -50,13 +66,31 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Create storage buckets
+        # The AWS CLI ships on the runner image.
+        env:
+          AWS_ACCESS_KEY_ID: tihe_minio
+          AWS_SECRET_ACCESS_KEY: tihe_minio_dev_password
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          for bucket in tihe-raw tihe-vod; do
+            aws --endpoint-url http://localhost:9000 s3 mb "s3://$bucket"
+          done
+
       - name: Create the services/live test database
         run: PGPASSWORD=tihe psql -h localhost -U tihe -d tihe_test -c 'CREATE DATABASE tihe_live_test'
 
       - name: Generate Prisma clients
         run: |
-          pnpm --filter @tihe/api prisma generate
+          pnpm --filter @tihe/db generate
           pnpm --filter @tihe/live prisma:generate
+
+      - name: Apply migrations
+        # The packager and API tests write real rows, so the schema has to exist before they run.
+        run: pnpm --filter @tihe/db migrate
 
       - run: pnpm format:check
       - run: pnpm lint
@@ -106,7 +140,8 @@ jobs:
           cache: true
 
       # Every Flutter package and app in the repo, found by its pubspec, so a new package is
-      # covered without editing this file. example/ apps are analysed with their package.
+      # covered without editing this file. example/ apps are analysed with their package and
+      # their own tests run too.
       - name: Format, analyze and test each Flutter project
         run: |
           set -euo pipefail
@@ -121,5 +156,6 @@ jobs:
             dart format --output=none --set-exit-if-changed "$dir"
             (cd "$dir" && flutter analyze --no-fatal-infos)
             if [ -d "$dir/test" ]; then (cd "$dir" && flutter test); fi
+            if [ -d "$dir/example/test" ]; then (cd "$dir/example" && flutter test); fi
             echo "::endgroup::"
           done

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'cursor.dart';
+import 'fonts.dart';
 
 /// The classroom's look (docs/11 §11): frosted navy glass floating in a night sky, with two
 /// lit planets at the edges and faint orbits between them — and a daylight variant of the same.
@@ -237,8 +238,13 @@ class ClassroomTheme extends ThemeExtension<ClassroomTheme> {
     scrim: Color(0x4D0F1830),
   );
 
-  static ClassroomTheme forBrightness(Brightness brightness) =>
-      brightness == Brightness.dark ? dark : light;
+  /// [dark] or [light], set in [ClassroomFonts.family] (Modam unless the app chose another).
+  static ClassroomTheme forBrightness(Brightness brightness) {
+    final theme = brightness == Brightness.dark ? dark : light;
+    return ClassroomFonts.family == theme.fontFamily
+        ? theme
+        : theme.copyWith(fontFamily: ClassroomFonts.family);
+  }
 
   static ClassroomTheme of(BuildContext context) =>
       Theme.of(context).extension<ClassroomTheme>() ?? dark;

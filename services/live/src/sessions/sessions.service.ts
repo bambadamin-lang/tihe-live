@@ -34,6 +34,9 @@ import { RecordingService } from '../recording/recording.service.js';
 /** Room headroom over the class limit: the recorder, and a host rejoining from a second device. */
 const ROOM_HEADROOM = 3;
 
+/** Long enough to close a recorder that opened by accident; too short to record a lesson. */
+const RECORDING_GRACE_SECONDS = 10;
+
 @Injectable()
 export class SessionsService {
   private readonly logger = new Logger('SessionsService');
@@ -134,6 +137,7 @@ export class SessionsService {
       this.tickets.mint({ sessionId, userId: caller.userId, name, role }, this.clock()),
     ]);
 
+    const captureAllowed = course?.allowCapture ?? false;
     return {
       session: this.toDto(session),
       classTitle: liveClass.title,
@@ -157,7 +161,7 @@ export class SessionsService {
         seed: randomInt(0, 2 ** 31 - 1),
       },
       capturePolicy: {
-        block: !(course?.allowCapture ?? false),
+        block: !captureAllowed,
         // Students: a visible black box. Presenters: vanish from captures, so their own screen
         // share does not contain a black hole (ADR-0011).
         windowsAffinity: ROLE_RANK[role] >= ROLE_RANK.presenter ? 'exclude' : 'monitor',
@@ -166,6 +170,7 @@ export class SessionsService {
         recorderProcesses: DEFAULT_RECORDER_PROCESSES,
         iosSecureLayer: this.config.IOS_SECURE_LAYER,
         scanIntervalMs: 3000,
+        recordingGraceSeconds: captureAllowed ? null : RECORDING_GRACE_SECONDS,
       },
     };
   }

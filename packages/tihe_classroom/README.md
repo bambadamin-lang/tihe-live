@@ -43,6 +43,10 @@ Two optional pieces go at the app's root, in `MaterialApp.builder`:
 - `WindowChrome`: for an app that hides the system title bar (the example does on Windows). Its
   window buttons then sit in the classroom's top bar, and dragging the bar moves the window.
 
+An app's front door is `WelcomePage`: the title bar with the mark and a server lamp, the page's
+name, and `WelcomeCard`s of `WelcomeField`s and `GlowButton`s. The example's launcher and the one
+TIHE app's sign-in are both built from it.
+
 ## Inside
 
 ```
@@ -97,46 +101,12 @@ On Linux, `livekit_client` checks connectivity through NetworkManager over D-Bus
 as in containers, the gateway works but joining the media room fails. The desktop targets
 that ship are Windows and macOS.
 
-## Install on Windows
+## Install and update
 
-`.github/workflows/windows-installer.yml` builds the app on a Windows runner and wraps it in a
-Persian setup wizard, `TIHE-Live-Setup-<version>.exe` (Inno Setup,
-[`installer/windows/tihe_live.iss`](example/installer/windows/tihe_live.iss)). The workflow
-runs on pull requests that touch the classroom and on `live-v*` tags, which also publish a
-GitHub release. Download the `.exe` from the run's **Artifacts**. Once the workflow is on
-`main`, it can also be started by hand from the Actions tab (**Run workflow**, with an
-optional version); GitHub only offers that for workflows on the default branch.
-
-The wizard:
-1. welcome
-2. install folder (per user, no administrator needed)
-3. **class server address**, pre-filled with the repository variable `TIHE_LIVE_URL`
-4. desktop shortcut
-5. install and start
-
-It needs Windows 10 version 2004 or later, the first release that can hide a window from
-screen capture. The Visual C++ runtime is bundled, and every build runs
-[`check-dependencies.ps1`](example/installer/windows/check-dependencies.ps1): it reads what
-each bundled `.exe` and `.dll` imports and fails if a DLL loaded at start-up is neither in the
-bundle nor part of Windows. Uninstall from Windows Settings → Apps.
-
-For IT staff: `TIHE-Live-Setup-0.1.0.exe /VERYSILENT /server=https://…` installs with no
-questions.
-
-The installer is **not code-signed yet**, so Windows SmartScreen warns on first run ("Windows
-protected your PC" → **More info** → **Run anyway**). Signing needs a code-signing
-certificate in the institute's name; add it to the workflow as a secret when there is one.
-
-To build it by hand on a Windows PC with Flutter, Visual Studio (C++ desktop) and
-Inno Setup 6.5+:
-
-```powershell
-cd packages\tihe_classroom\example
-flutter build windows --release
-installer\windows\check-dependencies.ps1 -Bundle build\windows\x64\runner\Release -BundleVcRuntime
-iscc /DDefaultServer=https://your-server/v1/live installer\windows\tihe_live.iss
-# → installer\windows\Output\TIHE-Live-Setup-0.1.0.exe
-```
+The classroom ships inside the one TIHE app, so its Windows setup wizard and self-update live
+there now: see [`apps/player/README.md`](../../apps/player/README.md#install-on-windows). The
+wizard keeps the classroom app's Windows identity, so it installs over an existing
+"TIHE Live" and keeps its folder and server address.
 
 ## Test it
 

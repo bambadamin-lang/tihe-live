@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import {
   BOARD_PALETTE,
   CAPABILITIES,
@@ -18,6 +19,7 @@ import {
   deriveRecordingLayout,
   joinResponseSchema,
   layoutProblems,
+  liveClassSchema,
   layoutSchema,
   liveWatermarkText,
   serverMessageSchema,
@@ -42,6 +44,11 @@ describe('fixtures', () => {
 
   it('join response is valid', () => {
     expect(joinResponseSchema.parse(fixture('join-response.json'))).toBeTruthy();
+  });
+
+  it('class list is valid, one live and one not', () => {
+    const classes = z.array(liveClassSchema).parse(fixture('live-classes.json'));
+    expect(classes.map((c) => c.liveSessionId !== null)).toEqual([true, false]);
   });
 
   it('every client message is valid, and every command type appears', () => {

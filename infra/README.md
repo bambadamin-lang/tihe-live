@@ -5,7 +5,7 @@ Everything needed to run TIHE Live locally, and the shape of the production depl
 ## Development stack
 
 ```bash
-# Postgres + Redis + MinIO (what the video-management side needs)
+# Postgres + Redis + S3 storage (what the video-management side needs)
 docker compose -f infra/docker/compose.dev.yml up -d
 
 # ...plus LiveKit + Egress (what the live-classroom side needs)
@@ -16,13 +16,14 @@ docker compose -f infra/docker/compose.dev.yml --profile live up -d
 |---|---|---|
 | PostgreSQL | `localhost:5432` | `tihe` / `tihe_dev_password`, db `tihe` |
 | Redis | `localhost:6379` | none |
-| MinIO S3 API | `localhost:9000` | `tihe_minio` / `tihe_minio_dev_password` |
-| MinIO console | http://localhost:9001 | same |
+| S3 storage (RustFS) | `localhost:9000` | `tihe_minio` / `tihe_minio_dev_password` |
+| Storage console | http://localhost:9001 | same |
 | LiveKit | `ws://localhost:7880` | `devkey` / `devsecret_...` |
 | services/live (run on host) | `http://localhost:3100/v1/live`, WS `/v1/live/ws` | — |
 
-`minio-init` runs once on startup and creates `tihe-raw` and `tihe-vod`, sets both to
-private, and enables versioning on `tihe-vod`. If you ever see those buckets public,
+`storage-init` runs once on startup and creates `tihe-raw` and `tihe-vod`, sets both to
+private, and enables versioning on `tihe-vod`. Storage is RustFS because MinIO no longer
+publishes images; the code only uses an S3 client, so any S3-compatible store works (ADR-0004). If you ever see those buckets public,
 something has gone wrong — every recording would be readable by anyone who guessed a key.
 
 `postgres-init/02-live-database.sql` creates a second database, `tihe_live`, for
@@ -37,7 +38,7 @@ Postgres is initialised with the `fa-IR` ICU collation and the `pg_trgm`, `unacc
 | Script | Purpose |
 |---|---|
 | `scripts/generate-secrets.sh` | Generates the KEK, the Ed25519 licence keypair, the JWT secret and the OTP pepper, and prints them as `.env` lines. Development only. |
-| `scripts/minio-init.sh` | Bucket creation and lockdown. Runs automatically in Compose. |
+| `scripts/storage-init.sh` | Bucket creation and lockdown over plain S3. Runs automatically in Compose. |
 | `scripts/fake-egress.sh` | Drops an MP4 into `tihe-raw` and posts a LiveKit `egress_ended` webhook — exercises the whole recording pipeline with no LiveKit running. |
 
 `fake-egress.sh` is the one worth knowing about: it is what lets the video-management
@@ -87,3 +88,35 @@ Notes for when this gets built (M2–M3):
   LiveKit if classes are recorded while older ones are still transcoding.
 - Backups: nightly `pg_dump`, MinIO replication or `mc mirror` to a second location, and the
   KEK held somewhere neither of those backups reaches.
+
+## Run the server on a PC
+
+Until there is a VPS, the whole server (API, live classroom, recording, video processing,
+storage, databases) runs on one PC with Docker. On a new PC, from the repository folder:
+
+```powershell
+# Windows, Docker Desktop (as administrator, so it can open the firewall ports)
+powershell -ExecutionPolicy Bypass -File infra\scripts\server-setup.ps1 -AdminPhone 09121234567 -AdminName "مدیر"
+```
+
+```bash
+# Linux, macOS or WSL
+./infra/scripts/server-setup.sh --admin-phone 09121234567 --admin-name "مدیر"
+```
+
+It finds the PC's network address (or pass `-HostAddress` / `--host`), writes the secrets once
+into `infra/docker/server/.env`, builds and starts everything
+([`docker/compose.server.yml`](docker/compose.server.yml)), and creates the first admin with a
+temporary password it prints. Then it prints the one address to give the app and its
+installer, `http://<this PC>:8080`.
+
+- **Back up `infra/docker/server/.env`** privately. The database and `KEK_BASE64` together
+  decrypt every video; without the file nobody can sign in again.
+- Running the setup again is safe: it keeps the secrets and the data, applies new migrations
+  and rebuilds what changed. Use it after `git pull` to update the server.
+- Ports: 8080 (the app), 9000 (video downloads), 7880–7881/TCP and 50000–50100/UDP (live
+  media). Devices on the same network work out of the box; reaching the PC from the internet
+  needs those ports forwarded on the router and the router's public address as `--host`.
+- Moving to a VPS later: copy `.env` and the Docker volumes, run the setup there with the new
+  address, and update the server address students use (the installer's default, or the
+  sign-in screen's "change server").
