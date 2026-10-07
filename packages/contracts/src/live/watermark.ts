@@ -27,7 +27,10 @@ export function watermarkShortId(userId: string): string {
  * `علی کریمی\n09121234503` — and nothing else, as the institute asked. A row with nothing to
  * show is left out.
  */
-export function liveWatermarkText(who: { displayName: string | null; phone: string | null }): string {
+export function liveWatermarkText(who: {
+  displayName: string | null;
+  phone: string | null;
+}): string {
   return [who.displayName?.trim() || null, who.phone ? localPhone(who.phone) : null]
     .filter((row): row is string => row !== null)
     .join('\n');
