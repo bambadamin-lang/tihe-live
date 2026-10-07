@@ -62,8 +62,7 @@ class WatermarkSpec {
     seed: j['seed'] as int,
   );
 
-  /// One row per line: the name, the full phone beneath it, then the short id, e.g.
-  /// `علی کریمی\n09121234503\n#48213`. The time is added to the last row when drawn.
+  /// One row per line: the name with the full phone beneath it, e.g. `علی کریمی\n09121234503`.
   final String text;
   final double opacity;
   final int fontSize;

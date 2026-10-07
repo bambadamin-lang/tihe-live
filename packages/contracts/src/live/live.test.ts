@@ -251,15 +251,15 @@ describe('watermark', () => {
 
   const id = 'usr_01J8ZB00000000000000000001';
 
-  it('puts the full phone number beneath the name, then the short id', () => {
+  it('is the name with the full phone number beneath it, and nothing else', () => {
     expect(liveWatermarkText({ displayName: 'علی کریمی', phone: '+989123456789' }, id)).toBe(
-      `علی کریمی\n09123456789\n#${watermarkShortId(id)}`,
+      'علی کریمی\n09123456789',
     );
   });
 
-  it('leaves out a row it has nothing for', () => {
+  it('leaves out a row it has nothing for, and falls back to the short id', () => {
     expect(liveWatermarkText({ displayName: '  ', phone: '+989123456789' }, id)).toBe(
-      `09123456789\n#${watermarkShortId(id)}`,
+      '09123456789',
     );
     expect(liveWatermarkText({ displayName: null, phone: null }, id)).toBe(
       `#${watermarkShortId(id)}`,

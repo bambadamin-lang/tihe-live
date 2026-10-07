@@ -220,18 +220,17 @@ be tuned without an app release.
 
 ## 9. Watermark
 
-- **Text**: three rows — the viewer's name, their **full** phone number beneath it, then the
-  short account id and the current time:
+- **Text**: the viewer's name with their **full** phone number beneath it, and nothing else —
+  the institute asked for no id or clock beside them:
 
   ```
        علی کریمی
       09121234503
-     #48213  14:32
   ```
 
-  The institute wants every digit legible, so a leaked copy names its source without a lookup.
-  The number and id use ASCII digits so OCR on a leaked copy is reliable. `watermarkShortId`
-  in contracts derives the short id, and the M6 leak-lookup tool uses the same function.
+  Every digit is legible, so a leaked copy names its source without a lookup. The number uses
+  ASCII digits so OCR on a leaked copy is reliable. Only a user with neither a name nor a number
+  gets the short id from `watermarkShortId` in contracts instead.
 - **Placement**: over the **stage** (not the window, since a camera aimed at the slides would
   crop the window edges), in two layers:
   - *The mark* glides over the whole stage — centre and edges, not only the corners — from one
@@ -239,8 +238,8 @@ be tuned without an app release.
     Each leg crosses at least half the stage, so a camera zoomed in on any part of the picture
     has the mark pass through its frame within a few legs. The corner-hopping it replaces could
     be cropped out by zooming in past the corners.
-  - *The ghost*: the number and id repeated faintly across the stage on a slant, so even a frame
-    the mark is not in carries them.
+  - *The ghost*: the number repeated faintly across the stage on a slant, so even a frame the
+    mark is not in carries it.
 - **Rendering**: a Flutter overlay above the stage. In the classroom the video is a Flutter
   texture, so a Dart overlay sits above it exactly as a native layer would (ADR-0011).
 - **Privacy**: the phone number is never placed in LiveKit metadata or attributes, which

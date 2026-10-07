@@ -1,7 +1,7 @@
 import { localPhone } from '../common.js';
 
 /**
- * The short account id printed in every identity watermark, live and recorded.
+ * The short account id: printed in a watermark only when there is no name or phone to show.
  *
  * Five ASCII digits derived from the user id with FNV-1a, so the leak-lookup tool (M6) can map a
  * watermark read off a leaked frame back to candidate accounts by recomputing it — no lookup
@@ -22,19 +22,16 @@ export function watermarkShortId(userId: string): string {
 }
 
 /**
- * The live watermark, one row per line: the name, the full phone number beneath it, then the
- * short id — `علی کریمی\n09121234503\n#48213`. The client appends the current time to the last
- * row when it draws the mark. A row with nothing to show is left out.
+ * The live watermark, one row per line: the name with the full phone number beneath it —
+ * `علی کریمی\n09121234503` — and nothing else, as the institute asked. A row with nothing to
+ * show is left out; with neither, the short id stands in, so the mark still names an account.
  */
 export function liveWatermarkText(
   who: { displayName: string | null; phone: string | null },
   userId: string,
 ): string {
-  return [
-    who.displayName?.trim() || null,
-    who.phone ? localPhone(who.phone) : null,
-    `#${watermarkShortId(userId)}`,
-  ]
-    .filter((row): row is string => row !== null)
-    .join('\n');
+  const rows = [who.displayName?.trim() || null, who.phone ? localPhone(who.phone) : null].filter(
+    (row): row is string => row !== null,
+  );
+  return rows.length > 0 ? rows.join('\n') : `#${watermarkShortId(userId)}`;
 }

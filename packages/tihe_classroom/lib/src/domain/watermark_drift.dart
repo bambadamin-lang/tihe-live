@@ -1,7 +1,7 @@
 import 'dart:math';
 
-/// The rows of a watermark text, top to bottom: the name, the full phone beneath it, then the
-/// short id (watermarkSchema in the contract).
+/// The rows of a watermark text, top to bottom: the name with the full phone beneath it
+/// (watermarkSchema in the contract).
 List<String> watermarkRows(String text) =>
     text.split('\n').map((r) => r.trim()).where((r) => r.isNotEmpty).toList();
 

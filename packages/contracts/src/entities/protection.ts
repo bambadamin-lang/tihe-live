@@ -13,9 +13,9 @@ import { id, platformSchema } from '../common.js';
  */
 export const watermarkSchema = z.object({
   /**
-   * One row per line (`\n`), drawn top to bottom: the owner's name, their full phone number
-   * beneath it, then the short id — e.g. "علی کریمی\n09121234503\n#48213". The full number
-   * goes only to its owner, in their own session response, and is never logged.
+   * One row per line (`\n`), drawn top to bottom: the owner's name with their full phone number
+   * beneath it — e.g. "علی کریمی\n09121234503". The full number goes only to its owner, in their
+   * own session response, and is never logged.
    */
   text: z.string(),
   opacity: z.number().min(0.05).max(1),

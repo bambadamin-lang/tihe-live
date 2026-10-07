@@ -327,8 +327,7 @@ abstract final class DemoClassroom {
       ticket: 'demo-ticket',
       ticketExpiresAt: '2026-09-27T06:32:00.000Z',
       watermark: WatermarkSpec(
-        text:
-            '${me.name}\n0912000${as.substring(as.length - 4)}\n#${watermarkShortId(as)}',
+        text: '${me.name}\n0912000${as.substring(as.length - 4)}',
         opacity: 0.4,
         fontSize: 13,
         movement: 'drift',

@@ -9,11 +9,11 @@ import '../../domain/watermark_drift.dart';
 
 /// The identity watermark over the stage (docs/11 §9), in two layers:
 ///
-/// - **The mark**: the viewer's name, their full phone number beneath it, then the short id and
-///   the time. It glides over the whole stage on a seeded path, so a camera zoomed in on any
-///   part of the picture still catches it.
-/// - **The ghost**: the number and short id repeated faintly across the stage on a slant, so
-///   even a frame the mark is not in carries it.
+/// - **The mark**: the viewer's name with their full phone number beneath it — nothing else, as
+///   the institute asked. It glides over the whole stage on a seeded path, so a camera zoomed in
+///   on any part of the picture still catches it.
+/// - **The ghost**: the number repeated faintly across the stage on a slant, so even a frame the
+///   mark is not in carries it.
 ///
 /// Both sit above every pod and ignore the pointer. The digits stay ASCII so OCR on a leaked
 /// copy reads them reliably.
@@ -57,9 +57,6 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
   Widget build(BuildContext context) {
     final now = widget.clock();
     final at = _drift.positionAt(now.difference(_opened));
-    final local = now.toLocal();
-    final time =
-        '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
     final rows = watermarkRows(widget.spec.text);
     final size = widget.spec.fontSize.toDouble();
     final opacity = widget.spec.opacity.clamp(0.1, 0.9);
@@ -98,11 +95,8 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        for (final (i, row) in rows.indexed)
-                          _OutlinedText(
-                            i == rows.length - 1 ? '$row  $time' : row,
-                            style: _rowStyle(row, i == rows.length - 1, size),
-                          ),
+                        for (final row in rows)
+                          _OutlinedText(row, style: _rowStyle(row, size)),
                       ],
                     ),
                   ),
@@ -115,16 +109,9 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
     );
   }
 
-  /// The phone is the largest row and spaced out, so no digit merges with its neighbour on a
-  /// blurry camera copy; the name is close to it; the id and time are the smallest.
-  TextStyle _rowStyle(String row, bool last, double size) {
-    if (last) {
-      return TextStyle(
-        fontSize: size,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.4,
-      );
-    }
+  /// The phone is the larger row and spaced out, so no digit merges with its neighbour on a
+  /// blurry camera copy.
+  TextStyle _rowStyle(String row, double size) {
     if (_isPhone(row)) {
       return TextStyle(
         fontSize: size + 4,

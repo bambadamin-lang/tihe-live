@@ -155,17 +155,16 @@ void main() {
 
   group('watermark rows', () {
     test('the full phone number sits beneath the name', () {
-      expect(watermarkRows('علی کریمی\n09121234503\n#48213'), [
+      expect(watermarkRows('علی کریمی\n09121234503'), [
         'علی کریمی',
         '09121234503',
-        '#48213',
       ]);
     });
 
     test('blank rows are dropped', () {
-      expect(watermarkRows('\n09121234503\n\n#48213\n'), [
+      expect(watermarkRows('\nعلی کریمی\n\n09121234503\n'), [
+        'علی کریمی',
         '09121234503',
-        '#48213',
       ]);
     });
   });
