@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -94,44 +95,79 @@ void main() {
     });
   });
 
-  group('WatermarkHopper', () {
+  group('WatermarkDrift', () {
     test('is deterministic for a seed', () {
-      final a = WatermarkHopper(seed: 42, periodSeconds: 30);
-      final b = WatermarkHopper(seed: 42, periodSeconds: 30);
+      final a = WatermarkDrift(seed: 42, periodSeconds: 18);
+      final b = WatermarkDrift(seed: 42, periodSeconds: 18);
       for (var s = 0; s < 600; s += 7) {
         expect(
-          a.cornerAt(Duration(seconds: s)),
-          b.cornerAt(Duration(seconds: s)),
+          a.positionAt(Duration(seconds: s)),
+          b.positionAt(Duration(seconds: s)),
         );
       }
     });
 
-    test('visits every corner and never jumps to the corner it is in', () {
-      final hopper = WatermarkHopper(seed: 7, periodSeconds: 20);
-      final seen = <StageCorner>{};
-      StageCorner? previous;
-      var jumps = 0;
+    test('roams the whole stage, the centre included, not just the corners', () {
+      final drift = WatermarkDrift(seed: 7, periodSeconds: 18);
+      // A 3×3 grid over the stage: every cell, the middle one too, is visited in 20 minutes.
+      final cells = <int>{};
       for (var s = 0; s < 1200; s++) {
-        final c = hopper.cornerAt(Duration(seconds: s));
-        seen.add(c);
-        if (previous != null && c != previous) jumps++;
-        previous = c;
+        final p = drift.positionAt(Duration(seconds: s));
+        expect(p.x, inInclusiveRange(0, 1));
+        expect(p.y, inInclusiveRange(0, 1));
+        cells.add(
+          (p.x * 3).floor().clamp(0, 2) * 3 + (p.y * 3).floor().clamp(0, 2),
+        );
       }
-      expect(seen, StageCorner.values.toSet());
-      // 1200 s at 10–30 s per stay: dozens of jumps, never zero.
-      expect(jumps, greaterThan(30));
+      expect(cells, {for (var c = 0; c < 9; c++) c});
     });
 
-    test(
-      'keeps a floor on the period so a bad value cannot make it flicker',
-      () {
-        final hopper = WatermarkHopper(seed: 1, periodSeconds: 0);
+    test('glides rather than jumps, and keeps moving', () {
+      final drift = WatermarkDrift(seed: 3, periodSeconds: 14);
+      var previous = drift.positionAt(Duration.zero);
+      var still = 0;
+      for (var s = 1; s < 1200; s++) {
+        final p = drift.positionAt(Duration(seconds: s));
+        final step = sqrt(pow(p.x - previous.x, 2) + pow(p.y - previous.y, 2));
+        // Even a corner-to-corner leg at its shortest moves under half the stage a second.
+        expect(step, lessThan(0.4));
+        if (step < 1e-9) still++;
+        previous = p;
+      }
+      // Rests are short: it is moving most of the time.
+      expect(still, lessThan(1200 * 0.4));
+    });
+
+    test('keeps a floor on the period so a bad value cannot make it race', () {
+      final drift = WatermarkDrift(seed: 1, periodSeconds: 0);
+      var previous = drift.positionAt(Duration.zero);
+      for (var ms = 250; ms < 60000; ms += 250) {
+        final p = drift.positionAt(Duration(milliseconds: ms));
+        // The fastest a 6 s floor allows: a full diagonal in 2.3 s, eased.
         expect(
-          hopper.untilNext(Duration.zero),
-          greaterThanOrEqualTo(const Duration(seconds: 2)),
+          sqrt(pow(p.x - previous.x, 2) + pow(p.y - previous.y, 2)),
+          lessThan(0.25),
         );
-      },
-    );
+        previous = p;
+      }
+    });
+  });
+
+  group('watermark rows', () {
+    test('the full phone number sits beneath the name', () {
+      expect(watermarkRows('علی کریمی\n09121234503\n#48213'), [
+        'علی کریمی',
+        '09121234503',
+        '#48213',
+      ]);
+    });
+
+    test('blank rows are dropped', () {
+      expect(watermarkRows('\n09121234503\n\n#48213\n'), [
+        '09121234503',
+        '#48213',
+      ]);
+    });
   });
 
   group('StageGeometry', () {

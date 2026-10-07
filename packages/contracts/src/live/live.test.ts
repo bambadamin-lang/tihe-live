@@ -249,8 +249,20 @@ describe('watermark', () => {
     expect(watermarkShortId('usr_01J8ZB00000000000000000001')).toMatch(/^\d{5}$/);
   });
 
-  it('formats masked phone and short id', () => {
-    const id = 'usr_01J8ZB00000000000000000001';
-    expect(liveWatermarkText('0912•••6789', id)).toBe(`0912•••6789 · #${watermarkShortId(id)}`);
+  const id = 'usr_01J8ZB00000000000000000001';
+
+  it('puts the full phone number beneath the name, then the short id', () => {
+    expect(liveWatermarkText({ displayName: 'علی کریمی', phone: '+989123456789' }, id)).toBe(
+      `علی کریمی\n09123456789\n#${watermarkShortId(id)}`,
+    );
+  });
+
+  it('leaves out a row it has nothing for', () => {
+    expect(liveWatermarkText({ displayName: '  ', phone: '+989123456789' }, id)).toBe(
+      `09123456789\n#${watermarkShortId(id)}`,
+    );
+    expect(liveWatermarkText({ displayName: null, phone: null }, id)).toBe(
+      `#${watermarkShortId(id)}`,
+    );
   });
 });

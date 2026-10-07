@@ -77,6 +77,15 @@ export function maskPhone(e164: string): string {
   return `${local.slice(0, 4)}•••${local.slice(-4)}`;
 }
 
+/**
+ * The whole number in the local form people read: +989123456789 → 09123456789.
+ * For one place only — the owner's own identity watermark, where every digit has to be legible
+ * on a leaked copy. Logs still use `maskPhone`.
+ */
+export function localPhone(e164: string): string {
+  return e164.replace(/^\+98/, '0');
+}
+
 export const platformSchema = z.enum(['windows', 'android', 'ios', 'macos', 'linux']);
 export type Platform = z.infer<typeof platformSchema>;
 

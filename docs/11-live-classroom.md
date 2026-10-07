@@ -220,14 +220,27 @@ be tuned without an app release.
 
 ## 9. Watermark
 
-- **Text**: masked phone and short account id, plus the current time — `0912•••6789 ·
-  #48213 · 14:32`. The id and time use ASCII digits so OCR on a leaked copy is reliable.
-  `watermarkShortId` in contracts derives the short id, and the M6 leak-lookup tool uses the
-  same function.
-- **Placement**: a corner of the **stage** (not the window, since a camera aimed at the slides
-  would crop the window corners). It jumps to another corner at seeded random intervals (the
-  existing `watermarkSchema` with `movement: 'corners'`), so cropping one corner never removes
-  it.
+- **Text**: three rows — the viewer's name, their **full** phone number beneath it, then the
+  short account id and the current time:
+
+  ```
+       علی کریمی
+      09121234503
+     #48213  14:32
+  ```
+
+  The institute wants every digit legible, so a leaked copy names its source without a lookup.
+  The number and id use ASCII digits so OCR on a leaked copy is reliable. `watermarkShortId`
+  in contracts derives the short id, and the M6 leak-lookup tool uses the same function.
+- **Placement**: over the **stage** (not the window, since a camera aimed at the slides would
+  crop the window edges), in two layers:
+  - *The mark* glides over the whole stage — centre and edges, not only the corners — from one
+    seeded random point to the next (`movement: 'drift'`, `WatermarkDrift` in the classroom).
+    Each leg crosses at least half the stage, so a camera zoomed in on any part of the picture
+    has the mark pass through its frame within a few legs. The corner-hopping it replaces could
+    be cropped out by zooming in past the corners.
+  - *The ghost*: the number and id repeated faintly across the stage on a slant, so even a frame
+    the mark is not in carries them.
 - **Rendering**: a Flutter overlay above the stage. In the classroom the video is a Flutter
   texture, so a Dart overlay sits above it exactly as a native layer would (ADR-0011).
 - **Privacy**: the phone number is never placed in LiveKit metadata or attributes, which
@@ -369,7 +382,7 @@ These cannot run in CI. Run them before each release on real hardware.
 | 10 | iOS 17+ | Control Centre recording; AirPlay mirror | censor screen + host alert |
 | 11 | iOS | Presenter broadcast extension | no self-alert while sharing |
 | 12 | all | Revoke mic from a speaking student | track muted within 1 s; re-publish refused |
-| 13 | all | Watermark | visible on the stage and changing corners; masked phone correct |
+| 13 | all | Watermark | glides over the whole stage, centre included; name, full phone beneath it, faint repeat behind |
 | 14 | all | Kill network for 10 s, restore | gateway resumes and the board, hands and chat are intact |
 
 ## 13. What it looks like

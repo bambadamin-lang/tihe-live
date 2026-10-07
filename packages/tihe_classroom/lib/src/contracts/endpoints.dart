@@ -62,12 +62,14 @@ class WatermarkSpec {
     seed: j['seed'] as int,
   );
 
-  /// Masked phone and short id, e.g. `0912•••6789 · #48213`. The time is added when drawn.
+  /// One row per line: the name, the full phone beneath it, then the short id, e.g.
+  /// `علی کریمی\n09121234503\n#48213`. The time is added to the last row when drawn.
   final String text;
   final double opacity;
   final int fontSize;
 
-  /// `corners` in the classroom.
+  /// `drift` in the classroom. The classroom drifts whatever this says: `corners` let a camera
+  /// zoomed past the corners crop the mark out.
   final String movement;
   final int periodSeconds;
   final int seed;

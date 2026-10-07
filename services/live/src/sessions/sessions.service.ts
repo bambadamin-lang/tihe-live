@@ -145,15 +145,19 @@ export class SessionsService {
         ticketExpiresAt: expiresAt.toISOString(),
       },
       watermark: {
-        text: profile
-          ? liveWatermarkText(profile.phoneMasked, caller.userId)
-          : `#${watermarkShortId(caller.userId)}`,
-        opacity: 0.32,
+        text: liveWatermarkText(
+          { displayName: profile?.displayName ?? null, phone: profile?.phone ?? null },
+          caller.userId,
+        ),
+        // Strong enough that every digit of the number reads on the white board too.
+        opacity: 0.4,
         fontSize: 13,
-        movement: 'corners',
-        // A different rhythm and path per join, so the corner sequence cannot be predicted
-        // and cropped around in a long recording.
-        periodSeconds: randomInt(25, 46),
+        // Over the whole picture, not just its corners: a camera zoomed in past the corners
+        // cropped the old mark out.
+        movement: 'drift',
+        // A different rhythm and path per join, so the path cannot be predicted and cropped
+        // around in a long recording.
+        periodSeconds: randomInt(14, 23),
         seed: randomInt(0, 2 ** 31 - 1),
       },
       capturePolicy: {
