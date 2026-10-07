@@ -72,7 +72,7 @@ design — that is the emergency lever.
   "watermark": {
     "text": "علی کریمی\n09121234567",
     "opacity": 0.28, "fontSize": 13,
-    "movement": "drift", "periodSeconds": 47, "seed": 918273
+    "movement": "corners", "periodSeconds": 27, "seed": 918273
   },
   "expiresAt": "2026-09-27T11:42:00Z",
   "heartbeatIntervalSeconds": 30
@@ -169,10 +169,9 @@ surface, not as a Dart widget, so patching the Dart UI does not remove it:
   The number goes only to its owner and is never logged.
 - Appearance: low-opacity white with a dark shadow so it survives on both bright and dark
   frames.
-- Movement: slow pseudo-random drift over the whole picture, centre included, with a
-  per-session seed, so it cannot be cropped out of a whole recording — not even by zooming a
-  camera in — and cannot be averaged away across frames. A faint slanted repeat of the number
-  covers the frames the mark is not in.
+- Movement: one mark that jumps between the four corners and the exact centre of the picture
+  at intervals from a per-session seed, so it cannot be cropped out of a whole recording — the
+  centre catches a camera zoomed in past the corners — and the rhythm cannot be predicted.
 - The player refuses to start if the overlay fails to attach. This check lives in Rust, not
   Dart.
 
@@ -230,8 +229,8 @@ unreleased content too. Full design in [11-live-classroom.md](11-live-classroom.
   - iOS uses capture-state detection plus a secure layer.
   - On detection the student's classroom is replaced by a censor screen, remote audio is muted,
     and the host is alerted.
-- An identity watermark (name, full phone beneath it) glides over the whole
-  stage, with a faint repeat of the number behind it.
+- An identity watermark (full name, full phone beneath it) jumps between the four corners and
+  the centre of the stage.
 - **There is no client-side recording path at all.** Recording happens only server-side via
   Egress. The app ships without the capability.
 

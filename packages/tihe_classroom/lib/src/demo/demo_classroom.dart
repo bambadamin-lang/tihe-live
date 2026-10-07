@@ -330,8 +330,8 @@ abstract final class DemoClassroom {
         text: '${me.name}\n0912000${as.substring(as.length - 4)}',
         opacity: 0.4,
         fontSize: 13,
-        movement: 'drift',
-        periodSeconds: 18,
+        movement: 'corners',
+        periodSeconds: 30,
         seed: 918273,
       ),
       capturePolicy: const CapturePolicySpec(

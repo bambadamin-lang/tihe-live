@@ -21,12 +21,12 @@ export const watermarkSchema = z.object({
   opacity: z.number().min(0.05).max(1),
   fontSize: z.number().int().min(8).max(48),
   /**
-   * `drift`: glides across the whole picture, centre and edges included, between seeded random
-   * points. `corners` (superseded — a camera zoomed past the corners cropped it out) is drawn as
-   * `drift` by current clients.
+   * `corners`: jumps between the four corners and the exact centre at seeded random intervals
+   * (the centre is there because a camera zoomed past the corners cropped a corners-only mark
+   * out). `drift`: a slow pseudo-random drift.
    */
   movement: z.enum(['static', 'drift', 'corners']),
-  /** Average seconds for one leg of the movement: a glide to the next point and a short rest. */
+  /** Average seconds between movements; each stay lasts 0.5–1.5 times this. */
   periodSeconds: z.number().int().positive(),
   /** Per-session seed for the drift path. */
   seed: z.number().int(),

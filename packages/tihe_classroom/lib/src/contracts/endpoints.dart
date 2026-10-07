@@ -62,13 +62,13 @@ class WatermarkSpec {
     seed: j['seed'] as int,
   );
 
-  /// One row per line: the name with the full phone beneath it, e.g. `علی کریمی\n09121234503`.
+  /// One row per line: the full name with the full phone beneath it, e.g.
+  /// `علی کریمی\n09121234503`. Nothing else.
   final String text;
   final double opacity;
   final int fontSize;
 
-  /// `drift` in the classroom. The classroom drifts whatever this says: `corners` let a camera
-  /// zoomed past the corners crop the mark out.
+  /// `corners` in the classroom: the four corners and the exact centre.
   final String movement;
   final int periodSeconds;
   final int seed;

@@ -29,8 +29,8 @@
     "text": "علی کریمی\n09123456789",
     "opacity": 0.4,
     "fontSize": 13,
-    "movement": "drift",
-    "periodSeconds": 17,
+    "movement": "corners",
+    "periodSeconds": 27,
     "seed": 918273
   },
   "capturePolicy": {

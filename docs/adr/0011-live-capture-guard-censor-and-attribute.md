@@ -38,9 +38,9 @@ What the operating systems actually allow:
 4. **Alert and audit**: the client reports to the gateway. The gateway writes a
    `live_audit_events` row and alerts everyone with `participants.manage`. **No auto-kick** —
    the host decides.
-5. **Attribute always**: an identity watermark (name, full phone beneath it) glides over the
-   whole stage, with a faint repeat of the number behind it (docs/11 §9; it first hopped
-   between corners, which a zoomed camera could crop out). It is a Flutter overlay: in the
+5. **Attribute always**: an identity watermark (full name, full phone beneath it) jumps
+   between the stage's four corners and its centre (docs/11 §9; the centre was added because a
+   zoomed camera could crop a corners-only mark out). It is a Flutter overlay: in the
    classroom the video is itself a Flutter texture, so this is equivalent to the native layer
    docs/03 asks for in the player.
 6. **Architecture**: `packages/capture_guard` is a Flutter plugin in which **native code

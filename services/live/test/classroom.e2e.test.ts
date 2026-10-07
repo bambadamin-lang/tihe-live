@@ -186,7 +186,7 @@ describe('a live class from start to end', () => {
     expect(aliJoin.you.role).toBe('participant');
     // Their name with every digit of their number beneath it, and nothing else.
     expect(aliJoin.watermark.text).toBe('علی کریمی\n09121234503');
-    expect(aliJoin.watermark.movement).toBe('drift');
+    expect(aliJoin.watermark.movement).toBe('corners');
     expect(aliJoin.capturePolicy).toMatchObject({
       block: true,
       windowsAffinity: 'monitor',

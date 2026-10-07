@@ -13,7 +13,7 @@ export 'src/data/live_api.dart';
 export 'src/data/media.dart';
 export 'src/domain/classroom_state.dart';
 export 'src/domain/persian.dart';
-export 'src/domain/watermark_drift.dart';
+export 'src/domain/watermark_hopper.dart';
 export 'src/open_classroom.dart';
 export 'src/state/board_controller.dart';
 export 'src/state/classroom_session.dart';

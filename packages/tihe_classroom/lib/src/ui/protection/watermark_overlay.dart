@@ -1,22 +1,15 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import '../../contracts.dart';
 import '../../domain/persian.dart';
-import '../../domain/watermark_drift.dart';
+import '../../domain/watermark_hopper.dart';
 
-/// The identity watermark over the stage (docs/11 §9), in two layers:
-///
-/// - **The mark**: the viewer's name with their full phone number beneath it — nothing else, as
-///   the institute asked. It glides over the whole stage on a seeded path, so a camera zoomed in
-///   on any part of the picture still catches it.
-/// - **The ghost**: the number repeated faintly across the stage on a slant, so even a frame the
-///   mark is not in carries it.
-///
-/// Both sit above every pod and ignore the pointer. The digits stay ASCII so OCR on a leaked
-/// copy reads them reliably.
+/// The identity watermark over the stage (docs/11 §9): the viewer's name with their full phone
+/// number beneath it, nothing else. It sits in one of five spots — a corner of the stage or its
+/// exact centre — and jumps to another at seeded random intervals. It sits above every pod and
+/// ignores the pointer. The digits stay ASCII so OCR on a leaked copy reads them reliably.
 class WatermarkOverlay extends StatefulWidget {
   const WatermarkOverlay({
     super.key,
@@ -32,7 +25,7 @@ class WatermarkOverlay extends StatefulWidget {
 }
 
 class _WatermarkOverlayState extends State<WatermarkOverlay> {
-  late final WatermarkDrift _drift = WatermarkDrift(
+  late final WatermarkHopper _hopper = WatermarkHopper(
     seed: widget.spec.seed,
     periodSeconds: widget.spec.periodSeconds,
   );
@@ -42,8 +35,7 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
   @override
   void initState() {
     super.initState();
-    // A new point once a second; the one-second linear animation below joins them into a
-    // smooth glide without rebuilding every frame.
+    // Once a second is enough: jumps are many seconds apart.
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
   }
 
@@ -55,55 +47,38 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    final now = widget.clock();
-    final at = _drift.positionAt(now.difference(_opened));
+    final spot = _hopper.spotAt(widget.clock().difference(_opened));
+    final alignment = switch (spot) {
+      StageSpot.topStart => AlignmentDirectional.topStart,
+      StageSpot.topEnd => AlignmentDirectional.topEnd,
+      StageSpot.center => AlignmentDirectional.center,
+      StageSpot.bottomStart => AlignmentDirectional.bottomStart,
+      StageSpot.bottomEnd => AlignmentDirectional.bottomEnd,
+    };
     final rows = watermarkRows(widget.spec.text);
     final size = widget.spec.fontSize.toDouble();
-    final opacity = widget.spec.opacity.clamp(0.1, 0.9);
-    // Updates every second: its own layer, so the stage underneath is not repainted with it.
+    // Its own layer, so the stage underneath is not repainted when it moves.
     return RepaintBoundary(
       child: IgnorePointer(
-        child: Stack(
-          children: [
-            Positioned.fill(
-              // Never changes while the class is open: cached in a layer of its own. Clipped,
-              // or the slanted rows would spill over the top bar and the dock.
-              child: RepaintBoundary(
-                child: ClipRect(
-                  child: CustomPaint(
-                    painter: _GhostPainter(
-                      text: _ghostText(rows),
-                      // A painter does not inherit the app's font; hand it over.
-                      fontFamily: DefaultTextStyle.of(context).style.fontFamily,
-                      fontSize: size,
-                      opacity: opacity * 0.22,
-                    ),
-                  ),
-                ),
+        child: Padding(
+          // Top corners sit below the pods' title strips, over the content, where a crop of
+          // the picture still keeps them.
+          padding: const EdgeInsets.fromLTRB(26, 64, 26, 22),
+          child: AnimatedAlign(
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeInOut,
+            alignment: alignment,
+            child: Opacity(
+              opacity: widget.spec.opacity.clamp(0.1, 0.9),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final row in rows)
+                    _OutlinedText(row, style: _rowStyle(row, size)),
+                ],
               ),
             ),
-            Positioned.fill(
-              child: Padding(
-                // The top edge sits below the pods' title strips, over the content, where a
-                // crop of the picture still keeps it.
-                padding: const EdgeInsets.fromLTRB(20, 44, 20, 18),
-                child: AnimatedAlign(
-                  duration: const Duration(seconds: 1),
-                  alignment: Alignment(at.x * 2 - 1, at.y * 2 - 1),
-                  child: Opacity(
-                    opacity: opacity,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (final row in rows)
-                          _OutlinedText(row, style: _rowStyle(row, size)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -127,13 +102,6 @@ bool _isPhone(String row) => RegExp(r'^\+?\d{10,13}$').hasMatch(row);
 
 final _rtl = RegExp('[؀-ۿ]');
 
-/// The ghost repeats only the ASCII rows: a bare number survives faint, slanted and re-encoded
-/// far better than Persian letters do. Spaces, not "·", which Modam does not have.
-String _ghostText(List<String> rows) {
-  final ascii = rows.where((r) => !_rtl.hasMatch(r)).toList();
-  return (ascii.isEmpty ? rows : ascii).join('    ');
-}
-
 /// White letters with a dark outline read on both video and the white board.
 class _OutlinedText extends StatelessWidget {
   const _OutlinedText(this.text, {required this.style});
@@ -143,7 +111,7 @@ class _OutlinedText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // A Persian name reads right to left; numbers and ids left to right.
+    // A Persian name reads right to left; the number left to right.
     final direction = _rtl.hasMatch(text)
         ? TextDirection.rtl
         : TextDirection.ltr;
@@ -170,79 +138,6 @@ class _OutlinedText extends StatelessWidget {
   }
 }
 
-/// [text] tiled across the stage on a slant, staggered row by row so no band of the picture is
-/// free of it.
-class _GhostPainter extends CustomPainter {
-  _GhostPainter({
-    required this.text,
-    required this.fontFamily,
-    required this.fontSize,
-    required this.opacity,
-  });
-
-  final String text;
-  final String? fontFamily;
-  final double fontSize;
-  final double opacity;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (text.isEmpty || size.isEmpty) return;
-    TextPainter painter(Paint foreground) => TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(
-          fontFamily: fontFamily,
-          fontSize: fontSize,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 1,
-          foreground: foreground,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    final outline = painter(
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..color = Colors.black.withValues(alpha: opacity),
-    );
-    final fill = painter(
-      Paint()..color = Colors.white.withValues(alpha: opacity),
-    );
-    // Sparse enough to read the board through, dense enough that any crop a camera can still
-    // read holds a whole copy.
-    final stepX = fill.width + fontSize * 16;
-    final stepY = fontSize * 12;
-    // The rotated grid has to cover the stage's corners too: reach past half its diagonal.
-    final reach = size.longestSide * 0.75 + stepX;
-
-    canvas
-      ..save()
-      ..translate(size.width / 2, size.height / 2)
-      ..rotate(-math.pi / 9);
-    var row = 0;
-    for (var y = -reach; y < reach; y += stepY, row++) {
-      final shift = row.isEven ? 0.0 : stepX / 2;
-      for (var x = -reach - shift; x < reach; x += stepX) {
-        outline.paint(canvas, Offset(x, y));
-        fill.paint(canvas, Offset(x, y));
-      }
-    }
-    canvas.restore();
-    outline.dispose();
-    fill.dispose();
-  }
-
-  @override
-  bool shouldRepaint(_GhostPainter old) =>
-      old.text != text ||
-      old.fontFamily != fontFamily ||
-      old.fontSize != fontSize ||
-      old.opacity != opacity;
-}
-
 /// For accessibility tools: the watermark is decorative to them, but its presence is announced.
 String watermarkSemantics(WatermarkSpec spec) =>
-    'واترمارک شناسایی: ${toPersianDigits(watermarkRows(spec.text).join(' · '))}';
+    'واترمارک شناسایی: ${toPersianDigits(watermarkRows(spec.text).join(' '))}';
