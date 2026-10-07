@@ -69,6 +69,7 @@ abstract final class ClassroomIcons {
   static const maximiseWindow = LucideIcons.square;
   static const closeWindow = LucideIcons.x;
   static const alert = LucideIcons.circleAlert;
+  static const update = LucideIcons.download;
 
   // Whiteboard.
   static const pen = LucideIcons.pen;
