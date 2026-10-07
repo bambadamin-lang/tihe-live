@@ -165,6 +165,9 @@ class _Classroom extends ConsumerWidget {
     final watermark = ref.watch(
       classroomViewProvider.select((v) => v.watermark),
     );
+      final viewerName = ref.watch(
+  classroomViewProvider.select((v) => v.name),
+    );
     return Material(
       type: MaterialType.transparency,
       child: GlassBackdrop(
@@ -187,7 +190,10 @@ class _Classroom extends ConsumerWidget {
                                 ),
                                 // Over every pod and panel, under nothing: see docs/11 §9.
                                 Positioned.fill(
-                                  child: WatermarkOverlay(spec: watermark),
+                                   child: WatermarkOverlay(
+                                     spec: watermark,
+                                       displayName: viewerName,
+                                 ),
                                 ),
                               ],
                             )
