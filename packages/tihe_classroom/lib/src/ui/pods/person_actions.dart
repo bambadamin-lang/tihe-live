@@ -28,16 +28,22 @@ class ParticipantMenuButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final view = ref.watch(classroomViewProvider);
-    final p = view.room?.participants[userId];
-    final me = view.me;
-    if (p == null || me == null || userId == view.userId) {
-      return const SizedBox.shrink();
-    }
-    final canManage =
-        me.can(Capability.participantsManage) && me.role.outranks(p.role);
-    final canAssign = me.can(Capability.rolesAssign);
-    if (!canManage && !canAssign) return const SizedBox.shrink();
+    // Only what decides whether there is a menu: it sits in every row, so it must not rebuild
+    // on every change in the class. The menu reads the person when it opens.
+    final s = ref.watch(
+      classroomViewProvider.select((v) {
+        final p = v.room?.participants[userId];
+        final me = v.me;
+        if (p == null || me == null || userId == v.userId) return null;
+        final canManage =
+            me.can(Capability.participantsManage) && me.role.outranks(p.role);
+        final canAssign = me.can(Capability.rolesAssign);
+        return canManage || canAssign
+            ? (canManage: canManage, canAssign: canAssign)
+            : null;
+      }),
+    );
+    if (s == null) return const SizedBox.shrink();
     return Builder(
       builder: (context) => GlassIconButton(
         icon: icon,
@@ -47,7 +53,10 @@ class ParticipantMenuButton extends ConsumerWidget {
         radius: 10,
         fill: floating ? const Color(0x990A1122) : null,
         color: floating ? Colors.white.withValues(alpha: 0.85) : null,
-        onPressed: () => _open(context, ref, p, canManage, canAssign),
+        onPressed: () {
+          final p = ref.read(classroomViewProvider).room?.participants[userId];
+          if (p != null) _open(context, ref, p, s.canManage, s.canAssign);
+        },
       ),
     );
   }

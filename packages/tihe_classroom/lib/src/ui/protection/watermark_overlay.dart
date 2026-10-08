@@ -34,8 +34,27 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
   @override
   void initState() {
     super.initState();
-    // Once a second is enough: the clock shows minutes, and corner jumps are seconds apart.
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
+    _scheduleNext();
+  }
+
+  /// Wakes when something visible changes — the minute in the label, or a corner jump — not
+  /// every second: each wake is a frame of the whole window.
+  void _scheduleNext() {
+    final now = widget.clock();
+    final elapsed = now.difference(_opened);
+    _hopper.cornerAt(elapsed); // brings the next jump past now
+    final toHop = _hopper.untilNext(elapsed);
+    final toMinute = Duration(
+      microseconds:
+          Duration.microsecondsPerMinute -
+          now.microsecondsSinceEpoch % Duration.microsecondsPerMinute,
+    );
+    final wait = toHop < toMinute ? toHop : toMinute;
+    _timer = Timer(wait + const Duration(milliseconds: 5), () {
+      if (!mounted) return;
+      setState(() {});
+      _scheduleNext();
+    });
   }
 
   @override

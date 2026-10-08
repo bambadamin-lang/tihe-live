@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../contracts.dart';
 import '../../data/media.dart';
 import '../../domain/persian.dart';
+import '../../state/classroom_session.dart';
 import '../../state/providers.dart';
 import '../classroom_page.dart';
 import '../pods/chat_pod.dart' show reactionEmoji, showEmojiPopover;
@@ -202,14 +204,32 @@ class _LiveClock extends StatefulWidget {
 }
 
 class _LiveClockState extends State<_LiveClock> {
-  late final Timer _timer = Timer.periodic(
-    const Duration(seconds: 1),
-    (_) => setState(() {}),
-  );
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleTick();
+  }
+
+  /// Ticks as each elapsed second turns over, so the clock changes on time and only then.
+  void _scheduleTick() {
+    // clock, not DateTime: the timer and the time must come from the same clock, or a test's
+    // fake timers meet the real second turning over and tick in a burst.
+    final elapsed = clock.now().difference(widget.startedAt);
+    final toNext =
+        Duration.microsecondsPerSecond -
+        elapsed.inMicroseconds % Duration.microsecondsPerSecond;
+    _timer = Timer(Duration(microseconds: toNext + 2000), () {
+      if (!mounted) return;
+      setState(() {});
+      _scheduleTick();
+    });
+  }
 
   @override
   void dispose() {
-    _timer.cancel();
+    _timer?.cancel();
     super.dispose();
   }
 
@@ -220,7 +240,7 @@ class _LiveClockState extends State<_LiveClock> {
       message: 'مدت کلاس',
       child: GlassPill(
         child: Text(
-          elapsedClock(DateTime.now().difference(widget.startedAt)),
+          elapsedClock(clock.now().difference(widget.startedAt)),
           style: const TextStyle(
             fontSize: 14.5,
             fontFeatures: [FontFeature.tabularFigures()],
@@ -231,35 +251,82 @@ class _LiveClockState extends State<_LiveClock> {
   );
 }
 
+typedef _DockState = ({
+  bool micOn,
+  bool cameraOn,
+  bool screenOn,
+  bool canAudio,
+  bool canVideo,
+  bool canScreen,
+  bool canRaise,
+  bool canChat,
+  bool canEnd,
+  bool showHand,
+  bool handUp,
+  int? queue,
+  Layout? layout,
+});
+
 /// The dock: leaving, the camera and microphone with their device pickers, then the class's
 /// tools — more, reactions, screen share, the hand (or, for the host, ending the class), and
 /// the chat and people panels — floating centred over the stage.
 class ControlBar extends ConsumerWidget {
   const ControlBar({super.key});
 
+  /// Everything the dock shows, as one value: it rebuilds when one of these changes, not on
+  /// every board stroke, chat message or speaker change in the class.
+  static _DockState _select(ClassroomView v) {
+    final local = v.media.local;
+    final me = v.me;
+    final hand = me?.hand;
+    return (
+      micOn: local?.micOn ?? false,
+      cameraOn: local?.cameraOn ?? false,
+      screenOn: local?.screenOn ?? false,
+      canAudio: v.can(Capability.publishAudio),
+      canVideo: v.can(Capability.publishVideo),
+      canScreen: v.can(Capability.publishScreen),
+      canRaise: v.can(Capability.handRaise),
+      canChat: v.can(Capability.chatSend),
+      canEnd: v.can(Capability.classEnd),
+      // Cohosts and hosts take the floor; they have no hand to raise.
+      showHand: me == null || me.role.rank < ClassRole.cohost.rank,
+      handUp: hand != null,
+      // 1-based place in the queue: hands are served in the order the server received them.
+      queue: hand == null
+          ? null
+          : 1 +
+                (v.room?.participants.values
+                        .where(
+                          (p) =>
+                              p.hand != null &&
+                              p.hand!.raisedSeq < hand.raisedSeq,
+                        )
+                        .length ??
+                    0),
+      // For the chat and people keys; a layout is replaced, not changed, so this compares by
+      // identity.
+      layout: v.room?.layout,
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(classroomSessionProvider);
-    final view = ref.watch(classroomViewProvider);
+    final s = ref.watch(classroomViewProvider.select(_select));
     final focus = StageFocusScope.maybeOf(context);
     final t = ClassroomTheme.of(context);
-    final local = view.media.local;
-    final me = view.me;
-    final layout = view.room?.layout;
-    final hands = view.room?.raisedHands ?? const <ParticipantState>[];
-    final position = hands.indexWhere((p) => p.userId == view.userId);
+    final layout = s.layout;
     final narrow = MediaQuery.sizeOf(context).width < 760;
-    final sharing = local?.screenOn ?? false;
-    final canShare = view.can(Capability.publishScreen);
-    final canChat = view.can(Capability.chatSend);
+    final sharing = s.screenOn;
+    final canShare = s.canScreen;
+    final canChat = s.canChat;
 
     Widget media(MediaDeviceKind kind) {
       final mic = kind == MediaDeviceKind.microphone;
       final toggle = MediaToggle(
-        on: (mic ? local?.micOn : local?.cameraOn) ?? false,
-        locked: !view.can(
-          mic ? Capability.publishAudio : Capability.publishVideo,
-        ),
+        on: mic ? s.micOn : s.cameraOn,
+        locked: !(mic ? s.canAudio : s.canVideo),
         icon: mic ? ClassroomIcons.mic : ClassroomIcons.camera,
         offIcon: mic ? ClassroomIcons.micOff : ClassroomIcons.cameraOff,
         label: mic ? 'میکروفون' : 'دوربین',
@@ -331,7 +398,7 @@ class ControlBar extends ConsumerWidget {
                     ? session.stopScreenShare()
                     : _pickScreen(context, ref),
         ),
-      if (view.can(Capability.classEnd))
+      if (s.canEnd)
         DockButton(
           icon: ClassroomIcons.endClass,
           label: 'پایان کلاس',
@@ -340,14 +407,12 @@ class ControlBar extends ConsumerWidget {
           showLabel: !narrow,
           onPressed: () => _confirmEnd(context, ref),
         )
-      else if (me == null || me.role.rank < ClassRole.cohost.rank)
+      else if (s.showHand)
         HandToggle(
-          raised: me?.hand != null,
-          queuePosition: position >= 0 ? position + 1 : null,
+          raised: s.handUp,
+          queuePosition: s.queue,
           showLabel: !narrow,
-          onPressed: (me?.hand != null || view.can(Capability.handRaise))
-              ? session.toggleHand
-              : null,
+          onPressed: (s.handUp || s.canRaise) ? session.toggleHand : null,
         ),
       // A phone has no room for these in the dock: they move under "more".
       if (!narrow) ...[

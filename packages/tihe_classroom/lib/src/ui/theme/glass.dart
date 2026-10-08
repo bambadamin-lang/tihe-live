@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -92,25 +94,114 @@ abstract final class ClassroomIcons {
   static const nextPage = LucideIcons.chevronRightDir;
 }
 
-/// The sky behind everything, painted once: a navy gradient, a few soft glows, two planets lit
-/// along their inner rims at the edges and faint orbits around them.
+/// The sky behind everything: a navy gradient, a few soft glows, two planets lit along their
+/// inner rims at the edges and faint orbits around them — drawn once.
 ///
-/// Also establishes the [BackdropGroup] that the stage's panes share, so a stage of seven pods
-/// costs one blur, not seven.
+/// "Once" has to be made true by hand: Impeller, the renderer on most of the classroom's
+/// platforms, keeps nothing between frames, so painted directly the sky's gradients, blurred
+/// rims and orbits were shaded again on every frame of video, ink or lamp. It is drawn into an
+/// image instead, again only when the window, the theme or the pixel ratio changes, and every
+/// frame draws that one image.
 class GlassBackdrop extends StatelessWidget {
   const GlassBackdrop({super.key, required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    final t = ClassroomTheme.of(context);
-    return CustomPaint(
-      painter: SkyPainter(t),
-      isComplex: true,
-      willChange: false,
-      child: BackdropGroup(child: child),
+  Widget build(BuildContext context) => _SkyCanvas(
+    theme: ClassroomTheme.of(context),
+    devicePixelRatio: MediaQuery.maybeDevicePixelRatioOf(context) ?? 1,
+    child: child,
+  );
+}
+
+class _SkyCanvas extends SingleChildRenderObjectWidget {
+  const _SkyCanvas({
+    required this.theme,
+    required this.devicePixelRatio,
+    super.child,
+  });
+
+  final ClassroomTheme theme;
+  final double devicePixelRatio;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderSkyCanvas(theme, devicePixelRatio);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderSkyCanvas canvas) =>
+      canvas
+        ..theme = theme
+        ..devicePixelRatio = devicePixelRatio;
+}
+
+class _RenderSkyCanvas extends RenderProxyBox {
+  _RenderSkyCanvas(this._theme, this._devicePixelRatio);
+
+  ClassroomTheme _theme;
+  set theme(ClassroomTheme value) {
+    if (identical(value, _theme)) return;
+    _theme = value;
+    _forget();
+  }
+
+  double _devicePixelRatio;
+  set devicePixelRatio(double value) {
+    if (value == _devicePixelRatio) return;
+    _devicePixelRatio = value;
+    _forget();
+  }
+
+  ui.Image? _image;
+  Size _imageSize = Size.zero;
+
+  void _forget() {
+    _image?.dispose();
+    _image = null;
+    markNeedsPaint();
+  }
+
+  // At the screen's full resolution: the planets' rims and the orbits are a pixel or two wide,
+  // and a smaller image scaled up would smear them.
+  ui.Image _render() {
+    final width = (size.width * _devicePixelRatio).ceil().clamp(1, 8192);
+    final height = (size.height * _devicePixelRatio).ceil().clamp(1, 8192);
+    final recorder = ui.PictureRecorder();
+    SkyPainter(_theme).paint(
+      Canvas(recorder)..scale(width / size.width, height / size.height),
+      size,
     );
+    final picture = recorder.endRecording();
+    final image = picture.toImageSync(width, height);
+    picture.dispose();
+    return image;
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (!size.isEmpty) {
+      if (_image == null || _imageSize != size) {
+        _image?.dispose();
+        _image = _render();
+        _imageSize = size;
+      }
+      final image = _image!;
+      context.canvas.drawImageRect(
+        image,
+        Offset.zero & Size(image.width.toDouble(), image.height.toDouble()),
+        offset & size,
+        Paint()..filterQuality = FilterQuality.low,
+      );
+    }
+    super.paint(context, offset);
+  }
+
+  @override
+  void dispose() {
+    _image?.dispose();
+    _image = null;
+    super.dispose();
   }
 }
 
@@ -139,7 +230,14 @@ class SkyPainter extends CustomPainter {
   bool shouldRepaint(SkyPainter old) => old.theme != theme;
 }
 
-/// A pane of frosted glass: blur, a translucent fill, a lit rim and one soft shadow.
+/// A pane of frosted glass: a translucent fill, a lit rim and one soft shadow — and, for an
+/// [overlay], a blur of what lies under it.
+///
+/// Panes on the sky (pods, bars, pills) do not blur. Under them is only the sky, and a blur
+/// there is a full backdrop read and two blur passes per pane on every frame — video, ink and
+/// lamps redraw the window many times a second. Their fill is dense enough that the sky's thin
+/// lines read as a soft tint through it. Overlays float over the class itself (pods, video, the
+/// board), where the blur is what keeps them readable, and they are few and short-lived.
 class Glass extends StatelessWidget {
   const Glass({
     super.key,
@@ -162,8 +260,7 @@ class Glass extends StatelessWidget {
   /// Replaces the fill, e.g. a tint for a state.
   final Color? fill;
 
-  /// Floats over other glass (toasts, sheets). Grouped blurs must not overlap, so an overlay
-  /// blurs on its own.
+  /// Floats over the class itself (toasts, sheets, menus), so it blurs what is under it.
   final bool overlay;
   final bool shadow;
 
@@ -171,12 +268,7 @@ class Glass extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
     final shape = BorderRadius.circular(radius);
-    final filter = ui.ImageFilter.blur(
-      sigmaX: strong ? t.blur * 1.5 : t.blur,
-      sigmaY: strong ? t.blur * 1.5 : t.blur,
-    );
-    final grouped = !overlay && BackdropGroup.of(context) != null;
-    final body = DecoratedBox(
+    final Widget body = DecoratedBox(
       decoration: BoxDecoration(
         color: fill ?? (strong ? t.glassStrong : t.glass),
         borderRadius: shape,
@@ -191,12 +283,18 @@ class Glass extends StatelessWidget {
       ),
       child: CustomPaint(
         foregroundPainter: _RimPainter(t.rim, radius),
-        child: ClipRRect(
-          borderRadius: shape,
-          child: grouped
-              ? BackdropFilter.grouped(filter: filter, child: body)
-              : BackdropFilter(filter: filter, child: body),
-        ),
+        child: overlay
+            ? ClipRRect(
+                borderRadius: shape,
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(
+                    sigmaX: strong ? t.blur * 1.5 : t.blur,
+                    sigmaY: strong ? t.blur * 1.5 : t.blur,
+                  ),
+                  child: body,
+                ),
+              )
+            : body,
       ),
     );
   }
@@ -425,11 +523,23 @@ class StatusDot extends StatelessWidget {
 }
 
 /// A dot that breathes — for "live" and "recording".
+///
+/// It breathes in steps on a timer ([step]), not on a ticker. A ticker asks for a frame at the
+/// display's rate, up to 144 a second, and every frame redraws the whole window: with recording
+/// on, as it is in most classes, one 8-pixel lamp kept the classroom rendering flat out for the
+/// whole lesson. Fifteen steps a second look the same on a 1.4-second breath, and the window
+/// redraws at a tenth of the rate. Still while hidden (TickerMode) and under reduced motion.
 class PulsingDot extends StatefulWidget {
   const PulsingDot({super.key, required this.color, this.size = 8});
 
   final Color color;
   final double size;
+
+  /// Time between two steps of the breath.
+  static const step = Duration(milliseconds: 66);
+
+  /// One way of the breath: dim to bright, or back.
+  static const breath = Duration(milliseconds: 1400);
 
   @override
   State<PulsingDot> createState() => _PulsingDotState();
@@ -437,20 +547,47 @@ class PulsingDot extends StatefulWidget {
 
 class _PulsingDotState extends State<PulsingDot>
     with SingleTickerProviderStateMixin {
-  late final _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  )..repeat(reverse: true);
+  // Never animated, only set: a value change updates the dot's opacity layer and nothing else.
+  late final _opacity = AnimationController(vsync: this, value: 1);
+  Timer? _timer;
+  int _steps = 0;
+
+  // Runs whenever TickerMode or reduced motion changes, both of which this depends on.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final breathe =
+        TickerMode.valuesOf(context).enabled && !Motion.reduced(context);
+    if (breathe && _timer == null) {
+      _timer = Timer.periodic(PulsingDot.step, (_) => _tick());
+      _tick();
+    } else if (!breathe && _timer != null) {
+      _timer!.cancel();
+      _timer = null;
+      _opacity.value = 1;
+    }
+  }
+
+  void _tick() {
+    const half = PulsingDot.breath;
+    final t =
+        _steps++ *
+        PulsingDot.step.inMicroseconds %
+        (half.inMicroseconds * 2) /
+        half.inMicroseconds;
+    _opacity.value = 0.4 + 0.6 * (t <= 1 ? t : 2 - t);
+  }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _timer?.cancel();
+    _opacity.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => FadeTransition(
-    opacity: Tween(begin: 0.4, end: 1.0).animate(_controller),
+    opacity: _opacity,
     child: StatusDot(color: widget.color, size: widget.size),
   );
 }

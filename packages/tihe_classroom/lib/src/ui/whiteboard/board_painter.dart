@@ -50,6 +50,17 @@ class BoardPainter extends CustomPainter {
 
   static const laserFade = Duration(milliseconds: 1200);
 
+  /// Outlines and laid-out text of finished items, worked out once per item. Items are
+  /// immutable, and running perfect-freehand is the costliest step in painting a page: without
+  /// these, every repaint of the finished layer — each stroke anyone adds — redid every stroke
+  /// on the page.
+  static final _outlines = Expando<Path>('board outlines');
+  static final _texts = Expando<(String, TextPainter)>('board texts');
+
+  /// The outline of a finished [stroke], from the cache when it has been drawn before.
+  static Path outlineOf(StrokeItem stroke) =>
+      _outlines[stroke] ??= outline(stroke.points, stroke.width, stroke.tool);
+
   @override
   void paint(Canvas canvas, Size size) {
     final viewport = BoardViewport(size);
@@ -160,8 +171,9 @@ class BoardPainter extends CustomPainter {
     PenTool tool,
     String color,
     int width,
-    List<int> points,
-  ) {
+    List<int> points, {
+    StrokeItem? finished,
+  }) {
     final style = penStyles[tool]!;
     final paint = Paint()
       ..color = colorFromHex(color).withValues(alpha: style.opacity)
@@ -173,7 +185,11 @@ class BoardPainter extends CustomPainter {
         paint,
       );
     } else {
-      canvas.drawPath(outline(points, width, tool), paint);
+      // Ink still being drawn changes every frame, so only finished strokes are cached.
+      canvas.drawPath(
+        finished != null ? outlineOf(finished) : outline(points, width, tool),
+        paint,
+      );
     }
   }
 
@@ -223,6 +239,15 @@ class BoardPainter extends CustomPainter {
   }
 
   void _text(Canvas canvas, TextItem item) {
+    final cached = _texts[item];
+    final painter = cached != null && cached.$1 == fontFamily
+        ? cached.$2
+        : _layoutText(item);
+    // `at` is the text's top-right corner, whatever its direction.
+    painter.paint(canvas, Offset(item.at.x - painter.width, item.at.y + 0.0));
+  }
+
+  TextPainter _layoutText(TextItem item) {
     final painter = TextPainter(
       text: TextSpan(
         text: item.text,
@@ -239,14 +264,14 @@ class BoardPainter extends CustomPainter {
       textDirection: textDirectionOf(item.text),
       textAlign: TextAlign.right,
     )..layout();
-    // `at` is the text's top-right corner, whatever its direction.
-    painter.paint(canvas, Offset(item.at.x - painter.width, item.at.y + 0.0));
+    _texts[item] = (fontFamily, painter);
+    return painter;
   }
 
   void _item(Canvas canvas, BoardItem item) {
     switch (item) {
       case StrokeItem(:final tool, :final color, :final width, :final points):
-        _pen(canvas, tool, color, width, points);
+        _pen(canvas, tool, color, width, points, finished: item);
       case ShapeItem(
         :final shape,
         :final color,

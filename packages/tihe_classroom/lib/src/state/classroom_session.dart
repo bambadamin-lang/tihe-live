@@ -200,6 +200,7 @@ class ClassroomSession {
       ..add(gateway.closures.listen(_onBye))
       ..add(
         media.changes.listen((m) {
+          if (m == _v.media) return;
           _v = _v.copyWith(media: m);
           capture?.ownShareActive = m.local?.screenOn ?? false;
         }),
