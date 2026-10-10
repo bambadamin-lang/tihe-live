@@ -234,8 +234,10 @@ be tuned without an app release.
   slides would crop the window edges), in exactly one of five spots: the four corners of the
   stage or its exact centre. It jumps to a different spot at seeded random intervals
   (`movement: 'corners'`, `WatermarkHopper` in the classroom). The centre spot is there because
-  a camera zoomed in past the corners cropped a corners-only mark out. It does not glide, and
-  there is no second, background copy — the institute asked for one mark in fixed spots.
+  a camera zoomed in past the corners cropped a corners-only mark out. It does not glide: it
+  leaves one spot at once and drops into the next with a small bounce, so it is never seen
+  crossing the stage. There is no second, background copy — the institute asked for one mark
+  in fixed spots.
 - **Rendering**: a Flutter overlay above the stage. In the classroom the video is a Flutter
   texture, so a Dart overlay sits above it exactly as a native layer would (ADR-0011).
 - **Privacy**: the phone number is never placed in LiveKit metadata or attributes, which
@@ -339,6 +341,8 @@ never the side effect of a merge or a refactor.
     counts in pod headers roll to their new values; menus drop from their control; reactions
     rise and fade.
   - Dialogs rise and sharpen into place; opening a class fades it in from slightly larger.
+  - The watermark jumps rather than glides: gone from its spot at once, it drops into the next
+    with a small bounce (§9).
   - The censor screen is the exception: it replaces the class instantly, since any frame of a
     fade would show the class to the recorder.
   - The operating system's reduce-motion setting turns all of this off (`Motion` in
