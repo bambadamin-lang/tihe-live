@@ -249,8 +249,14 @@ describe('watermark', () => {
     expect(watermarkShortId('usr_01J8ZB00000000000000000001')).toMatch(/^\d{5}$/);
   });
 
-  it('formats masked phone and short id', () => {
-    const id = 'usr_01J8ZB00000000000000000001';
-    expect(liveWatermarkText('0912•••6789', id)).toBe(`0912•••6789 · #${watermarkShortId(id)}`);
+  it('is the full name with the full phone number beneath it, and nothing else', () => {
+    expect(liveWatermarkText({ displayName: 'علی کریمی', phone: '+989123456789' })).toBe(
+      'علی کریمی\n09123456789',
+    );
+  });
+
+  it('leaves out a row it has nothing for', () => {
+    expect(liveWatermarkText({ displayName: '  ', phone: '+989123456789' })).toBe('09123456789');
+    expect(liveWatermarkText({ displayName: null, phone: null })).toBe('');
   });
 });

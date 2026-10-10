@@ -70,9 +70,9 @@ design — that is the emergency lever.
   "keyId": "ck_01J...",
   "encryption": { "scheme": "AES-128-CTR", "ivMode": "per-segment-sequence" },
   "watermark": {
-    "text": "0912••••567 · #48213",
+    "text": "علی کریمی\n09121234567",
     "opacity": 0.28, "fontSize": 13,
-    "movement": "drift", "periodSeconds": 47, "seed": 918273
+    "movement": "corners", "periodSeconds": 27, "seed": 918273
   },
   "expiresAt": "2026-09-27T11:42:00Z",
   "heartbeatIntervalSeconds": 30
@@ -164,11 +164,14 @@ at their next contact, bounded by `offlineWindowDays`.
 **Phase 1 — visible overlay, always on.** Rendered in the native view layer above the video
 surface, not as a Dart widget, so patching the Dart UI does not remove it:
 
-- Content: masked phone number + short account id (e.g. `0912••••567 · #48213`).
+- Content: the viewer's name with their full phone number beneath it, and nothing else
+  (e.g. `علی کریمی / 09121234567`). Every digit is legible, so a leaked copy names its source.
+  The number goes only to its owner and is never logged.
 - Appearance: low-opacity white with a dark shadow so it survives on both bright and dark
   frames.
-- Movement: slow pseudo-random drift with a per-session seed, so it cannot be cropped out of
-  a whole recording and cannot be averaged away across frames.
+- Movement: one mark that jumps between the four corners and the exact centre of the picture
+  at intervals from a per-session seed, so it cannot be cropped out of a whole recording — the
+  centre catches a camera zoomed in past the corners — and the rhythm cannot be predicted.
 - The player refuses to start if the overlay fails to attach. This check lives in Rust, not
   Dart.
 
@@ -226,8 +229,8 @@ unreleased content too. Full design in [11-live-classroom.md](11-live-classroom.
   - iOS uses capture-state detection plus a secure layer.
   - On detection the student's classroom is replaced by a censor screen, remote audio is muted,
     and the host is alerted.
-- An identity watermark (masked phone · short id · time) hops between the corners of the
-  stage.
+- An identity watermark (full name, full phone beneath it) jumps between the four corners and
+  the centre of the stage.
 - **There is no client-side recording path at all.** Recording happens only server-side via
   Egress. The app ships without the capability.
 

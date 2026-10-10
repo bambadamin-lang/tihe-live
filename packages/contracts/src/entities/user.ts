@@ -3,7 +3,8 @@ import { id, platformSchema, roleSchema } from '../common.js';
 
 export const userSchema = z.object({
   id: id('user'),
-  /** Masked for display (0912•••6789). The API never returns a full number to a client. */
+  /** Masked for display (0912•••6789). The full number reaches a client only inside its owner's
+   *  own watermark. */
   phoneMasked: z.string(),
   displayName: z.string().nullable(),
   role: roleSchema,

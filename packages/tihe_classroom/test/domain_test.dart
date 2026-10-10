@@ -99,27 +99,32 @@ void main() {
       final a = WatermarkHopper(seed: 42, periodSeconds: 30);
       final b = WatermarkHopper(seed: 42, periodSeconds: 30);
       for (var s = 0; s < 600; s += 7) {
-        expect(
-          a.cornerAt(Duration(seconds: s)),
-          b.cornerAt(Duration(seconds: s)),
-        );
+        expect(a.spotAt(Duration(seconds: s)), b.spotAt(Duration(seconds: s)));
       }
     });
 
-    test('visits every corner and never jumps to the corner it is in', () {
-      final hopper = WatermarkHopper(seed: 7, periodSeconds: 20);
-      final seen = <StageCorner>{};
-      StageCorner? previous;
-      var jumps = 0;
-      for (var s = 0; s < 1200; s++) {
-        final c = hopper.cornerAt(Duration(seconds: s));
-        seen.add(c);
-        if (previous != null && c != previous) jumps++;
-        previous = c;
-      }
-      expect(seen, StageCorner.values.toSet());
-      // 1200 s at 10–30 s per stay: dozens of jumps, never zero.
-      expect(jumps, greaterThan(30));
+    test(
+      'visits the four corners and the centre, never jumping to the spot it is in',
+      () {
+        final hopper = WatermarkHopper(seed: 7, periodSeconds: 20);
+        final seen = <StageSpot>{};
+        StageSpot? previous;
+        var jumps = 0;
+        for (var s = 0; s < 1200; s++) {
+          final spot = hopper.spotAt(Duration(seconds: s));
+          seen.add(spot);
+          if (previous != null && spot != previous) jumps++;
+          previous = spot;
+        }
+        expect(seen, StageSpot.values.toSet());
+        // 1200 s at 10–30 s per stay: dozens of jumps, never zero.
+        expect(jumps, greaterThan(30));
+      },
+    );
+
+    test('only ever sits in one of the five spots', () {
+      expect(StageSpot.values, hasLength(5));
+      expect(StageSpot.values, contains(StageSpot.center));
     });
 
     test(
@@ -132,6 +137,22 @@ void main() {
         );
       },
     );
+  });
+
+  group('watermark rows', () {
+    test('the full phone number sits beneath the name', () {
+      expect(watermarkRows('علی کریمی\n09121234503'), [
+        'علی کریمی',
+        '09121234503',
+      ]);
+    });
+
+    test('blank rows are dropped', () {
+      expect(watermarkRows('\nعلی کریمی\n\n09121234503\n'), [
+        'علی کریمی',
+        '09121234503',
+      ]);
+    });
   });
 
   group('StageGeometry', () {

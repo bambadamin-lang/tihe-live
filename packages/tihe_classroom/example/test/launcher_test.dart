@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tihe_classroom/tihe_classroom.dart';
 import 'package:tihe_classroom_example/main.dart';
+import 'package:tihe_classroom_example/updater.dart';
 
 /// The launcher: the demo and server cards, the server lamp, and — on request — its
 /// screenshots for docs/images/classroom, in Modam from the package's assets (TIHE_FONT_DIR,
@@ -48,10 +49,11 @@ Future<void> _shoot(
   String name, {
   Size size = const Size(1600, 900),
   Brightness brightness = Brightness.dark,
+  AppUpdates? updates,
 }) async {
   debugDisableShadows = false;
   try {
-    await _pump(tester, size: size, brightness: brightness);
+    await _pump(tester, size: size, brightness: brightness, updates: updates);
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/$name.png'),
@@ -67,13 +69,16 @@ Future<void> _pump(
   Size size = const Size(1600, 900),
   Future<bool> Function(String)? ping,
   Brightness brightness = Brightness.dark,
+  AppUpdates? updates,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   tester.platformDispatcher.platformBrightnessTestValue = brightness;
   addTearDown(tester.view.reset);
   addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
-  await tester.pumpWidget(ClassroomExampleApp(ping: ping ?? (_) async => true));
+  await tester.pumpWidget(
+    ClassroomExampleApp(ping: ping ?? (_) async => true, updates: updates),
+  );
   // Frame by frame, so the cards' entrance animations run to the end.
   for (var i = 0; i < 8; i++) {
     await tester.pump(const Duration(milliseconds: 100));
@@ -139,6 +144,52 @@ void main() {
     expect(find.byType(HandToggle), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 1));
+  });
+
+  /// An update downloaded and checked, ready to install.
+  AppUpdates readyUpdate({required void Function() onInstalled}) =>
+      AppUpdates(
+        Updater(currentVersion: '0.1.56', directory: Directory.systemTemp),
+        launch: (_) async {},
+        quit: onInstalled,
+      )..debugReady(
+        UpdateManifest(
+          version: '0.1.57',
+          url: Uri.parse(
+            'https://github.com/bambadamin-lang/tihe-live/releases/download/live-v0.1.57/TIHE-Live-Setup-0.1.57.exe',
+          ),
+          sha256: '0' * 64,
+        ),
+        File('TIHE-Live-Setup-0.1.57.exe'),
+      );
+
+  testWidgets('offers a downloaded update and installs it on request', (
+    tester,
+  ) async {
+    var installed = false;
+    await _pump(
+      tester,
+      updates: readyUpdate(onInstalled: () => installed = true),
+    );
+    expect(find.textContaining('نسخهٔ تازهٔ برنامه (۰.۱.۵۷)'), findsOneWidget);
+    await tester.tap(find.text('نصب و اجرای دوباره'));
+    await tester.pump();
+    expect(installed, isTrue);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('says nothing when there is no update', (tester) async {
+    await _pump(tester);
+    expect(find.text('نصب و اجرای دوباره'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('welcome, update ready', skip: !_shots, (tester) async {
+    await _shoot(
+      tester,
+      'welcome-update',
+      updates: readyUpdate(onInstalled: () {}),
+    );
   });
 
   testWidgets('welcome, dark', skip: !_shots, (tester) async {

@@ -2,7 +2,10 @@ name: Windows installer
 
 # Builds the classroom app for Windows and wraps it in the Persian setup wizard
 # (packages/tihe_classroom/example/installer/windows). The Setup.exe is attached to the run as
-# an artifact; tags also publish it as a GitHub release.
+# an artifact. Every merge to main, and every live-v* tag, also publishes it as a GitHub
+# release with tihe-live-update.json beside it: installed apps read that file from the latest
+# release and update themselves (example/lib/updater.dart). The repository must be public for
+# them to reach it.
 on:
   workflow_dispatch:
     inputs:
@@ -10,7 +13,12 @@ on:
         description: 'Version, e.g. 0.2.0'
         required: false
   push:
+    branches: [main]
     tags: ['live-v*']
+    paths:
+      - 'packages/tihe_classroom/**'
+      - 'packages/capture_guard/**'
+      - '.github/workflows/windows-installer.yml'
   pull_request:
     paths:
       - 'packages/tihe_classroom/**'
@@ -19,7 +27,9 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer push to a pull request makes the older build moot; a build of main is a release,
+  # and one cut off half-published would leave the latest release without its update file.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   installer:
@@ -53,16 +63,30 @@ jobs:
           channel: stable
           cache: true
 
+      # A tag names its version. Anything else is the example's major.minor (pubspec.yaml) and
+      # this workflow's run number, which only grows, so every build of main is newer than the
+      # one before and installed apps take it. Bump pubspec's minor before tagging by hand, so a
+      # tag never sorts below the builds of main already out.
       - name: Pick the version
         run: |
           $v = '${{ github.event.inputs.version }}'
           if (-not $v -and '${{ github.ref_type }}' -eq 'tag') { $v = '${{ github.ref_name }}' -replace '^live-v', '' }
-          if (-not $v) { $v = '0.1.${{ github.run_number }}' }
+          if (-not $v) {
+            $m = Select-String -Path packages/tihe_classroom/example/pubspec.yaml -Pattern '^version:\s*(\d+)\.(\d+)'
+            if (-not $m) { throw 'no version in packages/tihe_classroom/example/pubspec.yaml' }
+            $g = $m.Matches[0].Groups
+            $v = "$($g[1].Value).$($g[2].Value).${{ github.run_number }}"
+          }
+          if ($v -notmatch '^\d+(\.\d+){1,3}$') { throw "not a version: $v" }
           "APP_VERSION=$v" >> $env:GITHUB_ENV
 
       - name: Build the Windows app
         working-directory: packages/tihe_classroom/example
-        run: flutter build windows --release --build-name $env:APP_VERSION
+        # The version is also compiled in for the self-updater; a build without it (flutter run,
+        # a local build) never updates itself.
+        run: >
+          flutter build windows --release --build-name $env:APP_VERSION
+          --dart-define=TIHE_APP_VERSION=$env:APP_VERSION
 
       # Copies in the Visual C++ runtime DLLs the app imports (app-local, which Microsoft
       # permits), then fails if anything loaded at start-up is neither bundled nor part of
@@ -95,11 +119,28 @@ jobs:
           path: packages/tihe_classroom/example/installer/windows/Output/*.exe
           if-no-files-found: error
 
+      # What installed apps read to update themselves: the version, where the wizard is, and its
+      # SHA-256, which the app checks before running it.
+      - name: Write the update file
+        if: github.ref_type == 'tag' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        run: |
+          $exe = Get-Item packages/tihe_classroom/example/installer/windows/Output/*.exe
+          $tag = "live-v$env:APP_VERSION"
+          [ordered]@{
+            version = $env:APP_VERSION
+            url = "https://github.com/${{ github.repository }}/releases/download/$tag/$($exe.Name)"
+            sha256 = (Get-FileHash -Algorithm SHA256 $exe.FullName).Hash.ToLowerInvariant()
+          } | ConvertTo-Json | Set-Content -Encoding utf8NoBOM packages/tihe_classroom/example/installer/windows/Output/tihe-live-update.json
+          Get-Content packages/tihe_classroom/example/installer/windows/Output/tihe-live-update.json
+
       - name: Publish the release
-        if: github.ref_type == 'tag'
+        if: github.ref_type == 'tag' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release create '${{ github.ref_name }}' --title "TIHE Live $env:APP_VERSION"
-          --notes 'Windows setup wizard for TIHE Live.'
-          (Get-ChildItem packages/tihe_classroom/example/installer/windows/Output/*.exe).FullName
+        run: |
+          $tag = "live-v$env:APP_VERSION"
+          $assets = (Get-ChildItem packages/tihe_classroom/example/installer/windows/Output/*.exe, packages/tihe_classroom/example/installer/windows/Output/tihe-live-update.json).FullName
+          gh release create $tag --target $env:GITHUB_SHA --latest --title "TIHE Live $env:APP_VERSION" `
+            --notes "Windows setup wizard for TIHE Live. Installed apps update to this release on their own." `
+            @assets
+          if ($LASTEXITCODE -ne 0) { throw 'publishing the release failed' }

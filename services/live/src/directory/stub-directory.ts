@@ -10,7 +10,8 @@ import type { CourseDirectory } from './course-directory.js';
 
 /**
  * Development directory: users and courses from a JSON file (services/live/dev/directory.json).
- * Phone numbers are masked on the way out exactly as the API would, so the watermark looks real.
+ * Profiles carry the full and the masked number exactly as the API would, so the watermark looks
+ * real.
  */
 export const stubDirectorySchema = z.object({
   users: z.array(
@@ -56,7 +57,13 @@ export class StubCourseDirectory implements CourseDirectory {
   async profile(userId: string): Promise<DirectoryProfile | null> {
     const u = this.data.users.find((x) => x.id === userId);
     return u
-      ? { id: u.id, displayName: u.displayName, phoneMasked: maskPhone(u.phone), role: u.role }
+      ? {
+          id: u.id,
+          displayName: u.displayName,
+          phoneMasked: maskPhone(u.phone),
+          phone: u.phone,
+          role: u.role,
+        }
       : null;
   }
 }

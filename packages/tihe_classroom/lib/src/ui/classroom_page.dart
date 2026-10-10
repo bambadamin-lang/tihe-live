@@ -165,9 +165,6 @@ class _Classroom extends ConsumerWidget {
     final watermark = ref.watch(
       classroomViewProvider.select((v) => v.watermark),
     );
-      final viewerName = ref.watch(
-  classroomViewProvider.select((v) => v.name),
-    );
     return Material(
       type: MaterialType.transparency,
       child: GlassBackdrop(
@@ -189,11 +186,9 @@ class _Classroom extends ConsumerWidget {
                                   child: IgnorePointer(child: ReactionFloat()),
                                 ),
                                 // Over every pod and panel, under nothing: see docs/11 §9.
+                                // The name and full phone come in the spec, from the server.
                                 Positioned.fill(
-                                   child: WatermarkOverlay(
-                                     spec: watermark,
-                                       displayName: viewerName,
-                                 ),
+                                  child: WatermarkOverlay(spec: watermark),
                                 ),
                               ],
                             )
