@@ -49,8 +49,46 @@ void main() {
       expect(find.byType(WatermarkOverlay), findsOneWidget);
       // Outline and fill are two layers of the same text.
       expect(find.textContaining('0912•••0001 · #'), findsNWidgets(2));
+      // The viewer's name has a line of its own, and the line OCR reads is exactly as it was.
+      final mark = find.byType(WatermarkOverlay);
+      expect(
+        find.descendant(of: mark, matching: find.text('دکتر رضایی')),
+        findsNWidgets(2),
+      );
+      expect(
+        find.descendant(
+          of: mark,
+          matching: find.textContaining(
+            RegExp(r'^0912•••0001 · #\d{5} · \d\d:\d\d$'),
+          ),
+        ),
+        findsNWidgets(2),
+      );
     },
   );
+
+  testWidgets('the watermark keeps a single line when there is no name', (
+    tester,
+  ) async {
+    const spec = WatermarkSpec(
+      text: '0912•••6789 · #48213',
+      opacity: 0.32,
+      fontSize: 13,
+      movement: 'corners',
+      periodSeconds: 30,
+      seed: 7,
+    );
+    for (final name in [null, '  ']) {
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.rtl,
+          child: WatermarkOverlay(spec: spec, displayName: name),
+        ),
+      );
+      expect(find.byType(Text), findsNWidgets(2));
+    }
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('every stage follows a layout change', (tester) async {
     final c = await pumpClassroom(tester, as: DemoClassroom.ali);

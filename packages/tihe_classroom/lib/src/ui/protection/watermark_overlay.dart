@@ -6,17 +6,24 @@ import '../../contracts.dart';
 import '../../domain/persian.dart';
 import '../../domain/watermark_hopper.dart';
 
-/// The identity watermark over the stage (docs/11 §9): masked phone, short account id and the
-/// time, in a corner that changes at seeded random intervals. It sits above every pod and
-/// ignores the pointer. The digits stay ASCII so OCR on a leaked copy reads them reliably.
+/// The identity watermark over the stage (docs/11 §9): the viewer's name, then masked phone,
+/// short account id and the time, in a corner that changes at seeded random intervals. It sits
+/// above every pod and ignores the pointer. The digits stay ASCII so OCR on a leaked copy reads
+/// them reliably.
 class WatermarkOverlay extends StatefulWidget {
   const WatermarkOverlay({
     super.key,
     required this.spec,
+    this.displayName,
     this.clock = DateTime.now,
   });
 
   final WatermarkSpec spec;
+
+  /// The viewer's own name, on a line above the id line, so whoever finds a leaked copy sees
+  /// at a glance whose it was. It stays off the id line: a right-to-left name mixed into it
+  /// would reorder the digits that OCR reads.
+  final String? displayName;
   final DateTime Function() clock;
 
   @override
@@ -58,6 +65,7 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
       StageCorner.bottomEnd => AlignmentDirectional.bottomEnd,
     };
     final label = '${widget.spec.text} · $time';
+    final name = widget.displayName?.trim() ?? '';
     final style = TextStyle(
       fontSize: widget.spec.fontSize.toDouble() + 1,
       fontWeight: FontWeight.w600,
@@ -76,24 +84,22 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
             alignment: alignment,
             child: Opacity(
               opacity: widget.spec.opacity.clamp(0.1, 0.9),
-              // White letters with a dark outline read on both video and the white board.
-              child: Stack(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                // Both lines hug the corner they are in.
+                crossAxisAlignment:
+                    corner == StageCorner.topStart ||
+                        corner == StageCorner.bottomStart
+                    ? CrossAxisAlignment.start
+                    : CrossAxisAlignment.end,
                 children: [
-                  Text(
+                  // No fixed direction: in the class's right-to-left, bidi lays out a Persian
+                  // or a Latin name correctly.
+                  if (name.isNotEmpty) _Outlined(name, style: style),
+                  _Outlined(
                     label,
+                    style: style,
                     textDirection: TextDirection.ltr,
-                    style: style.copyWith(
-                      foreground: Paint()
-                        ..style = PaintingStyle.stroke
-                        ..strokeWidth = 3
-                        ..strokeJoin = StrokeJoin.round
-                        ..color = Colors.black87,
-                    ),
-                  ),
-                  Text(
-                    label,
-                    textDirection: TextDirection.ltr,
-                    style: style.copyWith(color: Colors.white),
                   ),
                 ],
               ),
@@ -103,6 +109,37 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
       ),
     );
   }
+}
+
+/// White letters with a dark outline, which read on both video and the white board.
+class _Outlined extends StatelessWidget {
+  const _Outlined(this.text, {required this.style, this.textDirection});
+
+  final String text;
+  final TextStyle style;
+  final TextDirection? textDirection;
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: [
+      Text(
+        text,
+        textDirection: textDirection,
+        style: style.copyWith(
+          foreground: Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3
+            ..strokeJoin = StrokeJoin.round
+            ..color = Colors.black87,
+        ),
+      ),
+      Text(
+        text,
+        textDirection: textDirection,
+        style: style.copyWith(color: Colors.white),
+      ),
+    ],
+  );
 }
 
 /// For accessibility tools: the watermark is decorative to them, but its presence is announced.

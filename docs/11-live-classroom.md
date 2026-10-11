@@ -266,10 +266,11 @@ be tuned without an app release.
 
 ## 9. Watermark
 
-- **Text**: masked phone and short account id, plus the current time — `0912•••6789 ·
-  #48213 · 14:32`. The id and time use ASCII digits so OCR on a leaked copy is reliable.
-  `watermarkShortId` in contracts derives the short id, and the M6 leak-lookup tool uses the
-  same function.
+- **Text**: two lines. The viewer's display name, and under it the masked phone and short
+  account id plus the current time — `0912•••6789 · #48213 · 14:32`. The id and time use ASCII
+  digits so OCR on a leaked copy is reliable; the name has a line of its own so a right-to-left
+  name never reorders them. `watermarkShortId` in contracts derives the short id, and the M6
+  leak-lookup tool uses the same function.
 - **Placement**: a corner of the **stage** (not the window, since a camera aimed at the slides
   would crop the window corners). It jumps to another corner at seeded random intervals (the
   existing `watermarkSchema` with `movement: 'corners'`), so cropping one corner never removes
