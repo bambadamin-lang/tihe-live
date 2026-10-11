@@ -28,7 +28,7 @@ class ParticipantMenuButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final view = ref.watch(classroomViewProvider);
+    final view = ref.watch(classroomRosterProvider);
     final p = view.room?.participants[userId];
     final me = view.me;
     if (p == null || me == null || userId == view.userId) {

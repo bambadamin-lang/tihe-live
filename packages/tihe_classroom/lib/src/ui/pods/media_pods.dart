@@ -47,7 +47,7 @@ class SpeakerPod extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final view = ref.watch(classroomViewProvider);
+    final view = ref.watch(classroomRosterProvider);
     final session = ref.watch(classroomSessionProvider);
     final userId = pickSpeaker(view);
     if (userId == null) return const _Empty(text: 'هنوز کسی در کلاس نیست');
@@ -174,7 +174,7 @@ class _GalleryPodState extends ConsumerState<GalleryPod> {
 
   @override
   Widget build(BuildContext context) {
-    final view = ref.watch(classroomViewProvider);
+    final view = ref.watch(classroomRosterProvider);
     final session = ref.watch(classroomSessionProvider);
     final room = view.room;
     if (room == null) return const SizedBox.shrink();
@@ -221,6 +221,10 @@ class _GalleryPodState extends ConsumerState<GalleryPod> {
             children: [
               for (final p in shown)
                 SizedBox(
+                  // By person: when someone starts talking and the order changes, each tile
+                  // moves with its video renderer rather than tearing it down and rebuilding
+                  // it for someone else.
+                  key: ValueKey(p.userId),
                   width: best.width,
                   height: best.width * 9 / 16,
                   child: Padding(
@@ -255,7 +259,13 @@ class _GalleryPodState extends ConsumerState<GalleryPod> {
     final hidden = max(0, people.length - fits(tileW, room));
     final tiles = [
       for (final p in people)
-        SizedBox(width: tileW, height: tileH, child: tile(p, dense: true)),
+        SizedBox(
+          // By person, as in the grid: the order follows whoever is talking.
+          key: ValueKey(p.userId),
+          width: tileW,
+          height: tileH,
+          child: tile(p, dense: true),
+        ),
     ];
     if (!overflow) {
       return Center(
@@ -302,12 +312,21 @@ class _GalleryPodState extends ConsumerState<GalleryPod> {
               ),
               const SizedBox(width: gap),
               Expanded(
-                child: ListView.separated(
+                // A list rather than a builder: it finds a moved tile by its key, so the
+                // tile keeps its renderer. Tiles still mount only as they scroll in.
+                child: ListView(
                   controller: _strip,
                   scrollDirection: Axis.horizontal,
-                  itemCount: tiles.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: gap),
-                  itemBuilder: (_, i) => tiles[i],
+                  children: [
+                    for (final (i, item) in tiles.indexed)
+                      Padding(
+                        key: item.key,
+                        padding: EdgeInsetsDirectional.only(
+                          start: i > 0 ? gap : 0,
+                        ),
+                        child: item,
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(width: gap),
@@ -434,7 +453,7 @@ class ScreenPod extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final view = ref.watch(classroomViewProvider);
+    final view = ref.watch(classroomRosterProvider);
     final session = ref.watch(classroomSessionProvider);
     final hosts =
         view.room?.participants.values

@@ -8,7 +8,14 @@ import 'package:tihe_classroom/src/ui/protection/watermark_overlay.dart';
 import 'package:tihe_classroom/src/ui/whiteboard/whiteboard_pod.dart';
 import 'package:tihe_classroom/tihe_classroom.dart';
 
-Future<({ClassroomSession session, DemoClassroomServer server})> pumpClassroom(
+Future<
+  ({
+    ClassroomSession session,
+    DemoClassroomServer server,
+    FakeClassroomMedia media,
+  })
+>
+pumpClassroom(
   WidgetTester tester, {
   String as = DemoClassroom.host,
   Size size = const Size(1600, 900),
@@ -31,7 +38,7 @@ Future<({ClassroomSession session, DemoClassroomServer server})> pumpClassroom(
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 1));
   });
-  return (session: demo.session, server: demo.server);
+  return (session: demo.session, server: demo.server, media: demo.media);
 }
 
 /// A key in the dock, by its label (pod headers can carry the same words).

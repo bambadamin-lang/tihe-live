@@ -200,8 +200,11 @@ class ClassroomSession {
       ..add(gateway.closures.listen(_onBye))
       ..add(
         media.changes.listen((m) {
-          _v = _v.copyWith(media: m);
           capture?.ownShareActive = m.local?.screenOn ?? false;
+          // Connection quality, stream state and the like arrive as changes too. A new view
+          // for each would rebuild the dock and every video pod for nothing.
+          if (m == _v.media) return;
+          _v = _v.copyWith(media: m);
         }),
       );
     final guard = capture;
