@@ -103,7 +103,7 @@ class ClassroomState {
   /// The chat as [viewerId] may see it: a private message is for its sender and the managers.
   /// The server already sends nothing else (`canSeeMessage` in services/live); this repeats
   /// the rule so a cohost demoted mid-class stops seeing what they held, without a reconnect.
-  /// Returns [chat] itself when nothing is hidden, so watchers rebuild only on a real change.
+  /// Returns [chat] itself when nothing is hidden. Widgets read it via `classroomChatProvider`.
   List<ChatMessage> chatFor(String viewerId) {
     final manager =
         participants[viewerId]?.can(Capability.participantsManage) ?? false;

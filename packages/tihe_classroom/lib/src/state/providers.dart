@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../contracts.dart';
+import '../domain/classroom_state.dart';
 import 'classroom_session.dart';
 
 /// The session a classroom page runs. Always overridden by [ClassroomPage]'s own
@@ -28,6 +30,19 @@ final classroomViewProvider =
 final classroomRosterProvider = Provider<ClassroomView>((ref) {
   ref.watch(classroomViewProvider.select((v) => (v.room, v.media)));
   return ref.read(classroomViewProvider);
+}, dependencies: [classroomViewProvider]);
+
+/// The chat as the viewer may see it ([ClassroomState.chatFor]). It moves on only when the chat
+/// or the viewer's right to read all of it does. Hiding a private message makes a new list, and
+/// a select on `chatFor` would take that for a change on every ink batch and media report.
+final classroomChatProvider = Provider<List<ChatMessage>>((ref) {
+  ref.watch(
+    classroomViewProvider.select(
+      (v) => (v.room?.chat, v.userId, v.can(Capability.participantsManage)),
+    ),
+  );
+  final view = ref.read(classroomViewProvider);
+  return view.room?.chatFor(view.userId) ?? const <ChatMessage>[];
 }, dependencies: [classroomViewProvider]);
 
 class ClassroomViewNotifier extends Notifier<ClassroomView> {

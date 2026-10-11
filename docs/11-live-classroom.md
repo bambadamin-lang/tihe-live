@@ -394,6 +394,9 @@ taken in a pull request, never the side effect of a merge or a refactor.
     microphone changes (`classroomRosterProvider`), not for each remote ink batch. A media
     report that changes nothing (LiveKit sends connection quality and stream state as changes
     too) does not make a new view.
+  - The chat rebuilds only when a message comes or goes, or the viewer's right to read private
+    messages does (`classroomChatProvider`). Under private chat a demoted co-host's chat is a
+    filtered copy, and a copy made per view would rebuild it for each ink batch too.
   - Gallery tiles are keyed by person, so when the order changes (the speaker comes first) a
     tile moves with its video renderer instead of the renderer being rebuilt.
   - The whiteboard is two layers. Finished items are drawn once, and redrawn only when an item

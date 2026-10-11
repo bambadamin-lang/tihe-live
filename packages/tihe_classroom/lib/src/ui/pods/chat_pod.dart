@@ -74,11 +74,7 @@ class _ChatPodState extends ConsumerState<ChatPod> {
   @override
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
-    final chat = ref.watch(
-      classroomViewProvider.select(
-        (v) => v.room?.chatFor(v.userId) ?? const <ChatMessage>[],
-      ),
-    );
+    final chat = ref.watch(classroomChatProvider);
     final me = ref.watch(classroomViewProvider.select((v) => v.userId));
     final privateChat = ref.watch(
       classroomViewProvider.select((v) => v.room?.policy.privateChat ?? false),
