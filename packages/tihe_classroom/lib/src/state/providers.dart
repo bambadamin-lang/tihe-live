@@ -20,6 +20,16 @@ final classroomViewProvider =
       dependencies: [classroomSessionProvider],
     );
 
+/// The view as the dock and the people and video pods use it: the room, and everyone's camera and
+/// microphone. It moves on only when those do. Remote ink in flight (a batch every 40 ms while
+/// anyone draws, docs/11 §6) and toasts change the whole view too, but none of these widgets
+/// shows them, and rebuilding them for each batch costs a student's device thousands of widget
+/// rebuilds a second.
+final classroomRosterProvider = Provider<ClassroomView>((ref) {
+  ref.watch(classroomViewProvider.select((v) => (v.room, v.media)));
+  return ref.read(classroomViewProvider);
+}, dependencies: [classroomViewProvider]);
+
 class ClassroomViewNotifier extends Notifier<ClassroomView> {
   @override
   ClassroomView build() {

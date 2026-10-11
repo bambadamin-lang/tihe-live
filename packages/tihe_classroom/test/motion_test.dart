@@ -124,6 +124,55 @@ void main() {
     });
   });
 
+  group('the recording lamp', () {
+    Widget lamp({bool reduced = false}) => MaterialApp(
+      theme: buildClassroomThemeData(ClassroomTheme.dark),
+      home: MediaQuery(
+        data: MediaQueryData(disableAnimations: reduced),
+        child: const Center(child: PulsingDot(color: Color(0xFFF0495E))),
+      ),
+    );
+    double opacity(WidgetTester tester) => tester
+        .widget<Opacity>(
+          find.descendant(
+            of: find.byType(PulsingDot),
+            matching: find.byType(Opacity),
+          ),
+        )
+        .opacity;
+
+    testWidgets('breathes in steps, and asks for no frames between them', (
+      tester,
+    ) async {
+      await tester.pumpWidget(lamp());
+      // No ticker: it is lit for the whole of a recorded class, and every frame redraws
+      // every pane's blur.
+      expect(tester.binding.transientCallbackCount, 0);
+      final start = opacity(tester);
+      expect(start, closeTo(0.4, 1e-9));
+
+      await tester.pump(PulsingDot.step ~/ 2);
+      expect(opacity(tester), start);
+      expect(tester.binding.hasScheduledFrame, isFalse);
+      await tester.pump(PulsingDot.step ~/ 2);
+      expect(opacity(tester), greaterThan(start));
+
+      // Lit at the top of the breath, and back where it began after one in and one out.
+      await tester.pump(PulsingDot.period - PulsingDot.step);
+      expect(opacity(tester), closeTo(1, 1e-9));
+      await tester.pump(PulsingDot.period);
+      expect(opacity(tester), closeTo(start, 1e-9));
+    });
+
+    testWidgets('with reduced motion, it stays lit', (tester) async {
+      await tester.pumpWidget(lamp(reduced: true));
+      expect(opacity(tester), 1);
+      await tester.pump(PulsingDot.period);
+      expect(opacity(tester), 1);
+      expect(tester.binding.hasScheduledFrame, isFalse);
+    });
+  });
+
   testWidgets('with reduced motion, arrivals show at once', (tester) async {
     await tester.pumpWidget(
       const MediaQuery(

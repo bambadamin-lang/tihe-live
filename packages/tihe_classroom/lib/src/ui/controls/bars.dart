@@ -240,7 +240,7 @@ class ControlBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(classroomSessionProvider);
-    final view = ref.watch(classroomViewProvider);
+    final view = ref.watch(classroomRosterProvider);
     final focus = StageFocusScope.maybeOf(context);
     final t = ClassroomTheme.of(context);
     final local = view.media.local;

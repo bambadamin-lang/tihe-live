@@ -384,7 +384,18 @@ taken in a pull request, never the side effect of a merge or a refactor.
     `motion.dart`).
 - **Frame rate.** The classroom runs at the display's refresh rate (60, 120 or 144 Hz):
   - Anything that updates alone gets its own layer, so its update repaints nothing else: each
-    pod, the watermark, and the live clock.
+    pod, the top bar, the dock, the floating reactions, the watermark, the live clock and the
+    lamps. The sky sits under its own layer too, so nothing above it paints it again.
+  - Every frame redraws every pane's blur, however little changed. So the live and recording
+    lamps breathe from a timer at 10 steps a second, not from the display's ticker: the
+    recording lamp is lit for the whole class, and a ticker kept the class redrawing at 60–144
+    Hz from start to end.
+  - The dock and the video and people pods rebuild only when the room or someone's camera or
+    microphone changes (`classroomRosterProvider`), not for each remote ink batch. A media
+    report that changes nothing (LiveKit sends connection quality and stream state as changes
+    too) does not make a new view.
+  - Gallery tiles are keyed by person, so when the order changes (the speaker comes first) a
+    tile moves with its video renderer instead of the renderer being rebuilt.
   - The whiteboard is two layers. Finished items are drawn once, and redrawn only when an item
     comes or goes. Ink in motion (your stroke, others' previews, the laser) is redrawn every
     frame on its own. Drawing on a full page costs one stroke per frame, not the whole page.
