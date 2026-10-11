@@ -173,7 +173,9 @@ class _Classroom extends ConsumerWidget {
             children: [
               Column(
                 children: [
-                  const TopBar(),
+                  // The bars and the reactions are their own layers, like each pod: a hover
+                  // or a rising emoji repaints them alone, not the whole class.
+                  const RepaintBoundary(child: TopBar()),
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -183,7 +185,11 @@ class _Classroom extends ConsumerWidget {
                                 const Positioned.fill(child: StageView()),
                                 const Positioned.fill(child: _SidePanel()),
                                 const Positioned.fill(
-                                  child: IgnorePointer(child: ReactionFloat()),
+                                  child: IgnorePointer(
+                                    child: RepaintBoundary(
+                                      child: ReactionFloat(),
+                                    ),
+                                  ),
                                 ),
                                 // Over every pod and panel, under nothing: see docs/11 §9.
                                 Positioned.fill(
@@ -204,7 +210,7 @@ class _Classroom extends ConsumerWidget {
                             ),
                     ),
                   ),
-                  const ControlBar(),
+                  const RepaintBoundary(child: ControlBar()),
                 ],
               ),
               const _Notices(),

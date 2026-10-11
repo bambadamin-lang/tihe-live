@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -93,7 +94,8 @@ abstract final class ClassroomIcons {
 }
 
 /// The sky behind everything, painted once: a navy gradient, a few soft glows, two planets lit
-/// along their inner rims at the edges and faint orbits around them.
+/// along their inner rims at the edges and faint orbits around them. What sits on it is a layer
+/// of its own, so nothing that repaints there paints the sky again.
 ///
 /// Also establishes the [BackdropGroup] that the stage's panes share, so a stage of seven pods
 /// costs one blur, not seven.
@@ -109,7 +111,7 @@ class GlassBackdrop extends StatelessWidget {
       painter: SkyPainter(t),
       isComplex: true,
       willChange: false,
-      child: BackdropGroup(child: child),
+      child: RepaintBoundary(child: BackdropGroup(child: child)),
     );
   }
 }
@@ -425,34 +427,67 @@ class StatusDot extends StatelessWidget {
 }
 
 /// A dot that breathes — for "live" and "recording".
+///
+/// The recording lamp is lit for the whole of every recorded class, and any frame redraws every
+/// pane's blur. A ticker would keep the class redrawing at 60–144 Hz from start to end, so the
+/// breath is stepped by a timer: an 8-pixel dot breathes the same at a tenth of the frames.
+/// Under reduced motion it stays lit and asks for none.
 class PulsingDot extends StatefulWidget {
   const PulsingDot({super.key, required this.color, this.size = 8});
 
   final Color color;
   final double size;
 
+  /// One breath in, or out.
+  static const period = Duration(milliseconds: 1400);
+
+  /// How often the breath moves on: about 4 points of opacity a step, too little to see.
+  static const step = Duration(milliseconds: 100);
+
   @override
   State<PulsingDot> createState() => _PulsingDotState();
 }
 
-class _PulsingDotState extends State<PulsingDot>
-    with SingleTickerProviderStateMixin {
-  late final _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  )..repeat(reverse: true);
+class _PulsingDotState extends State<PulsingDot> {
+  Timer? _timer;
+  int _tick = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (Motion.reduced(context)) {
+      _timer?.cancel();
+      _timer = null;
+    } else {
+      // `tick` counts steps that were due, not callbacks run, so a busy frame skips ahead
+      // rather than slowing the breath.
+      _timer ??= Timer.periodic(
+        PulsingDot.step,
+        (timer) => setState(() => _tick = timer.tick),
+      );
+    }
+  }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _timer?.cancel();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => FadeTransition(
-    opacity: Tween(begin: 0.4, end: 1.0).animate(_controller),
-    child: StatusDot(color: widget.color, size: widget.size),
-  );
+  Widget build(BuildContext context) {
+    final steps =
+        PulsingDot.period.inMilliseconds ~/ PulsingDot.step.inMilliseconds;
+    final at = _tick % (2 * steps);
+    final breath = (at <= steps ? at : 2 * steps - at) / steps;
+    // Its own layer, so a step repaints the dot and not the bar it sits in.
+    return RepaintBoundary(
+      child: Opacity(
+        opacity: _timer == null ? 1 : 0.4 + 0.6 * breath,
+        child: StatusDot(color: widget.color, size: widget.size),
+      ),
+    );
+  }
 }
 
 /// Hover, press, keyboard focus and disabled for anything clickable in the classroom — one
