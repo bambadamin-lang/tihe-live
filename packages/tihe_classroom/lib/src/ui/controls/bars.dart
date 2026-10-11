@@ -240,7 +240,7 @@ class ControlBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(classroomSessionProvider);
-    final view = ref.watch(classroomViewProvider);
+    final view = ref.watch(classroomRosterProvider);
     final focus = StageFocusScope.maybeOf(context);
     final t = ClassroomTheme.of(context);
     final local = view.media.local;
@@ -615,7 +615,8 @@ class ScreenPickerSheet extends StatelessWidget {
   }
 }
 
-/// The host's room policy (docs/11 §3) and whole-class actions.
+/// The host's room policy (docs/11 §3) and whole-class actions. Shown to `participants.manage`
+/// holders only; the server refuses a `policy.update` from anyone else whatever the UI shows.
 class ClassSettingsSheet extends ConsumerWidget {
   const ClassSettingsSheet({super.key});
 
@@ -631,46 +632,69 @@ class ClassSettingsSheet extends ConsumerWidget {
       title: 'تنظیمات کلاس',
       icon: ClassroomIcons.settings,
       width: 420,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(bottom: 4),
-              child: Text(
-                'آنچه شرکت‌کنندگان بدون اجازهٔ جداگانه می‌توانند:',
-                style: TextStyle(fontSize: 13),
+      // The switches' ink needs a Material of its own above the sheet's glass, or it is
+      // painted underneath it (and debug builds assert so).
+      child: Material(
+        type: MaterialType.transparency,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(bottom: 4),
+                child: Text(
+                  'آنچه شرکت‌کنندگان بدون اجازهٔ جداگانه می‌توانند:',
+                  style: TextStyle(fontSize: 13),
+                ),
               ),
-            ),
-            for (final entry in policyLabelsFa.entries)
+              for (final entry in policyLabelsFa.entries)
+                SwitchListTile(
+                  dense: true,
+                  title: Text(entry.value),
+                  value: values[entry.key] as bool,
+                  onChanged: (on) =>
+                      session.send(UpdatePolicy({entry.key: on})),
+                ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 10),
+                child: Divider(),
+              ),
               SwitchListTile(
+                key: const ValueKey('privateChat'),
                 dense: true,
-                title: Text(entry.value),
-                value: values[entry.key] as bool,
-                onChanged: (on) => session.send(UpdatePolicy({entry.key: on})),
+                secondary: const Icon(ClassroomIcons.lock, size: 18),
+                title: const Text(privateChatLabelFa),
+                subtitle: Text(
+                  policy.privateChat ? privateChatOnFa : privateChatOffFa,
+                  style: const TextStyle(fontSize: 12, height: 1.5),
+                ),
+                value: policy.privateChat,
+                onChanged: (on) =>
+                    session.send(UpdatePolicy({'privateChat': on})),
               ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
-              child: Divider(),
-            ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () => session.send(const MuteAll()),
-                  icon: const Icon(ClassroomIcons.muteAll, size: 16),
-                  label: const Text('بی‌صدا کردن همه'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => session.send(const LowerAllHands()),
-                  icon: const Icon(ClassroomIcons.lowerAll, size: 16),
-                  label: const Text('پایین آوردن همهٔ دست‌ها'),
-                ),
-              ],
-            ),
-          ],
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 10),
+                child: Divider(),
+              ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => session.send(const MuteAll()),
+                    icon: const Icon(ClassroomIcons.muteAll, size: 16),
+                    label: const Text('بی‌صدا کردن همه'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => session.send(const LowerAllHands()),
+                    icon: const Icon(ClassroomIcons.lowerAll, size: 16),
+                    label: const Text('پایین آوردن همهٔ دست‌ها'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -93,7 +94,8 @@ abstract final class ClassroomIcons {
 }
 
 /// The sky behind everything, painted once: a navy gradient, a few soft glows, two planets lit
-/// along their inner rims at the edges and faint orbits around them.
+/// along their inner rims at the edges and faint orbits around them. What sits on it is a layer
+/// of its own, so nothing that repaints there paints the sky again.
 ///
 /// Also establishes the [BackdropGroup] that the stage's panes share, so a stage of seven pods
 /// costs one blur, not seven.
@@ -109,7 +111,7 @@ class GlassBackdrop extends StatelessWidget {
       painter: SkyPainter(t),
       isComplex: true,
       willChange: false,
-      child: BackdropGroup(child: child),
+      child: RepaintBoundary(child: BackdropGroup(child: child)),
     );
   }
 }
@@ -133,6 +135,133 @@ class SkyPainter extends CustomPainter {
           const [0, 0.55],
         ),
     );
+    final longest = size.longestSide;
+    void glow(Offset center, double radius, Color color) {
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..shader = ui.Gradient.radial(center, radius, [
+            color,
+            color.withValues(alpha: 0),
+          ]),
+      );
+    }
+
+    glow(
+      Offset(size.width * 0.5, -size.height * 0.1),
+      longest * 0.5,
+      t.glows[0],
+    );
+    glow(Offset(0, size.height * 1.02), longest * 0.42, t.glows[1]);
+    glow(Offset(size.width, size.height * 0.9), longest * 0.36, t.glows[2]);
+
+    final r = (size.shortestSide * 0.34).clamp(90.0, 460.0);
+    final left = Offset(-r * 0.1, size.height * 0.56);
+    final right = Offset(size.width + r * 0.14, size.height * 0.66);
+    _orbits(canvas, left, r, const Offset(0.8, -0.6));
+    _orbits(canvas, right, r, const Offset(-0.8, -0.6));
+    _planet(canvas, left, r, const Offset(0.86, -0.5));
+    _planet(canvas, right, r * 1.02, const Offset(-0.86, -0.5));
+    // A small moon low on the start side, out of focus.
+    final moon = Offset(size.width * 0.19, size.height * 0.86);
+    canvas.drawCircle(
+      moon,
+      r * 0.14,
+      Paint()
+        ..shader = ui.Gradient.radial(
+          moon + Offset(r * 0.05, -r * 0.05),
+          r * 0.2,
+          [
+            t.planet[2].withValues(alpha: 0.5),
+            t.planet[1].withValues(alpha: 0),
+          ],
+        )
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.03),
+    );
+  }
+
+  /// A planet lit from [light] (a unit vector): a halo, a body brightening towards the light,
+  /// and a thin rim where the light grazes it.
+  void _planet(Canvas canvas, Offset center, double r, Offset light) {
+    final t = theme;
+    final [shade, body, lit, rim] = t.planet;
+    canvas
+      ..drawCircle(
+        center,
+        r * 1.3,
+        Paint()
+          ..shader = ui.Gradient.radial(
+            center,
+            r * 1.3,
+            [
+              rim.withValues(alpha: t.isDark ? 0.26 : 0.22),
+              rim.withValues(alpha: 0),
+            ],
+            const [0.72, 1],
+          ),
+      )
+      ..drawCircle(
+        center,
+        r,
+        Paint()
+          ..shader = ui.Gradient.radial(
+            center + light * r * 0.62,
+            r * 1.7,
+            [lit, body, shade],
+            const [0, 0.42, 0.95],
+          ),
+      );
+    final stroke = math.max(1.4, r * 0.012);
+    final rimShader = ui.Gradient.linear(
+      center - light * r,
+      center + light * r,
+      [rim.withValues(alpha: 0), rim.withValues(alpha: 0.15), rim],
+      const [0, 0.55, 1],
+    );
+    canvas
+      ..drawCircle(
+        center,
+        r - stroke,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = r * 0.06
+          ..shader = rimShader
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.03),
+      )
+      ..drawCircle(
+        center,
+        r - stroke / 2,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..shader = rimShader,
+      );
+  }
+
+  /// Two orbit arcs around a planet, bright where they face [towards] and fading behind it.
+  void _orbits(Canvas canvas, Offset center, double r, Offset towards) {
+    for (final (scale, tilt) in [(1.5, 0.0), (2.25, 0.28)]) {
+      final radius = r * scale;
+      final bounds = Rect.fromCircle(center: center, radius: radius);
+      canvas
+        ..save()
+        ..translate(center.dx, center.dy)
+        ..rotate(tilt)
+        ..translate(-center.dx, -center.dy)
+        ..drawOval(
+          bounds,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1
+            ..shader = ui.Gradient.linear(
+              center - towards * radius,
+              center + towards * radius,
+              [theme.orbit.withValues(alpha: 0), theme.orbit],
+            ),
+        )
+        ..restore();
+    }
   }
 
   @override
@@ -425,34 +554,67 @@ class StatusDot extends StatelessWidget {
 }
 
 /// A dot that breathes — for "live" and "recording".
+///
+/// The recording lamp is lit for the whole of every recorded class, and any frame redraws every
+/// pane's blur. A ticker would keep the class redrawing at 60–144 Hz from start to end, so the
+/// breath is stepped by a timer: an 8-pixel dot breathes the same at a tenth of the frames.
+/// Under reduced motion it stays lit and asks for none.
 class PulsingDot extends StatefulWidget {
   const PulsingDot({super.key, required this.color, this.size = 8});
 
   final Color color;
   final double size;
 
+  /// One breath in, or out.
+  static const period = Duration(milliseconds: 1400);
+
+  /// How often the breath moves on: about 4 points of opacity a step, too little to see.
+  static const step = Duration(milliseconds: 100);
+
   @override
   State<PulsingDot> createState() => _PulsingDotState();
 }
 
-class _PulsingDotState extends State<PulsingDot>
-    with SingleTickerProviderStateMixin {
-  late final _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  )..repeat(reverse: true);
+class _PulsingDotState extends State<PulsingDot> {
+  Timer? _timer;
+  int _tick = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (Motion.reduced(context)) {
+      _timer?.cancel();
+      _timer = null;
+    } else {
+      // `tick` counts steps that were due, not callbacks run, so a busy frame skips ahead
+      // rather than slowing the breath.
+      _timer ??= Timer.periodic(
+        PulsingDot.step,
+        (timer) => setState(() => _tick = timer.tick),
+      );
+    }
+  }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _timer?.cancel();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => FadeTransition(
-    opacity: Tween(begin: 0.4, end: 1.0).animate(_controller),
-    child: StatusDot(color: widget.color, size: widget.size),
-  );
+  Widget build(BuildContext context) {
+    final steps =
+        PulsingDot.period.inMilliseconds ~/ PulsingDot.step.inMilliseconds;
+    final at = _tick % (2 * steps);
+    final breath = (at <= steps ? at : 2 * steps - at) / steps;
+    // Its own layer, so a step repaints the dot and not the bar it sits in.
+    return RepaintBoundary(
+      child: Opacity(
+        opacity: _timer == null ? 1 : 0.4 + 0.6 * breath,
+        child: StatusDot(color: widget.color, size: widget.size),
+      ),
+    );
+  }
 }
 
 /// Hover, press, keyboard focus and disabled for anything clickable in the classroom — one

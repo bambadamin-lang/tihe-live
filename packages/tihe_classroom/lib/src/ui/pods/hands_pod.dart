@@ -27,7 +27,7 @@ class _HandsPodState extends ConsumerState<HandsPod> {
   @override
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
-    final view = ref.watch(classroomViewProvider);
+    final view = ref.watch(classroomRosterProvider);
     final hands = view.room?.raisedHands ?? const <ParticipantState>[];
     // A hand is one raise, not one person: lowering and raising again arrives again.
     String raise(ParticipantState p) => '${p.userId}:${p.hand!.raisedSeq}';

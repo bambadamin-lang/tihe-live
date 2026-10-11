@@ -57,6 +57,40 @@ void main() {
   });
 
   test(
+    'a media report that changes nothing leaves the view as it was',
+    () async {
+      final demo = DemoClassroom.build(as: DemoClassroom.ali);
+      await demo.session.open();
+      await until(() => demo.session.view.value.room != null);
+      await settle();
+      final before = demo.session.view.value;
+      final now = demo.media.state;
+
+      // LiveKit reports connection quality and stream state as changes too.
+      demo.media.emit(
+        MediaState(
+          connected: now.connected,
+          activeSpeaker: now.activeSpeaker,
+          participants: {...now.participants},
+        ),
+      );
+      await settle();
+      expect(identical(demo.session.view.value, before), isTrue);
+
+      demo.media.emit(
+        MediaState(
+          connected: now.connected,
+          activeSpeaker: DemoClassroom.sara,
+          participants: now.participants,
+        ),
+      );
+      await settle();
+      expect(demo.session.view.value.media.activeSpeaker, DemoClassroom.sara);
+      await demo.session.dispose();
+    },
+  );
+
+  test(
     'a student lowers their hand; the host gives the floor; the student is told',
     () async {
       final demo = DemoClassroom.build(as: DemoClassroom.ali);

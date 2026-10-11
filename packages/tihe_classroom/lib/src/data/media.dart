@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
 
 /// Camera, microphone and screen share, as the classroom needs them — behind an interface so
@@ -21,6 +22,20 @@ class ParticipantMedia {
   final bool screenOn;
   final bool speaking;
   final bool isLocal;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ParticipantMedia &&
+      other.userId == userId &&
+      other.micOn == micOn &&
+      other.cameraOn == cameraOn &&
+      other.screenOn == screenOn &&
+      other.speaking == speaking &&
+      other.isLocal == isLocal;
+
+  @override
+  int get hashCode =>
+      Object.hash(userId, micOn, cameraOn, screenOn, speaking, isLocal);
 }
 
 @immutable
@@ -34,6 +49,20 @@ class MediaState {
   final bool connected;
   final Map<String, ParticipantMedia> participants;
   final String? activeSpeaker;
+
+  static const _byUser = MapEquality<String, ParticipantMedia>();
+
+  /// By value: LiveKit reports every room event, and most change nothing shown here.
+  @override
+  bool operator ==(Object other) =>
+      other is MediaState &&
+      other.connected == connected &&
+      other.activeSpeaker == activeSpeaker &&
+      _byUser.equals(other.participants, participants);
+
+  @override
+  int get hashCode =>
+      Object.hash(connected, activeSpeaker, _byUser.hash(participants));
 
   ParticipantMedia of(String userId) =>
       participants[userId] ?? ParticipantMedia(userId: userId);

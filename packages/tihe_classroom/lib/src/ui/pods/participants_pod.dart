@@ -18,7 +18,7 @@ class ParticipantsPod extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final view = ref.watch(classroomViewProvider);
+    final view = ref.watch(classroomRosterProvider);
     final room = view.room;
     if (room == null) return const SizedBox.shrink();
     final people = room.participants.values.toList()
