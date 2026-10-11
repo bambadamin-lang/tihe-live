@@ -6,6 +6,7 @@ import {
   type BoardItem,
   type Capability,
   type CaptureSignal,
+  type ChatMessage,
   type ClassRole,
   type ClassroomCommand,
   type ClassroomEvent,
@@ -27,7 +28,7 @@ import {
   type MediaTrackSource,
 } from './capabilities.js';
 import type { IdFactory } from './ids.js';
-import { applyEvent, type RoomState } from './room-state.js';
+import { applyEvent, canSeeMessage, type RoomState } from './room-state.js';
 
 /**
  * The classroom rules: given the room and one input, decide which events happen and which side
@@ -35,7 +36,23 @@ import { applyEvent, type RoomState } from './room-state.js';
  * `applyEvent`, so every rule is testable without a socket, Redis or LiveKit.
  */
 
-export type Audience = 'all' | 'managers' | { userId: string };
+export type Audience =
+  | 'all'
+  | 'managers'
+  | { userId: string }
+  /** The managers and one more person: a private chat message and its sender. */
+  | { managersAnd: string };
+
+/** Whether an event for `audience` goes to this viewer. Fan-out and replay both ask here. */
+export function reaches(audience: Audience, viewerId: string, viewerIsManager: boolean): boolean {
+  if (audience === 'all') return true;
+  if (audience === 'managers') return viewerIsManager;
+  if ('managersAnd' in audience) return viewerIsManager || audience.managersAnd === viewerId;
+  return audience.userId === viewerId;
+}
+
+/** Who a chat message, and later its deletion, is sent to. */
+const chatAudience = (m: ChatMessage): Audience => (m.private ? { managersAnd: m.userId } : 'all');
 
 export type AuditKind =
   | 'capture.detected'
@@ -506,27 +523,33 @@ function decideCommand(
         return fail('RATE_LIMITED', 'too many chat messages');
       }
       perRoom.set(actorId, [...recent, now]);
-      return done([
-        toAll({
-          type: 'chat.message',
-          message: {
-            id: ctx.newId('chatMessage'),
-            userId: actorId,
-            name: actor.name,
-            role: actor.role,
-            text: cmd.text,
-            at,
-          },
-        }),
-      ]);
+      const message: ChatMessage = {
+        id: ctx.newId('chatMessage'),
+        userId: actorId,
+        name: actor.name,
+        role: actor.role,
+        text: cmd.text,
+        at,
+        // Those who read private chat speak to everyone; the rest, to them only.
+        private: state.policy.privateChat && lacks('participants.manage'),
+      };
+      return done([{ evt: { type: 'chat.message', message }, audience: chatAudience(message) }]);
     }
     case 'chat.delete': {
       const message = state.chat.find((m) => m.id === cmd.messageId);
-      if (!message) return fail('NOT_FOUND', 'no such message');
+      // Someone else's private message does not exist for you, so its id cannot be probed.
+      if (!message || !canSeeMessage(message, actorId, !lacks('participants.manage'))) {
+        return fail('NOT_FOUND', 'no such message');
+      }
       if (message.userId !== actorId && lacks('participants.manage')) {
         return missing('participants.manage');
       }
-      return done([toAll({ type: 'chat.deleted', messageId: cmd.messageId })]);
+      return done([
+        {
+          evt: { type: 'chat.deleted', messageId: cmd.messageId },
+          audience: chatAudience(message),
+        },
+      ]);
     }
 
     // ─── Whiteboard ────────────────────────────────────────────────────────

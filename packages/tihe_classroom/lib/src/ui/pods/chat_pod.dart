@@ -25,7 +25,9 @@ const _composerEmoji = [
 ];
 
 /// Chat: each message a card with the sender's avatar; the teachers' messages lit with the
-/// accent. Sending needs `chat.send`; managers can delete any message.
+/// accent. Sending needs `chat.send`; managers can delete any message. Under private chat a
+/// strip above the composer says who will read what you write, and private messages carry a
+/// pin, so a teacher answering one in public knows the class never saw the question.
 class ChatPod extends ConsumerStatefulWidget {
   const ChatPod({super.key});
 
@@ -74,10 +76,13 @@ class _ChatPodState extends ConsumerState<ChatPod> {
     final t = ClassroomTheme.of(context);
     final chat = ref.watch(
       classroomViewProvider.select(
-        (v) => v.room?.chat ?? const <ChatMessage>[],
+        (v) => v.room?.chatFor(v.userId) ?? const <ChatMessage>[],
       ),
     );
     final me = ref.watch(classroomViewProvider.select((v) => v.userId));
+    final privateChat = ref.watch(
+      classroomViewProvider.select((v) => v.room?.policy.privateChat ?? false),
+    );
     final canSend = ref.watch(
       classroomViewProvider.select((v) => v.can(Capability.chatSend)),
     );
@@ -146,6 +151,7 @@ class _ChatPodState extends ConsumerState<ChatPod> {
                   },
                 ),
         ),
+        if (privateChat) _PrivateChatStrip(manager: canManage),
         Padding(
           padding: const EdgeInsets.only(top: 6),
           child: canSend
@@ -173,8 +179,10 @@ class _ChatPodState extends ConsumerState<ChatPod> {
                                 maxLength: 1000,
                                 onSubmitted: (_) => _send(),
                                 style: TextStyle(color: t.text, fontSize: 14),
-                                decoration: const InputDecoration(
-                                  hintText: 'پیام خود را بنویسید…',
+                                decoration: InputDecoration(
+                                  hintText: privateChat && !canManage
+                                      ? 'پیام به میزبان و دستیاران…'
+                                      : 'پیام خود را بنویسید…',
                                   counterText: '',
                                   filled: false,
                                   isCollapsed: true,
@@ -292,6 +300,48 @@ Future<String?> showEmojiPopover(BuildContext anchor, List<String> emoji) =>
       },
     );
 
+/// What private chat means for the one reading it: a student learns who will see their
+/// messages, a teacher that the class sees theirs but not the students'.
+class _PrivateChatStrip extends StatelessWidget {
+  const _PrivateChatStrip({required this.manager});
+
+  final bool manager;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = ClassroomTheme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsetsDirectional.fromSTEB(10, 7, 10, 7),
+      decoration: BoxDecoration(
+        color: t.accentSubtle,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: t.accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(ClassroomIcons.lock, size: 14, color: t.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              manager
+                  ? 'گفتگوی خصوصی روشن است: پیام شرکت‌کنندگان را فقط میزبان و '
+                        'دستیاران می‌بینند؛ پیام شما را همه.'
+                  : 'گفتگوی خصوصی روشن است: پیام‌های شما را فقط میزبان و '
+                        'دستیاران می‌بینند.',
+              style: TextStyle(
+                color: t.textSecondary,
+                fontSize: 12,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Message extends StatelessWidget {
   const _Message({required this.message, required this.onDelete});
 
@@ -337,6 +387,16 @@ class _Message extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     RolePin(role: message.role),
+                    if (message.isPrivate) ...[
+                      const SizedBox(width: 4),
+                      Tooltip(
+                        message: 'فقط فرستنده، میزبان و دستیاران می‌بینند',
+                        child: RoleBadge(
+                          label: 'خصوصی',
+                          color: t.textSecondary,
+                        ),
+                      ),
+                    ],
                     const Spacer(),
                     Text(
                       clockTime(DateTime.parse(message.at)),

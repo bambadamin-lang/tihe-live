@@ -10,6 +10,7 @@ import type { IdFactory } from '../core/ids.js';
 import {
   execute,
   gatewayError,
+  reaches,
   type AudiencedEvent,
   type Effect,
   type ExecuteResult,
@@ -145,7 +146,7 @@ export class RoomActor {
       snapshot: canReplay ? null : snapshotFor(this.state, conn.userId),
       replay: canReplay
         ? this.log
-            .filter((e) => e.seq > lastSeq && this.reaches(e, conn.userId, manager))
+            .filter((e) => e.seq > lastSeq && reaches(e.audience, conn.userId, manager))
             .map((e) => project(e, manager))
         : null,
     });
@@ -202,21 +203,15 @@ export class RoomActor {
     await this.writes;
   }
 
-  private reaches(e: AudiencedEvent, userId: string, manager: boolean): boolean {
-    if (e.audience === 'all') return true;
-    if (e.audience === 'managers') return manager;
-    return e.audience.userId === userId;
-  }
-
   private fanout(events: AudiencedEvent[]): void {
     for (const { conn, ready } of this.members.values()) {
       if (!ready) continue;
       const manager = isManager(this.state, conn.userId);
       for (const e of events) {
-        if (this.reaches(e, conn.userId, manager)) conn.send(project(e, manager));
+        if (reaches(e.audience, conn.userId, manager)) conn.send(project(e, manager));
       }
     }
-    // The recording shows the stage, never manager-only or personal notices.
+    // The recording shows the stage, never manager-only or personal notices, nor private chat.
     for (const rec of this.recorders) {
       for (const e of events) if (e.audience === 'all') rec.send(project(e, false));
     }

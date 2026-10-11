@@ -1,6 +1,7 @@
 import type { AddressInfo } from 'node:net';
 import type { INestApplication } from '@nestjs/common';
 import {
+  DEFAULT_ROOM_POLICY,
   GATEWAY_CLOSE_CODES,
   errorResponseSchema,
   joinResponseSchema,
@@ -426,6 +427,210 @@ describe('a live class from start to end', () => {
       body: JSON.stringify({ event: 'room_finished', roomName: session.id, egress: null }),
     });
     expect(res.status).toBe(200);
+  });
+});
+
+describe('private chat in a live class', () => {
+  let liveClass: LiveClass;
+  let session: LiveSession;
+  let host: TestClient;
+  let ali: TestClient;
+  let sara: TestClient;
+  /** Sara's position before Ali's private message: what she reconnects from. */
+  let saraSeqBefore = 0;
+  let aliPrivateId = '';
+  let saraPrivateId = '';
+
+  const join = async (who: 'teacher' | 'ali' | 'sara', lastSeq: number | null = null) => {
+    const res = joinResponseSchema.parse(
+      (await call('POST', `/sessions/${session.id}/join`, who)).body,
+    );
+    return TestClient.connect(wsUrl, res.gateway.ticket, lastSeq);
+  };
+  const chatTexts = (c: TestClient) =>
+    c.events().flatMap((e) => (e.type === 'chat.message' ? [e.message.text] : []));
+  const said = (c: TestClient, text: string) =>
+    c.waitFor((m) => m.t === 'evt' && m.evt.type === 'chat.message' && m.evt.message.text === text);
+  const policySeen = (c: TestClient, on: boolean) =>
+    c.waitFor(
+      (m) => m.t === 'evt' && m.evt.type === 'policy.updated' && m.evt.policy.privateChat === on,
+    );
+
+  it('starts a class with private chat off, and everyone sees the setting', async () => {
+    liveClass = liveClassSchema.parse(
+      (
+        await call('POST', '/classes', 'teacher', {
+          courseId: COURSE,
+          title: 'ریاضی ۱ — گفتگوی خصوصی',
+          settings: { autoRecord: false },
+        })
+      ).body,
+    );
+    expect(liveClass.settings.policy.privateChat).toBe(false);
+    session = liveSessionSchema.parse(
+      (await call('POST', `/classes/${liveClass.id}/sessions`, 'teacher')).body,
+    );
+    host = await join('teacher');
+    ali = await join('ali');
+    sara = await join('sara');
+    expect(sara.welcome.snapshot?.policy.privateChat).toBe(false);
+  });
+
+  it('refuses a student who tries to switch it, over the gateway and over REST', async () => {
+    expect(
+      await ali.command({ type: 'policy.update', patch: { privateChat: true } }),
+    ).toMatchObject({ t: 'nack', error: { code: 'CAPABILITY_MISSING' } });
+    const patch = await call('PATCH', `/classes/${liveClass.id}`, 'ali', {
+      settings: { policy: { ...DEFAULT_ROOM_POLICY, privateChat: true } },
+    });
+    expect(patch.status).toBe(403);
+    expect(
+      (await call<LiveClass>('GET', `/classes/${liveClass.id}`, 'ali')).body.settings.policy,
+    ).toMatchObject({ privateChat: false });
+    expect(host.events().some((e) => e.type === 'policy.updated')).toBe(false);
+  });
+
+  it('lets the teacher turn it on mid-class, and tells every client at once', async () => {
+    expect(
+      await host.command({ type: 'policy.update', patch: { privateChat: true } }),
+    ).toMatchObject({ t: 'ack' });
+    await Promise.all([policySeen(host, true), policySeen(ali, true), policySeen(sara, true)]);
+  });
+
+  it('shows a student their own message, and the teacher — never another student', async () => {
+    saraSeqBefore = sara.lastSeq;
+    expect(await ali.command({ type: 'chat.send', text: 'سوال علی' })).toMatchObject({ t: 'ack' });
+    const own = await said(ali, 'سوال علی');
+    const atHost = await said(host, 'سوال علی');
+    expect(own).toMatchObject({ evt: { message: { private: true, userId: users.ali } } });
+    expect(atHost).toMatchObject({ evt: { message: { private: true } } });
+    if (atHost.t === 'evt' && atHost.evt.type === 'chat.message')
+      aliPrivateId = atHost.evt.message.id;
+
+    // The teacher's reply is public: when Sara has it, Ali's question would have come first.
+    await host.command({ type: 'chat.send', text: 'پاسخ استاد' });
+    expect(await said(sara, 'پاسخ استاد')).toMatchObject({ evt: { message: { private: false } } });
+    expect(chatTexts(sara)).not.toContain('سوال علی');
+  });
+
+  it('lets the second student write too, unseen by the first', async () => {
+    await sara.command({ type: 'chat.send', text: 'سوال سارا' });
+    await said(sara, 'سوال سارا');
+    const atHost = await said(host, 'سوال سارا');
+    if (atHost.t === 'evt' && atHost.evt.type === 'chat.message')
+      saraPrivateId = atHost.evt.message.id;
+    await host.command({ type: 'chat.send', text: 'مرز' });
+    await said(ali, 'مرز');
+    expect(chatTexts(ali)).not.toContain('سوال سارا');
+    expect(chatTexts(sara)).not.toContain('سوال علی');
+  });
+
+  it('does not let a student probe or delete another student’s message by id', async () => {
+    expect(await ali.command({ type: 'chat.delete', messageId: saraPrivateId })).toMatchObject({
+      t: 'nack',
+      error: { code: 'NOT_FOUND' },
+    });
+  });
+
+  it('keeps the rule across a refresh (snapshot) and a reconnect (replay)', async () => {
+    sara.close();
+    sara = await join('sara');
+    const history = sara.welcome.snapshot!.chat.map((m) => m.text);
+    expect(history).toEqual(expect.arrayContaining(['پاسخ استاد', 'سوال سارا', 'مرز']));
+    expect(history).not.toContain('سوال علی');
+    expect(sara.welcome.snapshot!.policy.privateChat).toBe(true);
+
+    const lastSeq = sara.lastSeq;
+    sara.close();
+    await host.waitFor(
+      (m) =>
+        m.t === 'evt' &&
+        m.evt.type === 'participant.updated' &&
+        m.evt.participant.userId === users.sara &&
+        !m.evt.participant.online &&
+        m.seq > lastSeq,
+    );
+    sara = await join('sara', saraSeqBefore);
+    expect(sara.welcome.snapshot).toBeNull();
+    const replayed = sara.welcome.replay!.flatMap((e) =>
+      e.evt.type === 'chat.message' ? [e.evt.message.text] : [],
+    );
+    expect(replayed).toEqual(['پاسخ استاد', 'سوال سارا', 'مرز']);
+
+    // The teacher's own refresh still has every message.
+    host.close();
+    host = await join('teacher');
+    expect(host.welcome.snapshot!.chat.map((m) => m.text)).toEqual(
+      expect.arrayContaining(['سوال علی', 'سوال سارا']),
+    );
+  });
+
+  it('keeps the rest of the class working while it is on', async () => {
+    // Another toggle changing leaves private chat as it was.
+    await host.command({ type: 'policy.update', patch: { participantsCanDraw: true } });
+    expect(
+      await sara.waitFor(
+        (m) => m.t === 'evt' && m.evt.type === 'policy.updated' && m.evt.policy.participantsCanDraw,
+      ),
+    ).toMatchObject({ evt: { policy: { privateChat: true } } });
+
+    expect(await sara.command({ type: 'hand.raise' })).toMatchObject({ t: 'ack' });
+    await ali.waitFor(
+      (m) =>
+        m.t === 'evt' &&
+        m.evt.type === 'participant.updated' &&
+        m.evt.participant.userId === users.sara &&
+        m.evt.participant.hand !== null,
+    );
+    expect(await host.command({ type: 'chat.delete', messageId: aliPrivateId })).toMatchObject({
+      t: 'ack',
+    });
+    await ali.waitFor((m) => m.t === 'evt' && m.evt.type === 'chat.deleted');
+  });
+
+  it('returns to public chat when the teacher turns it off, without publishing what was private', async () => {
+    await host.command({ type: 'policy.update', patch: { privateChat: false } });
+    await Promise.all([policySeen(ali, false), policySeen(sara, false)]);
+    await ali.command({ type: 'chat.send', text: 'حالا همه می‌بینند' });
+    expect(await said(sara, 'حالا همه می‌بینند')).toMatchObject({
+      evt: { message: { private: false } },
+    });
+
+    sara.close();
+    sara = await join('sara');
+    const history = sara.welcome.snapshot!.chat.map((m) => m.text);
+    expect(history).toContain('حالا همه می‌بینند');
+    expect(history).toContain('سوال سارا');
+    ali.close();
+    ali = await join('ali');
+    expect(ali.welcome.snapshot!.chat.map((m) => m.text)).not.toContain('سوال سارا');
+  });
+
+  it('can be switched on and off again in the same class', async () => {
+    await host.command({ type: 'policy.update', patch: { privateChat: true } });
+    await policySeen(sara, true);
+    await sara.command({ type: 'chat.send', text: 'دوباره خصوصی' });
+    await said(host, 'دوباره خصوصی');
+    await host.command({ type: 'policy.update', patch: { privateChat: false } });
+    await policySeen(ali, false);
+    expect(chatTexts(ali)).not.toContain('دوباره خصوصی');
+  });
+
+  it('lets the teacher make it the default for the class’s next sessions', async () => {
+    const patched = await call<LiveClass>('PATCH', `/classes/${liveClass.id}`, 'teacher', {
+      settings: { policy: { ...DEFAULT_ROOM_POLICY, privateChat: true } },
+    });
+    expect(patched.status).toBe(200);
+    expect(liveClassSchema.parse(patched.body).settings.policy.privateChat).toBe(true);
+
+    await call('POST', `/sessions/${session.id}/end`, 'teacher');
+    session = liveSessionSchema.parse(
+      (await call('POST', `/classes/${liveClass.id}/sessions`, 'teacher')).body,
+    );
+    const next = await join('sara');
+    expect(next.welcome.snapshot!.policy.privateChat).toBe(true);
+    expect(next.welcome.snapshot!.chat).toEqual([]);
+    await call('POST', `/sessions/${session.id}/end`, 'teacher');
   });
 });
 

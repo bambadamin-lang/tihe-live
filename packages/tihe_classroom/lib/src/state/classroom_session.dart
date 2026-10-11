@@ -291,6 +291,19 @@ class ClassroomSession {
     switch (event) {
       case ParticipantUpdated(:final participant) when participant.userId == me:
         _afterRoomChange(before.participants[me]);
+      case PolicyUpdated(:final policy)
+          when policy.privateChat != before.policy.privateChat:
+        // Everyone is told, so nobody keeps writing under the old rule unawares.
+        final manager = _v.can(Capability.participantsManage);
+        _notice(switch ((policy.privateChat, manager)) {
+          (true, false) =>
+            'میزبان گفتگوی خصوصی را روشن کرد: پیام‌های شما را فقط میزبان و دستیاران می‌بینند.',
+          (false, false) =>
+            'گفتگو دوباره عمومی شد: پیام‌های تازهٔ شما را همه می‌بینند.',
+          (true, true) =>
+            'گفتگوی خصوصی روشن شد: پیام شرکت‌کنندگان فقط به میزبان و دستیاران می‌رسد.',
+          (false, true) => 'گفتگوی خصوصی خاموش شد: گفتگو برای همه عمومی است.',
+        }, NoticeTone.info);
       case MediaMuted(:final userId, :final source) when userId == me:
         final what = switch (source) {
           MediaSource.audio => 'میکروفون',

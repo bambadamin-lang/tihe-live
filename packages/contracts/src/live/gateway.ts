@@ -78,6 +78,14 @@ export const chatMessageSchema = z.object({
   role: classRoleSchema,
   text: z.string().min(1).max(MAX_CHAT_LENGTH),
   at: z.string().datetime(),
+  /**
+   * Sent under private chat by someone without `participants.manage`: it reaches only its
+   * sender and the managers, live, in snapshots and in replays. The server stamps it when the
+   * message is sent and it never changes, so turning private chat off does not publish it and
+   * turning it on does not hide what was already said. Absent on messages from before private
+   * chat existed, which were all public.
+   */
+  private: z.boolean().default(false),
 });
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
 
@@ -135,6 +143,7 @@ export const classroomCommandSchema = z.discriminatedUnion('type', [
 
   z.object({ type: z.literal('layout.apply'), layout: layoutSchema }),
 
+  /** Who receives it is the server's call (private chat), never the sender's: no audience field. */
   z.object({ type: z.literal('chat.send'), text: z.string().trim().min(1).max(MAX_CHAT_LENGTH) }),
   z.object({ type: z.literal('chat.delete'), messageId: id('chatMessage') }),
 
@@ -180,7 +189,9 @@ export const classroomEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('policy.updated'), policy: roomPolicySchema }),
   z.object({ type: z.literal('layout.applied'), layout: layoutSchema, by: id('user') }),
 
+  /** A private message is sent only to its sender and the managers. */
   z.object({ type: z.literal('chat.message'), message: chatMessageSchema }),
+  /** Sent to the same people the message reached, so a private message's id never leaks. */
   z.object({ type: z.literal('chat.deleted'), messageId: id('chatMessage') }),
 
   z.object({ type: z.literal('wb.added'), items: z.array(boardItemSchema).min(1) }),

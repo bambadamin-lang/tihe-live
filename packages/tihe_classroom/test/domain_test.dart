@@ -82,6 +82,72 @@ void main() {
       expect(s.chat.last.text, '209');
     });
 
+    group('private chat', () {
+      ChatMessage message(String id, String from, {bool private = false}) =>
+          ChatMessage(
+            id: id,
+            userId: from,
+            name: 'x',
+            role: ClassRole.participant,
+            text: id,
+            at: '2026-09-27T07:00:00.000Z',
+            isPrivate: private,
+          );
+      // What the server sends a manager: everything, private messages flagged.
+      final room = start
+          .apply(evt(21, ChatPosted(message('a', DemoClassroom.ali))))
+          .apply(
+            evt(
+              22,
+              ChatPosted(message('b', DemoClassroom.sara, private: true)),
+            ),
+          );
+      List<String> texts(ClassroomState s, String viewer) => [
+        for (final m in s.chatFor(viewer)) m.text,
+      ];
+
+      test('shows a manager every message, a student their own', () {
+        expect(texts(room, DemoClassroom.host), containsAllInOrder(['a', 'b']));
+        expect(texts(room, DemoClassroom.sara), containsAllInOrder(['a', 'b']));
+        expect(texts(room, DemoClassroom.ali), isNot(contains('b')));
+        expect(texts(room, DemoClassroom.ali), contains('a'));
+      });
+
+      test('hands back the same list when nothing is hidden', () {
+        expect(identical(room.chatFor(DemoClassroom.host), room.chat), isTrue);
+        expect(identical(start.chatFor(DemoClassroom.ali), start.chat), isTrue);
+      });
+
+      test(
+        'hides private messages from a cohost the moment they are demoted',
+        () {
+          final cohost = room.participants[DemoClassroom.cohost]!;
+          final demoted = room.apply(
+            evt(
+              23,
+              ParticipantUpdated(
+                ParticipantState.fromJson({
+                  ...cohost.toJson(),
+                  'role': 'participant',
+                  'caps': ['chat.send', 'hand.raise'],
+                }),
+              ),
+            ),
+          );
+          expect(texts(room, DemoClassroom.cohost), contains('b'));
+          expect(texts(demoted, DemoClassroom.cohost), isNot(contains('b')));
+        },
+      );
+
+      test('reads a server from before private chat as off and public', () {
+        final policy = start.policy.toJson()..remove('privateChat');
+        expect(RoomPolicy.fromJson(policy).privateChat, isFalse);
+        final json = message('c', DemoClassroom.ali).toJson()
+          ..remove('private');
+        expect(ChatMessage.fromJson(json).isPrivate, isFalse);
+      });
+    });
+
     test('marks the class ended', () {
       final next = start.apply(evt(21, const ClassEnded('host_ended')));
       expect(next.ended, isTrue);

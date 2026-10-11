@@ -97,7 +97,8 @@
       "type": "policy.update",
       "patch": {
         "participantsCanChat": false,
-        "locked": true
+        "locked": true,
+        "privateChat": true
       }
     }
   },

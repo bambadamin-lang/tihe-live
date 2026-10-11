@@ -202,6 +202,9 @@ class DemoClassroomServer {
           ParticipantUpdated(_update(state.participants[userId]!, role: role)),
         );
       case UpdatePolicy(:final patch):
+        if (lacks(Capability.participantsManage)) {
+          return _missing(Capability.participantsManage);
+        }
         emit(
           PolicyUpdated(
             RoomPolicy.fromJson({...state.policy.toJson(), ...patch}),
@@ -229,6 +232,10 @@ class DemoClassroomServer {
               role: me.role,
               text: text,
               at: now,
+              // The server's rule; with one viewer here, there is nobody to keep it from.
+              isPrivate:
+                  state.policy.privateChat &&
+                  lacks(Capability.participantsManage),
             ),
           ),
         );
