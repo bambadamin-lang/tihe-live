@@ -58,6 +58,46 @@ void main() {
     },
   );
 
+  testWidgets('a lit planet with its orbits at each edge of the sky', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    for (final t in [ClassroomTheme.dark, ClassroomTheme.light]) {
+      await tester.pumpWidget(
+        SizedBox.expand(child: CustomPaint(painter: SkyPainter(t))),
+      );
+      final size = tester.getSize(find.byType(CustomPaint));
+      final calls = <(Symbol, List<dynamic>)>[];
+      expect(
+        tester.renderObject(find.byType(CustomPaint)),
+        paints..everything((method, args) {
+          calls.add((method, args));
+          return true;
+        }),
+      );
+      bool atStart(double x) => x < size.width * 0.1;
+      bool atEnd(double x) => x > size.width * 0.9;
+      // A planet's lit rim is a stroked circle the size of the planet; the glows behind the
+      // sky are filled, so they cannot stand in for one.
+      bool planet(bool Function(double) edge) => calls.any(
+        (c) =>
+            c.$1 == #drawCircle &&
+            edge((c.$2[0] as Offset).dx) &&
+            (c.$2[1] as double) > size.shortestSide * 0.2 &&
+            (c.$2[2] as Paint).style == PaintingStyle.stroke,
+      );
+      bool orbit(bool Function(double) edge) => calls.any(
+        (c) => c.$1 == #drawOval && edge((c.$2[0] as Rect).center.dx),
+      );
+      expect(planet(atStart), isTrue, reason: why);
+      expect(planet(atEnd), isTrue, reason: why);
+      expect(orbit(atStart), isTrue, reason: why);
+      expect(orbit(atEnd), isTrue, reason: why);
+    }
+  });
+
   test('Modam', () {
     expect(ClassroomFonts.family, 'Modam', reason: why);
     for (final t in [ClassroomTheme.dark, ClassroomTheme.light]) {
