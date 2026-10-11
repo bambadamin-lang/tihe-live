@@ -71,7 +71,7 @@ Capabilities:
 | `whiteboard.manage` | مدیریت تخته | erase anyone's items, clear, add/switch pages |
 | `chat.send` | ارسال پیام | send chat messages |
 | `hand.raise` | بالا بردن دست | raise a hand |
-| `participants.manage` | مدیریت شرکت‌کنندگان | mute, lower hands, grant/revoke, remove, change room policy, see capture alerts |
+| `participants.manage` | مدیریت شرکت‌کنندگان | mute, lower hands, grant/revoke, remove, change room policy, see capture alerts, read private chat |
 | `roles.assign` | تعیین نقش | change someone's role |
 | `layout.change` | تغییر چیدمان | change the stage layout |
 | `recording.control` | کنترل ضبط | start/stop recording |
@@ -80,7 +80,7 @@ Capabilities:
 **Room policy** (host-editable toggles that apply to the `participant` role only):
 `participantsCanUnmute`, `participantsCanStartVideo`, `participantsCanShareScreen`,
 `participantsCanDraw`, `participantsCanChat` (on by default), `handRaiseEnabled` (on by
-default), `locked` (no new joins below cohost).
+default), `locked` (no new joins below cohost), `privateChat` (off by default; see below).
 
 **Effective capabilities** = role preset ∪ policy (participants only) ∪ per-user grants −
 per-user revokes. Rules, all enforced in `services/live/src/core/capabilities.ts` and tested:
@@ -89,6 +89,52 @@ per-user revokes. Rules, all enforced in `services/live/src/core/capabilities.ts
 2. Nobody can grant a capability they do not hold themselves.
 3. You can only change someone of a lower rank (`host > cohost > presenter > participant`).
 4. Only `roles.assign` holders change roles, and the last host cannot be demoted.
+
+### Private chat (گفتگوی خصوصی)
+
+An optional mode, not a fixed behaviour: the `privateChat` toggle of the room policy, off by
+default. The managers (everyone with `participants.manage`: the host, which is the course teacher
+or an admin, and cohosts) switch it from "class settings" at any moment of a live class, with
+`policy.update`; the server refuses that command from anyone else. A teacher can also make it the
+default for the class's next sessions (`PATCH /v1/live/classes/:id`, hosts only).
+
+While it is on:
+
+- **Students keep writing.** Each message from someone without `participants.manage` (a
+  participant, or a presenter: a student given the stage) is stamped `private` by the server and
+  reaches **its sender and the managers only**. No other student receives it: not live, not in
+  the snapshot after a refresh, not in the replay after a reconnect, not as a `chat.deleted`. The
+  recorder receives nothing private.
+- **The managers speak to everyone.** Their messages stay public, so a teacher can answer a
+  private question for the whole class.
+- **The sender has no say.** `chat.send` carries no audience. The server sets the flag from the
+  mode and the sender's capabilities when the message is sent, and never changes it: turning the
+  mode off does not publish what was private, and turning it on does not hide what was public.
+- **Who reads private chat is answered by roles alone**, because `participants.manage` cannot be
+  granted or revoked by itself. It is checked whenever a message is delivered, so a student
+  promoted to cohost reads private messages from then on, and a demoted cohost stops (their app
+  drops the ones it held, too).
+- `chat.delete` on someone else's private message answers `NOT_FOUND`, so an id cannot be probed.
+- **Everyone is told.** The switch reaches every client as `policy.updated`, and each app shows a
+  notice when it flips. The chat pod shows a strip: to a student, that only the host and
+  assistants see their messages; to a manager, that participants' messages reach only managers
+  while theirs reach everyone. Private messages carry a "خصوصی" pin.
+- Reactions are chat messages (§11), so a student's reaction floats only for them and the managers.
+- As with other personal events, a student sees a gap in sequence numbers where someone else's
+  private message went by.
+
+The rule is one function, `canSeeMessage`, plus the event audience `{ managersAnd: senderId }`
+(`reaches`), both in `services/live/src/core` and tested there and end to end over the gateway.
+The final snapshot kept in Postgres holds every message with its flag; no endpoint serves it.
+
+**Compared with Skyroom and Adobe Connect.** Skyroom's chat menu has a private mode (حالت خصوصی)
+that behaves like this one: while the operator has it on, users' messages are seen by the
+operator and the presenter only. Skyroom's operator and presenter are the teaching staff, so here
+they map to the managers (host and cohost), not to our `presenter` role. Adobe Connect has no
+room-wide equivalent. Its "private chat" preference ("Allow participants to chat privately")
+governs direct messages between attendees, and an attendee's message reaches only the hosts when
+the attendee picks the Hosts tab: the sender chooses. Here the class chooses, so a student cannot
+opt out of it, and there are no direct messages between students at all.
 
 ## 4. Raised hands
 

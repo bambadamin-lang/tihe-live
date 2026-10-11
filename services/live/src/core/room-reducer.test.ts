@@ -10,11 +10,18 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   CHAT_RATE,
   execute,
+  reaches,
   type Effect,
   type ExecuteResult,
   type RoomInput,
 } from './room-reducer.js';
-import { createRoomState, snapshotFor, type RoomState } from './room-state.js';
+import {
+  createRoomState,
+  persistRoom,
+  restoreRoom,
+  snapshotFor,
+  type RoomState,
+} from './room-state.js';
 
 const HOST = 'usr_01J8ZB00000000000000000001';
 const COHOST = 'usr_01J8ZB00000000000000000002';
@@ -325,6 +332,148 @@ describe('chat', () => {
     expect(refused(cmd(SARA, { type: 'chat.delete', messageId: id }))).toBe('CAPABILITY_MISSING');
     ok(cmd(COHOST, { type: 'chat.delete', messageId: id }));
     expect(room.chat).toHaveLength(0);
+  });
+});
+
+describe('private chat', () => {
+  const privateChat = (actorId: string, on: boolean) =>
+    cmd(actorId, { type: 'policy.update', patch: { privateChat: on } });
+  const say = (actorId: string, text: string) => {
+    const evt = ok(cmd(actorId, { type: 'chat.send', text })).events[0]!;
+    if (evt.evt.type !== 'chat.message') throw new Error('expected a chat message');
+    return { ...evt, message: evt.evt.message };
+  };
+  const chatFor = (viewerId: string) => snapshotFor(room, viewerId).chat.map((m) => m.text);
+
+  it('is off by default, and only managers switch it — either way', () => {
+    expect(room.policy.privateChat).toBe(false);
+    expect(refused(privateChat(ALI, true))).toBe('CAPABILITY_MISSING');
+    expect(room.policy.privateChat).toBe(false);
+
+    const on = ok(privateChat(COHOST, true));
+    expect(room.policy.privateChat).toBe(true);
+    // Everyone is told, and it hands out or takes away nothing.
+    expect(on.events.map((e) => [e.evt.type, e.audience])).toEqual([['policy.updated', 'all']]);
+    expect(effectsOf(on, 'audit')[0]!.audit).toMatchObject({
+      kind: 'policy.changed',
+      actorId: COHOST,
+      detail: { patch: { privateChat: true } },
+    });
+
+    expect(refused(privateChat(SARA, false))).toBe('CAPABILITY_MISSING');
+    expect(room.policy.privateChat).toBe(true);
+    ok(privateChat(HOST, false));
+    expect(room.policy.privateChat).toBe(false);
+  });
+
+  it('sends a student’s message to that student and the managers, nobody else', () => {
+    ok(privateChat(HOST, true));
+    const { message, audience } = say(ALI, 'سوال دارم');
+    expect(message.private).toBe(true);
+    expect(audience).toEqual({ managersAnd: ALI });
+    expect(reaches(audience, ALI, false)).toBe(true);
+    expect(reaches(audience, HOST, true)).toBe(true);
+    expect(reaches(audience, COHOST, true)).toBe(true);
+    expect(reaches(audience, SARA, false)).toBe(false);
+  });
+
+  it('leaves the managers speaking to the whole class', () => {
+    ok(privateChat(HOST, true));
+    expect(say(HOST, 'همه گوش کنید')).toMatchObject({
+      audience: 'all',
+      message: { private: false },
+    });
+    expect(say(COHOST, 'روی تخته')).toMatchObject({ audience: 'all', message: { private: false } });
+  });
+
+  it('treats a presenter as a student: private sender, no reader', () => {
+    ok(cmd(HOST, { type: 'role.set', userId: SARA, role: 'presenter' }));
+    ok(privateChat(HOST, true));
+    say(ALI, 'از علی');
+    expect(say(SARA, 'از سارا').message.private).toBe(true);
+    expect(chatFor(SARA)).toEqual(['از سارا']);
+  });
+
+  it('keeps private messages out of other students’ snapshots, and out of the recording', () => {
+    ok(privateChat(HOST, true));
+    say(ALI, 'از علی');
+    say(SARA, 'از سارا');
+    say(HOST, 'از استاد');
+    expect(chatFor(ALI)).toEqual(['از علی', 'از استاد']);
+    expect(chatFor(SARA)).toEqual(['از سارا', 'از استاد']);
+    expect(chatFor(HOST)).toEqual(['از علی', 'از سارا', 'از استاد']);
+    expect(chatFor(COHOST)).toEqual(['از علی', 'از سارا', 'از استاد']);
+    // The recorder is no participant, so it gets what an outsider would.
+    expect(chatFor('EG_recorder')).toEqual(['از استاد']);
+  });
+
+  it('fixes each message’s privacy when it is sent: switching never re-labels history', () => {
+    say(ALI, 'قبل');
+    ok(privateChat(HOST, true));
+    say(ALI, 'در حالت خصوصی');
+    ok(privateChat(HOST, false));
+    say(ALI, 'بعد');
+    expect(room.chat.map((m) => [m.text, m.private])).toEqual([
+      ['قبل', false],
+      ['در حالت خصوصی', true],
+      ['بعد', false],
+    ]);
+    expect(chatFor(SARA)).toEqual(['قبل', 'بعد']);
+    expect(chatFor(ALI)).toEqual(['قبل', 'در حالت خصوصی', 'بعد']);
+  });
+
+  it('follows each viewer’s role now: a promoted student reads it, a demoted cohost stops', () => {
+    ok(privateChat(HOST, true));
+    say(ALI, 'سوال');
+    ok(cmd(HOST, { type: 'role.set', userId: SARA, role: 'cohost' }));
+    expect(chatFor(SARA)).toEqual(['سوال']);
+    ok(cmd(HOST, { type: 'role.set', userId: COHOST, role: 'participant' }));
+    expect(chatFor(COHOST)).toEqual([]);
+  });
+
+  it('deletes a private message for the people who had it, and hides it from anyone probing', () => {
+    ok(privateChat(HOST, true));
+    const id = say(ALI, 'پاک می‌شود').message.id;
+    // NOT_FOUND, not CAPABILITY_MISSING: another student cannot learn that the id exists.
+    expect(refused(cmd(SARA, { type: 'chat.delete', messageId: id }))).toBe('NOT_FOUND');
+    const r = ok(cmd(COHOST, { type: 'chat.delete', messageId: id }));
+    expect(r.events[0]).toMatchObject({
+      evt: { type: 'chat.deleted', messageId: id },
+      audience: { managersAnd: ALI },
+    });
+    ok(cmd(ALI, { type: 'chat.delete', messageId: say(ALI, 'مال خودم').message.id }));
+    expect(room.chat).toHaveLength(0);
+  });
+
+  it('survives a restart, and reads rooms and messages saved before it existed as public', () => {
+    ok(privateChat(HOST, true));
+    say(ALI, 'خصوصی');
+    const restored = restoreRoom(JSON.parse(JSON.stringify(persistRoom(room))));
+    expect(restored.policy.privateChat).toBe(true);
+    expect(snapshotFor(restored, SARA).chat).toEqual([]);
+
+    // As saved by the version before private chat: no toggle, no flag.
+    const legacy = JSON.parse(JSON.stringify(persistRoom(room))) as {
+      state: { policy: Record<string, unknown>; chat: Record<string, unknown>[] };
+    };
+    delete legacy.state.policy.privateChat;
+    for (const m of legacy.state.chat) delete m.private;
+    const old = restoreRoom(legacy as unknown as ReturnType<typeof persistRoom>);
+    expect(old.policy.privateChat).toBe(false);
+    expect(snapshotFor(old, SARA).chat).toHaveLength(1);
+  });
+});
+
+describe('audiences', () => {
+  it('reaches everyone, managers, one person, or managers and one person', () => {
+    expect(reaches('all', SARA, false)).toBe(true);
+    expect(reaches('managers', SARA, false)).toBe(false);
+    expect(reaches('managers', HOST, true)).toBe(true);
+    expect(reaches({ userId: SARA }, SARA, false)).toBe(true);
+    expect(reaches({ userId: SARA }, HOST, true)).toBe(false);
+    expect(reaches({ managersAnd: ALI }, ALI, false)).toBe(true);
+    expect(reaches({ managersAnd: ALI }, HOST, true)).toBe(true);
+    expect(reaches({ managersAnd: ALI }, SARA, false)).toBe(false);
   });
 });
 

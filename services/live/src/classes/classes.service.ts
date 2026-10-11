@@ -115,7 +115,8 @@ export class ClassesService {
       teacherId: r.teacherId,
       scheduledStartAt: r.scheduledStartAt?.toISOString() ?? null,
       durationMinutes: r.durationMinutes,
-      settings: r.settings,
+      // Settings saved before a toggle existed are shown with its default.
+      settings: mergeSettings(DEFAULT_CLASS_SETTINGS, r.settings),
       liveSessionId: live?.id ?? null,
       createdAt: r.createdAt.toISOString(),
     };
