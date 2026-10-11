@@ -49,8 +49,46 @@ void main() {
       expect(find.byType(WatermarkOverlay), findsOneWidget);
       // Outline and fill are two layers of the same text.
       expect(find.textContaining('0912•••0001 · #'), findsNWidgets(2));
+      // The viewer's name has a line of its own, and the line OCR reads is exactly as it was.
+      final mark = find.byType(WatermarkOverlay);
+      expect(
+        find.descendant(of: mark, matching: find.text('دکتر رضایی')),
+        findsNWidgets(2),
+      );
+      expect(
+        find.descendant(
+          of: mark,
+          matching: find.textContaining(
+            RegExp(r'^0912•••0001 · #\d{5} · \d\d:\d\d$'),
+          ),
+        ),
+        findsNWidgets(2),
+      );
     },
   );
+
+  testWidgets('the watermark keeps a single line when there is no name', (
+    tester,
+  ) async {
+    const spec = WatermarkSpec(
+      text: '0912•••6789 · #48213',
+      opacity: 0.32,
+      fontSize: 13,
+      movement: 'corners',
+      periodSeconds: 30,
+      seed: 7,
+    );
+    for (final name in [null, '  ']) {
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.rtl,
+          child: WatermarkOverlay(spec: spec, displayName: name),
+        ),
+      );
+      expect(find.byType(Text), findsNWidgets(2));
+    }
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('every stage follows a layout change', (tester) async {
     final c = await pumpClassroom(tester, as: DemoClassroom.ali);
@@ -212,6 +250,107 @@ void main() {
         matching: find.text('👏'),
       ),
       findsNothing,
+    );
+  });
+
+  group('private chat', () {
+    Future<void> settle(WidgetTester tester) async {
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 150));
+      }
+    }
+
+    Finder inChat(Finder f) =>
+        find.descendant(of: find.byType(ChatPod), matching: f);
+
+    RoomPolicy withPrivateChat(RoomPolicy p, bool on) =>
+        RoomPolicy.fromJson({...p.toJson(), 'privateChat': on});
+
+    testWidgets('the host turns it on in class settings and sees it in chat', (
+      tester,
+    ) async {
+      final c = await pumpClassroom(tester);
+      await tester.tap(find.text('بیشتر'));
+      await settle(tester);
+      await tester.tap(find.text('تنظیمات کلاس'));
+      await settle(tester);
+      expect(find.text(privateChatLabelFa), findsOneWidget);
+      expect(find.text(privateChatOffFa), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('privateChat')));
+      await settle(tester);
+      expect(c.server.state.policy.privateChat, isTrue);
+      // The sheet shows the state it is in now, and what that means.
+      expect(find.text(privateChatOnFa), findsOneWidget);
+      expect(inChat(find.textContaining('پیام شما را همه')), findsOneWidget);
+      expect(find.textContaining('گفتگوی خصوصی روشن شد'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('privateChat')));
+      await settle(tester);
+      expect(c.server.state.policy.privateChat, isFalse);
+      expect(
+        inChat(find.textContaining('گفتگوی خصوصی روشن است')),
+        findsNothing,
+      );
+    });
+
+    testWidgets(
+      'a student is told who reads their messages, and has no switch',
+      (tester) async {
+        final c = await pumpClassroom(tester, as: DemoClassroom.ali);
+        await tester.tap(find.text('بیشتر'));
+        await settle(tester);
+        expect(find.text('تنظیمات کلاس'), findsNothing);
+        await tester.tapAt(const Offset(800, 300));
+        await settle(tester);
+
+        c.server.emit(
+          PolicyUpdated(withPrivateChat(c.server.state.policy, true)),
+        );
+        await settle(tester);
+        expect(
+          inChat(find.textContaining('پیام‌های شما را فقط میزبان و دستیاران')),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('میزبان گفتگوی خصوصی را روشن کرد'),
+          findsOneWidget,
+        );
+        expect(find.text('پیام به میزبان و دستیاران…'), findsOneWidget);
+
+        // Their own message comes back pinned as private.
+        await tester.enterText(inChat(find.byType(TextField)), 'سوال خصوصی');
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await settle(tester);
+        expect(c.server.state.chat.last.isPrivate, isTrue);
+        expect(inChat(find.text('خصوصی')), findsOneWidget);
+
+        c.server.emit(
+          PolicyUpdated(withPrivateChat(c.server.state.policy, false)),
+        );
+        await settle(tester);
+        expect(
+          inChat(find.textContaining('گفتگوی خصوصی روشن است')),
+          findsNothing,
+        );
+        expect(find.text('پیام خود را بنویسید…'), findsOneWidget);
+        expect(find.textContaining('گفتگو دوباره عمومی شد'), findsOneWidget);
+        // What was private stays marked private.
+        expect(inChat(find.text('خصوصی')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a student whose client asks anyway is refused, and nothing changes',
+      (tester) async {
+        final c = await pumpClassroom(tester, as: DemoClassroom.ali);
+        final outcome = await c.session.send(
+          const UpdatePolicy({'privateChat': true}),
+        );
+        await settle(tester);
+        expect(outcome, isA<Refused>());
+        expect(c.server.state.policy.privateChat, isFalse);
+      },
     );
   });
 

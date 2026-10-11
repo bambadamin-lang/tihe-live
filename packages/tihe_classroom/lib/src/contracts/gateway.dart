@@ -96,6 +96,7 @@ class ChatMessage {
     required this.role,
     required this.text,
     required this.at,
+    this.isPrivate = false,
   });
 
   factory ChatMessage.fromJson(Json j) => ChatMessage(
@@ -105,6 +106,8 @@ class ChatMessage {
     role: ClassRole.fromWire(j['role']),
     text: j['text'] as String,
     at: j['at'] as String,
+    // Messages from before private chat carry no flag; they were public.
+    isPrivate: j['private'] as bool? ?? false,
   );
 
   final String id;
@@ -114,6 +117,10 @@ class ChatMessage {
   final String text;
   final String at;
 
+  /// Sent under private chat: only its sender and the managers receive it. Stamped by the
+  /// server when sent, and never changed by switching private chat later.
+  final bool isPrivate;
+
   Json toJson() => {
     'id': id,
     'userId': userId,
@@ -121,6 +128,7 @@ class ChatMessage {
     'role': role.wire,
     'text': text,
     'at': at,
+    'private': isPrivate,
   };
 }
 

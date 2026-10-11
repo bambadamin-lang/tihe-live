@@ -75,6 +75,7 @@ class RoomPolicy {
     required this.participantsCanChat,
     required this.handRaiseEnabled,
     required this.locked,
+    this.privateChat = false,
   });
 
   factory RoomPolicy.fromJson(Json j) => RoomPolicy(
@@ -85,6 +86,8 @@ class RoomPolicy {
     participantsCanChat: j['participantsCanChat'] as bool,
     handRaiseEnabled: j['handRaiseEnabled'] as bool,
     locked: j['locked'] as bool,
+    // A server from before private chat sends no key: it is off there.
+    privateChat: j['privateChat'] as bool? ?? false,
   );
 
   final bool participantsCanUnmute;
@@ -95,6 +98,10 @@ class RoomPolicy {
   final bool handRaiseEnabled;
   final bool locked;
 
+  /// Participants' messages reach only themselves and the managers (docs/11 §3). It grants
+  /// nothing; the server decides who receives each message.
+  final bool privateChat;
+
   Json toJson() => {
     'participantsCanUnmute': participantsCanUnmute,
     'participantsCanStartVideo': participantsCanStartVideo,
@@ -103,6 +110,7 @@ class RoomPolicy {
     'participantsCanChat': participantsCanChat,
     'handRaiseEnabled': handRaiseEnabled,
     'locked': locked,
+    'privateChat': privateChat,
   };
 }
 
@@ -116,3 +124,14 @@ const policyLabelsFa = {
   'handRaiseEnabled': 'بالا بردن دست',
   'locked': 'قفل ورود به کلاس',
 };
+
+/// Private chat is not something participants "can" do — read as one of [policyLabelsFa] it
+/// would say the opposite of what it does — so the host menu shows it apart, with what each
+/// state means. Who reads private messages is fixed by role: the host and assistants (cohosts),
+/// the holders of `participants.manage`.
+const privateChatLabelFa = 'گفتگوی خصوصی';
+const privateChatOnFa =
+    'روشن: هر شرکت‌کننده پیام‌های خودش را می‌بیند، نه پیام دیگران را. '
+    'پیام‌هایشان فقط به میزبان و دستیاران می‌رسد.';
+const privateChatOffFa =
+    'خاموش: گفتگوی کلاس عمومی است و همه همهٔ پیام‌ها را می‌بینند.';

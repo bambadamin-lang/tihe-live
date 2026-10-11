@@ -10,7 +10,8 @@
     "participantsCanDraw": false,
     "participantsCanChat": true,
     "handRaiseEnabled": true,
-    "locked": false
+    "locked": false,
+    "privateChat": false
   },
   "layout": {
     "id": "whiteboard",
@@ -128,7 +129,8 @@
       "name": "علی کریمی",
       "role": "participant",
       "text": "سلام استاد",
-      "at": "2026-09-27T06:31:00.000Z"
+      "at": "2026-09-27T06:31:00.000Z",
+      "private": false
     },
     {
       "id": "chm_01J8ZF00000000000000000002",
@@ -136,7 +138,8 @@
       "name": "دکتر رضایی",
       "role": "host",
       "text": "سلام، شروع می‌کنیم.",
-      "at": "2026-09-27T06:32:00.000Z"
+      "at": "2026-09-27T06:32:00.000Z",
+      "private": false
     }
   ],
   "board": {

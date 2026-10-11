@@ -100,6 +100,22 @@ class ClassroomState {
   List<ParticipantState> get online =>
       participants.values.where((p) => p.online).toList();
 
+  /// The chat as [viewerId] may see it: a private message is for its sender and the managers.
+  /// The server already sends nothing else (`canSeeMessage` in services/live); this repeats
+  /// the rule so a cohost demoted mid-class stops seeing what they held, without a reconnect.
+  /// Returns [chat] itself when nothing is hidden, so watchers rebuild only on a real change.
+  List<ChatMessage> chatFor(String viewerId) {
+    final manager =
+        participants[viewerId]?.can(Capability.participantsManage) ?? false;
+    if (manager || !chat.any((m) => m.isPrivate && m.userId != viewerId)) {
+      return chat;
+    }
+    return [
+      for (final m in chat)
+        if (!m.isPrivate || m.userId == viewerId) m,
+    ];
+  }
+
   ClassroomState _copy({
     RoomPolicy? policy,
     Layout? layout,
