@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BOARD_PALETTE,
   CAPABILITIES,
+  DEFAULT_ROOM_POLICY,
   DEFAULT_TOOL_WIDTH,
   PEN_STYLES,
   LAYOUT_PRESETS,
@@ -11,6 +12,7 @@ import {
   ROLE_PRESETS,
   ROLE_RANK,
   boardItemInputSchema,
+  chatMessageSchema,
   classroomCommandSchema,
   classroomEventSchema,
   classroomSnapshotSchema,
@@ -21,6 +23,7 @@ import {
   layoutProblems,
   layoutSchema,
   liveWatermarkText,
+  roomPolicySchema,
   serverMessageSchema,
   watermarkSchema,
   watermarkShortId,
@@ -118,6 +121,47 @@ describe('roles', () => {
     ] as const) {
       expect(fromPolicy).not.toContain(cap);
     }
+  });
+});
+
+describe('private chat', () => {
+  it('is off by default and grants nothing: it only changes who receives a message', () => {
+    expect(DEFAULT_ROOM_POLICY.privateChat).toBe(false);
+    expect(Object.keys(POLICY_CAPABILITY)).not.toContain('privateChat');
+  });
+
+  it('reads policies and messages saved before it existed as off and public', () => {
+    const oldPolicy: Record<string, unknown> = { ...DEFAULT_ROOM_POLICY };
+    delete oldPolicy.privateChat;
+    expect(roomPolicySchema.parse(oldPolicy).privateChat).toBe(false);
+    expect(
+      chatMessageSchema.parse({
+        id: 'chm_01J8ZF00000000000000000001',
+        userId: 'usr_01J8ZB00000000000000000003',
+        name: 'علی کریمی',
+        role: 'participant',
+        text: 'سلام',
+        at: '2026-09-27T06:31:00.000Z',
+      }).private,
+    ).toBe(false);
+  });
+
+  it('stays as it is when another toggle changes: a patch never fills in its default', () => {
+    const cmd = classroomCommandSchema.parse({
+      type: 'policy.update',
+      patch: { handRaiseEnabled: false },
+    });
+    expect(cmd).toEqual({ type: 'policy.update', patch: { handRaiseEnabled: false } });
+  });
+
+  it('gives a sender no say over who receives the message', () => {
+    const parsed = classroomCommandSchema.parse({
+      type: 'chat.send',
+      text: 'سلام',
+      private: false,
+      audience: 'all',
+    });
+    expect(parsed).toEqual({ type: 'chat.send', text: 'سلام' });
   });
 });
 

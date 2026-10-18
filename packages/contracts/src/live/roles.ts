@@ -78,6 +78,12 @@ export const roomPolicySchema = z.object({
   handRaiseEnabled: z.boolean(),
   /** No new joins below cohost. People already in the room stay. */
   locked: z.boolean(),
+  /**
+   * Private chat (گفتگوی خصوصی), as in Skyroom: participants keep chatting, but each one's
+   * messages reach only themselves and the people with `participants.manage`. Grants nothing,
+   * it changes who receives. Defaults to off for classes and rooms saved before it existed.
+   */
+  privateChat: z.boolean().default(false),
 });
 export type RoomPolicy = z.infer<typeof roomPolicySchema>;
 
@@ -89,15 +95,18 @@ export const DEFAULT_ROOM_POLICY: Readonly<RoomPolicy> = {
   participantsCanChat: true,
   handRaiseEnabled: true,
   locked: false,
+  privateChat: false,
 };
 
-/** Which capability each policy toggle hands to participants. `locked` grants nothing. */
-export const POLICY_CAPABILITY: Readonly<Record<Exclude<keyof RoomPolicy, 'locked'>, Capability>> =
-  {
-    participantsCanUnmute: 'publish.audio',
-    participantsCanStartVideo: 'publish.video',
-    participantsCanShareScreen: 'publish.screen',
-    participantsCanDraw: 'whiteboard.draw',
-    participantsCanChat: 'chat.send',
-    handRaiseEnabled: 'hand.raise',
-  };
+/** Which capability each policy toggle hands to participants. `locked` and `privateChat` grant
+ *  nothing. */
+export const POLICY_CAPABILITY: Readonly<
+  Record<Exclude<keyof RoomPolicy, 'locked' | 'privateChat'>, Capability>
+> = {
+  participantsCanUnmute: 'publish.audio',
+  participantsCanStartVideo: 'publish.video',
+  participantsCanShareScreen: 'publish.screen',
+  participantsCanDraw: 'whiteboard.draw',
+  participantsCanChat: 'chat.send',
+  handRaiseEnabled: 'hand.raise',
+};

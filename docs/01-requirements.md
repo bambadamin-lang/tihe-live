@@ -29,6 +29,9 @@ Stated by the institute for the live classroom, designed in
 - **Screen recording is banned**: recording the screen or the app window produces censored output; detection alerts the host ([ADR-0011](adr/0011-live-capture-guard-censor-and-attribute.md)).
 - A watermark identifying the viewer: their name over their whole phone number, jumping
   between the four corners and the centre of the class (no short id, no clock).
+- **Private chat mode** (added 2026-10-11), Skyroom-style and optional: the host or a cohost can
+  switch it on and off during class. While it is on, each student's messages reach only that
+  student and the class's managers, enforced by the server (docs/11 §3).
 - Persian UI in the **Modam** font (FontIran; it replaced Peyda). The classroom was first built
   skeuomorphic; it now uses a **navy glass** theme in **dark and light** (docs/11 §11).
 

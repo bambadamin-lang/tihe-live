@@ -2,6 +2,7 @@ import { randomInt } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   DEFAULT_RECORDER_PROCESSES,
+  DEFAULT_ROOM_POLICY,
   LAYOUT_PRESETS,
   ROLE_RANK,
   liveWatermarkText,
@@ -253,7 +254,8 @@ export class SessionsService {
       classId: liveClass.id,
       title: liveClass.title,
       startedAt: session.startedAt.toISOString(),
-      policy: liveClass.settings.policy,
+      // Settings saved before a toggle existed take its default.
+      policy: { ...DEFAULT_ROOM_POLICY, ...liveClass.settings.policy },
       layout: LAYOUT_PRESETS[liveClass.settings.defaultLayout],
       firstPageId: newId('boardPage'),
     });

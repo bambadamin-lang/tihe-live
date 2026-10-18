@@ -1,5 +1,6 @@
 import {
   DEFAULT_PAGE_BACKGROUND,
+  DEFAULT_ROOM_POLICY,
   SNAPSHOT_CHAT_LIMIT,
   type BoardItem,
   type BoardPage,
@@ -198,6 +199,20 @@ export function redactParticipant(p: ParticipantState, viewerIsManager: boolean)
   return viewerIsManager || !p.capturing ? p : { ...p, capturing: false };
 }
 
+/**
+ * Private chat (docs/11 §3): a private message is for its sender and the managers. Everything
+ * that hands chat to a client — live fan-out, replay, snapshot — answers to this rule. Decided
+ * by the viewer's standing now, so a demoted cohost stops receiving them and a promoted one
+ * starts; `!message.private` keeps messages saved before the flag existed public, as they were.
+ */
+export function canSeeMessage(
+  message: ChatMessage,
+  viewerId: string,
+  viewerIsManager: boolean,
+): boolean {
+  return !message.private || viewerIsManager || message.userId === viewerId;
+}
+
 export function redactEvent(evt: ClassroomEvent, viewerIsManager: boolean): ClassroomEvent {
   if (viewerIsManager) return evt;
   if (evt.type === 'participant.joined' || evt.type === 'participant.updated') {
@@ -216,7 +231,7 @@ export function snapshotFor(state: RoomState, viewerId: string): ClassroomSnapsh
     policy: state.policy,
     layout: state.layout,
     participants: [...state.participants.values()].map((p) => redactParticipant(p, manager)),
-    chat: [...state.chat],
+    chat: state.chat.filter((m) => canSeeMessage(m, viewerId, manager)),
     board: {
       pages: [...state.board.pages],
       activePageId: state.board.activePageId,
@@ -256,6 +271,8 @@ export function restoreRoom(persisted: PersistedRoom): RoomState {
   const s = persisted.state;
   return {
     ...s,
+    // A room saved before a policy toggle existed gets that toggle's default, not `undefined`.
+    policy: { ...DEFAULT_ROOM_POLICY, ...s.policy },
     participants: new Map(s.participants.map((p) => [p.userId, p])),
     board: {
       pages: s.board.pages,
