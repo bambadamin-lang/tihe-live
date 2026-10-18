@@ -327,11 +327,11 @@ abstract final class DemoClassroom {
       ticket: 'demo-ticket',
       ticketExpiresAt: '2026-09-27T06:32:00.000Z',
       watermark: WatermarkSpec(
-        text:
-            '0912•••${as.substring(as.length - 4)} · #${watermarkShortId(as)}',
+        // As services/live sends it: the name over the whole (here, made-up) number.
+        text: '${me.name}\n0912123${as.substring(as.length - 4)}',
         opacity: 0.32,
         fontSize: 13,
-        movement: 'corners',
+        movement: 'corners-and-center',
         periodSeconds: 30,
         seed: 918273,
       ),

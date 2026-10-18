@@ -220,18 +220,29 @@ be tuned without an app release.
 
 ## 9. Watermark
 
-- **Text**: masked phone and short account id, plus the current time — `0912•••6789 ·
-  #48213 · 14:32`. The id and time use ASCII digits so OCR on a leaked copy is reliable.
-  `watermarkShortId` in contracts derives the short id, and the M6 leak-lookup tool uses the
-  same function.
-- **Placement**: a corner of the **stage** (not the window, since a camera aimed at the slides
-  would crop the window corners). It jumps to another corner at seeded random intervals (the
-  existing `watermarkSchema` with `movement: 'corners'`), so cropping one corner never removes
-  it.
+- **Text**: two lines, as the institute asked — the viewer's first and last name, and under it
+  their **whole** phone number in its local form:
+
+  ```
+  مریم احمدی
+  09123456789
+  ```
+
+  No short id and no clock. The number uses ASCII digits so OCR on a leaked copy is reliable,
+  and it identifies the account by itself. `liveWatermarkText` in contracts builds the text;
+  without a name it is the number alone. The directory sends the whole number (`phone` in
+  `directoryProfileSchema`) for this and nothing else.
+- **Placement**: five spots on the **stage** (not the window, since a camera aimed at the slides
+  would crop the window corners): its four corners and its centre. It **jumps** — no slide, so
+  every frame carries the whole mark — to a different spot at seeded random intervals
+  (`watermarkSchema` with `movement: 'corners-and-center'`), so cropping the edges, or the
+  middle, never removes it.
 - **Rendering**: a Flutter overlay above the stage. In the classroom the video is a Flutter
   texture, so a Dart overlay sits above it exactly as a native layer would (ADR-0011).
-- **Privacy**: the phone number is never placed in LiveKit metadata or attributes, which
-  every participant can read. It goes only to its owner, in their own join response.
+- **Privacy**: the whole number goes only to its owner, in their own join response, and is
+  drawn only on their own screen. It is never placed in LiveKit metadata or attributes, the
+  gateway or a gateway ticket, which other participants can read, and never logged (logs mask
+  it, CLAUDE.md rule 2). The e2e test checks that one student's number reaches no one else.
 - **Recordings** carry an institute mark instead. Viewer identity is added by the player when
   a recording is watched.
 
@@ -370,7 +381,7 @@ These cannot run in CI. Run them before each release on real hardware.
 | 10 | iOS 17+ | Control Centre recording; AirPlay mirror | censor screen + host alert |
 | 11 | iOS | Presenter broadcast extension | no self-alert while sharing |
 | 12 | all | Revoke mic from a speaking student | track muted within 1 s; re-publish refused |
-| 13 | all | Watermark | visible on the stage and changing corners; masked phone correct |
+| 13 | all | Watermark | jumps between the four corners and the centre; name over the whole number, no id or clock |
 | 14 | all | Kill network for 10 s, restore | gateway resumes and the board, hands and chat are intact |
 
 ## 13. What it looks like
@@ -387,7 +398,7 @@ example app, in Modam from the package's own assets.
 | ![Whiteboard layout, host](images/classroom/host-whiteboard.jpg) | ![Split layout, host](images/classroom/host-split.jpg) |
 | Whiteboard layout: the marker tray, pages, and a raised-hand alert | Split: screen share next to the board |
 | ![Discussion layout, host](images/classroom/host-discussion.jpg) | ![Presentation, student](images/classroom/student-presentation.jpg) |
-| Discussion: gallery, chat, hands queue | A student's view: the watermark sits in a stage corner |
+| Discussion: gallery, chat, hands queue | A student's view: the watermark sits in a stage corner (since then: name over number, five spots — §9) |
 | ![Layout picker](images/classroom/host-layout-picker.jpg) | ![Layout editor](images/classroom/host-layout-editor.jpg) |
 | The six recommended layouts | The layout editor on the 12 × 12 grid |
 | ![Censored](images/classroom/student-censored.jpg) | ![Phone](images/classroom/student-phone.jpg) |

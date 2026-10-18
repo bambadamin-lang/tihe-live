@@ -184,8 +184,9 @@ describe('a live class from start to end', () => {
     expect(res.status).toBe(200);
     aliJoin = joinResponseSchema.parse(res.body);
     expect(aliJoin.you.role).toBe('participant');
-    expect(aliJoin.watermark.text).toMatch(/^0912•••4503 · #\d{5}$/);
-    expect(aliJoin.watermark.movement).toBe('corners');
+    // Their name over their whole number: no short id, no clock.
+    expect(aliJoin.watermark.text).toBe('علی کریمی\n09121234503');
+    expect(aliJoin.watermark.movement).toBe('corners-and-center');
     expect(aliJoin.capturePolicy).toMatchObject({
       block: true,
       windowsAffinity: 'monitor',
@@ -193,7 +194,7 @@ describe('a live class from start to end', () => {
     });
     expect(livekit.tokens.find((t) => t.identity === users.ali)).toMatchObject({ sources: [] });
     // The phone number never goes into LiveKit, where every participant could read it.
-    expect(JSON.stringify(livekit.tokens)).not.toContain('4503');
+    expect(JSON.stringify(livekit.tokens)).not.toContain('1234503');
 
     const hostJoin = joinResponseSchema.parse(
       (await call('POST', `/sessions/${session.id}/join`, 'teacher')).body,
@@ -220,6 +221,17 @@ describe('a live class from start to end', () => {
       users.ali,
       users.sara,
     ]);
+    // A whole number reaches its owner only: Ali's is in neither Sara's join nor her gateway
+    // view of the class, nor in anyone's ticket.
+    expect(saraJoin.watermark.text).toBe('سارا محمدی\n09121234504');
+    expect(JSON.stringify(saraJoin)).not.toContain('1234503');
+    expect(JSON.stringify(sara.messages)).not.toContain('1234503');
+    expect(JSON.stringify(host.messages)).not.toContain('1234503');
+    for (const ticket of [aliJoin, hostJoin, saraJoin].map((j) => j.gateway.ticket)) {
+      const claims = Buffer.from(ticket.split('.')[1] ?? '', 'base64url').toString();
+      expect(claims).toContain('"sid"');
+      expect(claims).not.toContain('1234503');
+    }
     await host.waitFor(
       (m) =>
         m.t === 'evt' &&

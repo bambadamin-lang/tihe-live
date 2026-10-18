@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { id, roleSchema } from '../common.js';
+import { id, phoneSchema, roleSchema } from '../common.js';
 
 /**
  * The internal API services/live calls on services/api (ADR-0012), behind its
@@ -25,9 +25,13 @@ export const directoryEnrollmentSchema = z.object({
 
 export const directoryProfileSchema = z.object({
   id: id('user'),
+  /** The user's first and last name, e.g. "مریم احمدی". */
   displayName: z.string().nullable(),
-  /** Masked, e.g. 0912•••6789. Used for this user's own watermark only. */
-  phoneMasked: z.string(),
+  /**
+   * The whole number, E.164. It is printed in full on this user's own live watermark, so it
+   * goes to its owner only, in their join response — never into LiveKit, the gateway or a log.
+   */
+  phone: phoneSchema,
   role: roleSchema,
 });
 export type DirectoryProfile = z.infer<typeof directoryProfileSchema>;

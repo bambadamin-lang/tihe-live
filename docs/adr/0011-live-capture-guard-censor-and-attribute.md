@@ -38,8 +38,9 @@ What the operating systems actually allow:
 4. **Alert and audit**: the client reports to the gateway. The gateway writes a
    `live_audit_events` row and alerts everyone with `participants.manage`. **No auto-kick** —
    the host decides.
-5. **Attribute always**: an identity watermark (masked phone · short id · time) hops between
-   the stage's corners. It is a Flutter overlay: in the classroom the video is itself a Flutter
+5. **Attribute always**: an identity watermark hops around the stage — since 2026-10-18 the
+   viewer's name over their whole phone number, jumping between the four corners and the
+   centre (amendment below). It is a Flutter overlay: in the classroom the video is itself a Flutter
    texture, so this is equivalent to the native layer docs/03 asks for in the player.
 6. **Architecture**: `packages/capture_guard` is a Flutter plugin in which **native code
    reports facts and Dart decides**. The policy engine is pure Dart and unit-tested on Linux.
@@ -60,3 +61,17 @@ attempt, and every frame that does leak names its account.
   they close it. That is the intended behaviour.
 - `FLAG_SECURE` / WDA also blank legitimate accessibility and remote-support tools during
   class. Courses with `allowCapture` can turn blocking off, as for the player.
+
+## Amendment — 2026-10-18: the watermark's text and spots
+
+At the institute's request the live watermark changed from `0912•••6789 · #48213 · 14:32` in a
+corner to two lines — the viewer's name, and under it their **whole** phone number — that
+jump between the stage's four corners and its centre. The short id and the clock are gone.
+
+- A whole number identifies a leaked copy at a glance, without the leak-lookup tool. The cost
+  is that the number is on the student's own screen in full, so the rule that it reaches no
+  one else matters more: only its owner's join response carries it, never LiveKit, the
+  gateway or a log (docs/11 §9).
+- The centre spot means a crop of the edges no longer removes the mark. It sits over the class
+  at the same low opacity as before.
+- It jumps rather than slides, so no frame shows it half-way or smeared.

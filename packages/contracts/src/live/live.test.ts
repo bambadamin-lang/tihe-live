@@ -16,11 +16,13 @@ import {
   classroomSnapshotSchema,
   clientMessageSchema,
   deriveRecordingLayout,
+  directoryProfileSchema,
   joinResponseSchema,
   layoutProblems,
   layoutSchema,
   liveWatermarkText,
   serverMessageSchema,
+  watermarkSchema,
   watermarkShortId,
   type Pod,
 } from '../index.js';
@@ -249,8 +251,51 @@ describe('watermark', () => {
     expect(watermarkShortId('usr_01J8ZB00000000000000000001')).toMatch(/^\d{5}$/);
   });
 
-  it('formats masked phone and short id', () => {
-    const id = 'usr_01J8ZB00000000000000000001';
-    expect(liveWatermarkText('0912•••6789', id)).toBe(`0912•••6789 · #${watermarkShortId(id)}`);
+  it('puts the name over the whole phone number, in local form and ASCII digits', () => {
+    expect(liveWatermarkText('مریم احمدی', '+989123456789')).toBe('مریم احمدی\n09123456789');
+  });
+
+  it('carries no short id, no clock and no masking', () => {
+    const text = liveWatermarkText('مریم احمدی', '+989123456789');
+    expect(text).not.toMatch(/[#•·:]/);
+    expect(text.split('\n')).toHaveLength(2);
+  });
+
+  it('is the number alone when there is no name', () => {
+    expect(liveWatermarkText(null, '+989123456789')).toBe('09123456789');
+    expect(liveWatermarkText('   ', '+989123456789')).toBe('09123456789');
+    expect(liveWatermarkText('  علی کریمی ', '+989121234503')).toBe('علی کریمی\n09121234503');
+  });
+
+  it('can jump between the corners and the centre', () => {
+    const mark = { text: 'x', opacity: 0.32, fontSize: 13, periodSeconds: 30, seed: 1 };
+    expect(watermarkSchema.parse({ ...mark, movement: 'corners-and-center' }).movement).toBe(
+      'corners-and-center',
+    );
+    expect(() => watermarkSchema.parse({ ...mark, movement: 'center' })).toThrow();
+  });
+});
+
+describe('directory profile', () => {
+  const profile = {
+    id: 'usr_01J8ZB00000000000000000003',
+    displayName: 'علی کریمی',
+    role: 'student',
+  };
+
+  it('carries the whole phone number, normalised to E.164', () => {
+    expect(directoryProfileSchema.parse({ ...profile, phone: '09121234503' }).phone).toBe(
+      '+989121234503',
+    );
+  });
+
+  // The watermark prints this number in full, so a masked or missing one is a broken
+  // directory, not something to print.
+  it.each([['0912•••4503'], ['']])('refuses %j as a phone number', (phone) => {
+    expect(() => directoryProfileSchema.parse({ ...profile, phone })).toThrow();
+  });
+
+  it('refuses a profile without a phone number', () => {
+    expect(() => directoryProfileSchema.parse(profile)).toThrow();
   });
 });

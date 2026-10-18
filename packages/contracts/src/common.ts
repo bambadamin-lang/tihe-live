@@ -77,6 +77,14 @@ export function maskPhone(e164: string): string {
   return `${local.slice(0, 4)}•••${local.slice(-4)}`;
 }
 
+/**
+ * The whole number in its local form, +989123456789 → 09123456789, for one place only: its
+ * owner's own live watermark. Logs still take maskPhone.
+ */
+export function localPhone(e164: string): string {
+  return e164.replace(/^\+98/, '0');
+}
+
 export const platformSchema = z.enum(['windows', 'android', 'ios', 'macos', 'linux']);
 export type Platform = z.infer<typeof platformSchema>;
 

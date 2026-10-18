@@ -99,27 +99,68 @@ void main() {
       final a = WatermarkHopper(seed: 42, periodSeconds: 30);
       final b = WatermarkHopper(seed: 42, periodSeconds: 30);
       for (var s = 0; s < 600; s += 7) {
-        expect(
-          a.cornerAt(Duration(seconds: s)),
-          b.cornerAt(Duration(seconds: s)),
-        );
+        expect(a.spotAt(Duration(seconds: s)), b.spotAt(Duration(seconds: s)));
       }
     });
 
-    test('visits every corner and never jumps to the corner it is in', () {
-      final hopper = WatermarkHopper(seed: 7, periodSeconds: 20);
-      final seen = <StageCorner>{};
-      StageCorner? previous;
-      var jumps = 0;
-      for (var s = 0; s < 1200; s++) {
-        final c = hopper.cornerAt(Duration(seconds: s));
-        seen.add(c);
-        if (previous != null && c != previous) jumps++;
-        previous = c;
+    // The institute's five spots: the four corners and the centre.
+    test(
+      'visits all four corners and the centre, never jumping to where it is',
+      () {
+        final hopper = WatermarkHopper(seed: 7, periodSeconds: 20);
+        final seen = <WatermarkSpot>{};
+        WatermarkSpot? previous;
+        var jumps = 0;
+        for (var s = 0; s < 1200; s++) {
+          final spot = hopper.spotAt(Duration(seconds: s));
+          seen.add(spot);
+          if (previous != null && spot != previous) jumps++;
+          previous = spot;
+        }
+        expect(seen, WatermarkSpot.values.toSet());
+        expect(seen, contains(WatermarkSpot.center));
+        // 1200 s at 10–30 s per stay: dozens of jumps, never zero.
+        expect(jumps, greaterThan(30));
+      },
+    );
+
+    test('every jump lands somewhere new', () {
+      final hopper = WatermarkHopper(seed: 3, periodSeconds: 10);
+      var elapsed = Duration.zero;
+      var spot = hopper.spotAt(elapsed);
+      for (var i = 0; i < 200; i++) {
+        elapsed += hopper.untilNext(elapsed);
+        final next = hopper.spotAt(elapsed);
+        expect(next, isNot(spot));
+        spot = next;
       }
-      expect(seen, StageCorner.values.toSet());
-      // 1200 s at 10–30 s per stay: dozens of jumps, never zero.
-      expect(jumps, greaterThan(30));
+    });
+
+    test('stays put between jumps', () {
+      final hopper = WatermarkHopper(seed: 11, periodSeconds: 30);
+      final spot = hopper.spotAt(Duration.zero);
+      final wait = hopper.untilNext(Duration.zero);
+      expect(hopper.spotAt(wait - const Duration(milliseconds: 1)), spot);
+      expect(hopper.spotAt(wait), isNot(spot));
+    });
+
+    test('the movement picks the spots: corners alone, or with the centre', () {
+      expect(
+        WatermarkHopper.spotsFor('corners-and-center'),
+        WatermarkSpot.values,
+      );
+      expect(WatermarkHopper.spotsFor('corners'), WatermarkSpot.corners);
+      expect(WatermarkSpot.corners, isNot(contains(WatermarkSpot.center)));
+
+      final corners = WatermarkHopper(
+        seed: 7,
+        periodSeconds: 20,
+        spots: WatermarkHopper.spotsFor('corners'),
+      );
+      final seen = {
+        for (var s = 0; s < 1200; s++) corners.spotAt(Duration(seconds: s)),
+      };
+      expect(seen, WatermarkSpot.corners.toSet());
     });
 
     test(

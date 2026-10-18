@@ -22,7 +22,7 @@ saved layouts, audit events. The API is owned and changed by a different session
 - **Identity**: `services/live` verifies the access tokens issued by `services/api`, behind an
   `AccessTokenVerifier` interface that checks `iss` and `aud`. The claims shape is part of
   `packages/contracts`.
-- **Course data**: enrollment, course policy and the masked phone for the watermark come
+- **Course data**: enrollment, course policy and the phone number for the watermark come
   through a `CourseDirectory` interface. It has an HTTP implementation against the API's
   internal endpoints and a development stub, so the classroom is never blocked on the API.
 

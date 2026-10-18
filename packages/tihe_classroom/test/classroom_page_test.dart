@@ -47,8 +47,8 @@ void main() {
       expect(find.byType(SpeakerPod), findsOneWidget);
       expect(find.byType(ChatPod), findsOneWidget);
       expect(find.byType(WatermarkOverlay), findsOneWidget);
-      // Outline and fill are two layers of the same text.
-      expect(find.textContaining('0912•••0001 · #'), findsNWidgets(2));
+      // Outline and fill are two layers of the same text: the host's name over their number.
+      expect(find.text('دکتر رضایی\n09121230001'), findsNWidgets(2));
     },
   );
 

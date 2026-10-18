@@ -6,9 +6,10 @@ import '../../contracts.dart';
 import '../../domain/persian.dart';
 import '../../domain/watermark_hopper.dart';
 
-/// The identity watermark over the stage (docs/11 §9): masked phone, short account id and the
-/// time, in a corner that changes at seeded random intervals. It sits above every pod and
-/// ignores the pointer. The digits stay ASCII so OCR on a leaked copy reads them reliably.
+/// The identity watermark over the stage (docs/11 §9): the viewer's name, and under it their
+/// whole phone number — no short id and no clock, as the institute asked. It jumps between the
+/// four corners and the centre of the **stage** at seeded random intervals, sits above every pod
+/// and ignores the pointer. The digits stay ASCII so OCR on a leaked copy reads them reliably.
 class WatermarkOverlay extends StatefulWidget {
   const WatermarkOverlay({
     super.key,
@@ -27,15 +28,31 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
   late final WatermarkHopper _hopper = WatermarkHopper(
     seed: widget.spec.seed,
     periodSeconds: widget.spec.periodSeconds,
+    spots: WatermarkHopper.spotsFor(widget.spec.movement),
   );
-  late final DateTime _opened = widget.clock();
+  late final DateTime _opened;
+  late WatermarkSpot _spot;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    // Once a second is enough: the clock shows minutes, and corner jumps are seconds apart.
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
+    _opened = widget.clock();
+    _follow();
+  }
+
+  /// Takes the current spot and sleeps until the next jump: with no clock on the mark, nothing
+  /// changes in between, so there is nothing to rebuild.
+  void _follow() {
+    final elapsed = widget.clock().difference(_opened);
+    _spot = _hopper.spotAt(elapsed);
+    // A hair past the jump, so a timer that fires early still lands on the new spot.
+    _timer = Timer(
+      _hopper.untilNext(elapsed) + const Duration(milliseconds: 20),
+      () {
+        if (mounted) setState(_follow);
+      },
+    );
   }
 
   @override
@@ -46,33 +63,34 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    final now = widget.clock();
-    final corner = _hopper.cornerAt(now.difference(_opened));
-    final local = now.toLocal();
-    final time =
-        '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
-    final alignment = switch (corner) {
-      StageCorner.topStart => AlignmentDirectional.topStart,
-      StageCorner.topEnd => AlignmentDirectional.topEnd,
-      StageCorner.bottomStart => AlignmentDirectional.bottomStart,
-      StageCorner.bottomEnd => AlignmentDirectional.bottomEnd,
+    final alignment = switch (_spot) {
+      WatermarkSpot.topStart => AlignmentDirectional.topStart,
+      WatermarkSpot.topEnd => AlignmentDirectional.topEnd,
+      WatermarkSpot.center => AlignmentDirectional.center,
+      WatermarkSpot.bottomStart => AlignmentDirectional.bottomStart,
+      WatermarkSpot.bottomEnd => AlignmentDirectional.bottomEnd,
     };
-    final label = '${widget.spec.text} · $time';
+    final label = widget.spec.text;
+    // A Persian name sets the lines right to left; a number alone stays left to right.
+    final direction = _rtl.hasMatch(label)
+        ? TextDirection.rtl
+        : TextDirection.ltr;
     final style = TextStyle(
       fontSize: widget.spec.fontSize.toDouble() + 1,
       fontWeight: FontWeight.w600,
       letterSpacing: 0.4,
+      height: 1.35,
     );
-    // Updates every second: its own layer, so the stage underneath is not repainted with it.
+    // Changes only when it jumps: its own layer, so the stage underneath is not repainted.
     return RepaintBoundary(
       child: IgnorePointer(
         child: Padding(
           // Top corners sit below the pods' title strips, over the content, where a crop of
           // the picture still keeps them.
           padding: const EdgeInsets.fromLTRB(26, 44, 26, 22),
-          child: AnimatedAlign(
-            duration: const Duration(milliseconds: 600),
-            curve: Curves.easeInOut,
+          // A jump, not a slide: the mark is whole in every frame, never smeared across the
+          // class on its way.
+          child: Align(
             alignment: alignment,
             child: Opacity(
               opacity: widget.spec.opacity.clamp(0.1, 0.9),
@@ -81,7 +99,8 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
                 children: [
                   Text(
                     label,
-                    textDirection: TextDirection.ltr,
+                    textAlign: TextAlign.center,
+                    textDirection: direction,
                     style: style.copyWith(
                       foreground: Paint()
                         ..style = PaintingStyle.stroke
@@ -92,7 +111,8 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
                   ),
                   Text(
                     label,
-                    textDirection: TextDirection.ltr,
+                    textAlign: TextAlign.center,
+                    textDirection: direction,
                     style: style.copyWith(color: Colors.white),
                   ),
                 ],
@@ -104,6 +124,9 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
     );
   }
 }
+
+/// Arabic-script letters (Persian included).
+final _rtl = RegExp('[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]');
 
 /// For accessibility tools: the watermark is decorative to them, but its presence is announced.
 String watermarkSemantics(WatermarkSpec spec) =>

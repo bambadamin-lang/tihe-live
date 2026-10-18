@@ -1,37 +1,60 @@
 import 'dart:math';
 
-/// A corner of the stage, in reading terms so RTL is handled by the layout.
-enum StageCorner { topStart, topEnd, bottomStart, bottomEnd }
+/// Where on the stage the watermark can sit, in reading terms so RTL is handled by the layout:
+/// the four corners and the centre.
+enum WatermarkSpot {
+  topStart,
+  topEnd,
+  center,
+  bottomStart,
+  bottomEnd;
 
-/// Where the watermark sits, and when it moves next (docs/11 §9).
+  static const corners = [topStart, topEnd, bottomStart, bottomEnd];
+}
+
+/// Where the watermark sits, and when it jumps next (docs/11 §9).
 ///
-/// The sequence is pseudo-random from the per-join seed: the mark jumps to a *different*
-/// corner at intervals between half and one-and-a-half times `periodSeconds`. Cropping one
-/// corner out of a recording therefore never removes it, and the rhythm cannot be predicted
-/// from another student's copy.
+/// The sequence is pseudo-random from the per-join seed: the mark jumps to a *different* spot
+/// at intervals between half and one-and-a-half times `periodSeconds`. Cropping the edges, or
+/// the middle, out of a recording therefore never removes it, and the rhythm cannot be
+/// predicted from another student's copy.
 class WatermarkHopper {
-  WatermarkHopper({required int seed, required int periodSeconds})
-    : _random = Random(seed),
-      _period = Duration(seconds: max(4, periodSeconds)) {
-    _corner = StageCorner.values[_random.nextInt(4)];
+  WatermarkHopper({
+    required int seed,
+    required int periodSeconds,
+    List<WatermarkSpot> spots = WatermarkSpot.values,
+  }) : assert(
+         spots.length >= 2,
+         'a watermark that cannot jump is a fixed target',
+       ),
+       _spots = List.unmodifiable(spots),
+       _random = Random(seed),
+       _period = Duration(seconds: max(4, periodSeconds)) {
+    _spot = _spots[_random.nextInt(_spots.length)];
     _nextAt = _interval();
   }
 
+  /// The spots for the contract's `movement`: `corners` keeps to the four corners; the
+  /// classroom's `corners-and-center`, or anything newer, uses all five.
+  static List<WatermarkSpot> spotsFor(String movement) =>
+      movement == 'corners' ? WatermarkSpot.corners : WatermarkSpot.values;
+
+  final List<WatermarkSpot> _spots;
   final Random _random;
   final Duration _period;
-  late StageCorner _corner;
+  late WatermarkSpot _spot;
   late Duration _nextAt;
 
   Duration _interval() => _period * (0.5 + _random.nextDouble());
 
-  /// The corner at [elapsed] time since the class view opened.
-  StageCorner cornerAt(Duration elapsed) {
+  /// The spot at [elapsed] time since the class view opened.
+  WatermarkSpot spotAt(Duration elapsed) {
     while (elapsed >= _nextAt) {
-      final others = StageCorner.values.where((c) => c != _corner).toList();
-      _corner = others[_random.nextInt(others.length)];
+      final others = _spots.where((s) => s != _spot).toList();
+      _spot = others[_random.nextInt(others.length)];
       _nextAt += _interval();
     }
-    return _corner;
+    return _spot;
   }
 
   /// How long until the next jump — the widget schedules its next rebuild with this.

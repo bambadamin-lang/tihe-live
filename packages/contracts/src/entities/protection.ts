@@ -12,11 +12,18 @@ import { id, platformSchema } from '../common.js';
  * Rendered in the native view layer, never as a Dart widget. See docs/03-content-protection.md.
  */
 export const watermarkSchema = z.object({
-  /** Already masked, e.g. "0912•••6789 · #48213". The API never sends a full number. */
+  /**
+   * What to print, drawn as given; a newline starts a second line. The live classroom sends the
+   * viewer's name over their whole phone number (`liveWatermarkText`), to its owner only.
+   */
   text: z.string(),
   opacity: z.number().min(0.05).max(1),
   fontSize: z.number().int().min(8).max(48),
-  movement: z.enum(['static', 'drift', 'corners']),
+  /**
+   * `corners` jumps between the four corners; `corners-and-center` adds the centre, so a crop
+   * of the edges cannot remove it either (the live classroom).
+   */
+  movement: z.enum(['static', 'drift', 'corners', 'corners-and-center']),
   /** Seconds for one full movement cycle. */
   periodSeconds: z.number().int().positive(),
   /** Per-session seed for the drift path. */

@@ -27,7 +27,8 @@ Stated by the institute for the live classroom, designed in
 - Raised hands and levels of access in class.
 - Class layouts with recommended presets.
 - **Screen recording is banned**: recording the screen or the app window produces censored output; detection alerts the host ([ADR-0011](adr/0011-live-capture-guard-censor-and-attribute.md)).
-- A watermark in a corner of the class, identifying the viewer.
+- A watermark identifying the viewer: their name over their whole phone number, jumping
+  between the four corners and the centre of the class (no short id, no clock).
 - Persian UI in the **Modam** font (FontIran; it replaced Peyda). The classroom was first built
   skeuomorphic; it now uses a **navy glass** theme in **dark and light** (docs/11 §11).
 

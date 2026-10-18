@@ -26,10 +26,10 @@
     "ticketExpiresAt": "2026-09-27T06:32:00.000Z"
   },
   "watermark": {
-    "text": "0912•••6789 · #13794",
+    "text": "علی کریمی\n09123456789",
     "opacity": 0.32,
     "fontSize": 13,
-    "movement": "corners",
+    "movement": "corners-and-center",
     "periodSeconds": 37,
     "seed": 918273
   },

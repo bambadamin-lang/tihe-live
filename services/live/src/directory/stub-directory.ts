@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import {
-  maskPhone,
+  phoneSchema,
   roleSchema,
   type DirectoryCourse,
   type DirectoryProfile,
@@ -10,14 +10,14 @@ import type { CourseDirectory } from './course-directory.js';
 
 /**
  * Development directory: users and courses from a JSON file (services/live/dev/directory.json).
- * Phone numbers are masked on the way out exactly as the API would, so the watermark looks real.
+ * Phone numbers go out whole, as the API sends them, so the watermark looks real.
  */
 export const stubDirectorySchema = z.object({
   users: z.array(
     z.object({
       id: z.string(),
       displayName: z.string(),
-      phone: z.string(),
+      phone: phoneSchema,
       role: roleSchema,
     }),
   ),
@@ -55,8 +55,6 @@ export class StubCourseDirectory implements CourseDirectory {
 
   async profile(userId: string): Promise<DirectoryProfile | null> {
     const u = this.data.users.find((x) => x.id === userId);
-    return u
-      ? { id: u.id, displayName: u.displayName, phoneMasked: maskPhone(u.phone), role: u.role }
-      : null;
+    return u ? { id: u.id, displayName: u.displayName, phone: u.phone, role: u.role } : null;
   }
 }
