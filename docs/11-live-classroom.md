@@ -312,6 +312,11 @@ Server-side Egress only; the app has no recording path. Egress renders
 the institute mark — and writes to the path fixed in docs/06. A pulsing red "در حال ضبط" pill is
 visible to everyone while recording.
 
+The template draws the page and its finished ink into an offscreen canvas when an event changes
+them, and each frame copies that and draws only the strokes in progress. Redrawing every stroke
+each frame took about 45 ms a frame on a 300-stroke page in headless Chrome — more than the
+recorder's frame budget, so recordings stuttered while the teacher wrote.
+
 Ordering that matters for the pipeline:
 1. `metadata.json` is written at egress start and rewritten with `actualEndAt` and
    `participantCount` **before** `stopEgress` is called, so ingest never reads a stale copy.
@@ -426,12 +431,22 @@ a refactor.
     filtered copy, and a copy made per view would rebuild it for each ink batch too.
   - Gallery tiles are keyed by person, so when the order changes (the speaker comes first) a
     tile moves with its video renderer instead of the renderer being rebuilt.
-  - The whiteboard is two layers. Finished items are drawn once, and redrawn only when an item
-    comes or goes. Ink in motion (your stroke, others' previews, the laser) is redrawn every
-    frame on its own. Drawing on a full page costs one stroke per frame, not the whole page.
+  - The whiteboard is two layers. Finished ink is drawn into an image when an item comes or
+    goes, and that image is blitted on every other frame (`CommittedInk`). It is made for the
+    board's exact place on the pixel grid and drawn without resampling, so it is pixel for pixel
+    what drawing the strokes would give; while the board moves (a layout change, maximise) the
+    strokes are drawn directly and a new image is made once it holds still. Stroke outlines are
+    worked out once per item. Ink in motion (your stroke, others' previews, the laser) is
+    redrawn every frame on its own, so drawing on a full page costs one stroke per frame.
   - Other people's strokes arrive in 40 ms batches (§6). Each batch is revealed across the next
     40 ms at the display's rate, so remote ink glides instead of stepping 25 times a second.
   - Frames stop when nothing moves.
+  - On the server, each event is serialised once per kind of viewer (manager or not) and that
+    one frame goes to every connection of that kind; who receives it is still decided per
+    person, so private chat stays private. `scripts/fanout-bench.ts` measures it.
+  - `test/performance_test.dart` and `test/frame_cost_test.dart` pin these rules;
+    `example/perf/main.dart` measures frame times, input latency, CPU and memory on a real
+    engine (`packages/tihe_classroom/README.md`).
   - Android phones often hold apps at 60 Hz unless they ask for more, so the app asks for the
     display's fastest mode. iOS allows ProMotion through `CADisableMinimumFrameDurationOnPhone`.
 - The theme lives in `tihe_classroom/lib/src/ui/theme/`: tokens in one `ClassroomTheme` object
