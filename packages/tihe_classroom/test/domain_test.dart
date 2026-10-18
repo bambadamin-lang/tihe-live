@@ -229,6 +229,12 @@ void main() {
       expect(seen, WatermarkSpot.corners.toSet());
     });
 
+    test('only ever sits in one of the five spots', () {
+      expect(WatermarkSpot.values, hasLength(5));
+      expect(WatermarkSpot.values, contains(WatermarkSpot.center));
+      expect(WatermarkSpot.corners, hasLength(4));
+    });
+
     test(
       'keeps a floor on the period so a bad value cannot make it flicker',
       () {
@@ -239,6 +245,22 @@ void main() {
         );
       },
     );
+  });
+
+  group('watermark rows', () {
+    test('the full phone number sits beneath the name', () {
+      expect(watermarkRows('علی کریمی\n09121234503'), [
+        'علی کریمی',
+        '09121234503',
+      ]);
+    });
+
+    test('blank rows are dropped', () {
+      expect(watermarkRows('\nعلی کریمی\n\n09121234503\n'), [
+        'علی کریمی',
+        '09121234503',
+      ]);
+    });
   });
 
   group('StageGeometry', () {

@@ -1,5 +1,10 @@
 import 'dart:math';
 
+/// The rows of a watermark text, top to bottom: the name with the full phone beneath it
+/// (watermarkSchema in the contract). Blank rows are dropped.
+List<String> watermarkRows(String text) =>
+    text.split('\n').map((r) => r.trim()).where((r) => r.isNotEmpty).toList();
+
 /// Where on the stage the watermark can sit, in reading terms so RTL is handled by the layout:
 /// the four corners and the centre.
 enum WatermarkSpot {

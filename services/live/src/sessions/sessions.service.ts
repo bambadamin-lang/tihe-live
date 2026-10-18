@@ -149,13 +149,14 @@ export class SessionsService {
         // Their name over their whole phone number, as the institute asked: this response
         // goes to its owner only. A user the directory does not know still gets a mark.
         text: profile ? liveWatermarkText(profile.displayName, profile.phone) : name,
-        opacity: 0.32,
+        // Strong enough that every digit of the number reads on the white board too.
+        opacity: 0.4,
         fontSize: 13,
         // The four corners and the centre: cropping the edges, or the middle, never removes it.
         movement: 'corners-and-center',
         // A different rhythm and path per join, so the sequence cannot be predicted and
         // cropped around in a long recording.
-        periodSeconds: randomInt(25, 46),
+        periodSeconds: randomInt(20, 36),
         seed: randomInt(0, 2 ** 31 - 1),
       },
       capturePolicy: {

@@ -186,6 +186,7 @@ class _Classroom extends ConsumerWidget {
                                   child: IgnorePointer(child: ReactionFloat()),
                                 ),
                                 // Over every pod and panel, under nothing: see docs/11 §9.
+                                // The name and full phone come in the spec, from the server.
                                 Positioned.fill(
                                   child: WatermarkOverlay(spec: watermark),
                                 ),

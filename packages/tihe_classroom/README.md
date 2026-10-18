@@ -102,8 +102,9 @@ that ship are Windows and macOS.
 `.github/workflows/windows-installer.yml` builds the app on a Windows runner and wraps it in a
 Persian setup wizard, `TIHE-Live-Setup-<version>.exe` (Inno Setup,
 [`installer/windows/tihe_live.iss`](example/installer/windows/tihe_live.iss)). The workflow
-runs on pull requests that touch the classroom and on `live-v*` tags, which also publish a
-GitHub release. Download the `.exe` from the run's **Artifacts**. Once the workflow is on
+runs on pull requests that touch the classroom (download the `.exe` from the run's
+**Artifacts**), and on every merge to `main` and every `live-v*` tag, which publish a GitHub
+release — see **Updates** below. Once the workflow is on
 `main`, it can also be started by hand from the Actions tab (**Run workflow**, with an
 optional version); GitHub only offers that for workflows on the default branch.
 
@@ -122,6 +123,30 @@ bundle nor part of Windows. Uninstall from Windows Settings → Apps.
 
 For IT staff: `TIHE-Live-Setup-0.1.0.exe /VERYSILENT /server=https://…` installs with no
 questions.
+
+### Updates
+
+Install once; after that the app keeps itself up to date
+([`example/lib/updater.dart`](example/lib/updater.dart)):
+
+1. Every merge to `main` that touches the classroom is built and published as a release,
+   `live-v<major.minor>.<run>` (major.minor from `example/pubspec.yaml`), with
+   `tihe-live-update.json` beside the `.exe`: the version, the download link and its SHA-256.
+2. On start, and every three hours while open, the app reads that file from the latest
+   release. A newer version is downloaded in the background into
+   `%LOCALAPPDATA%\TIHE Live\updates` and kept only if its SHA-256 matches.
+3. The start page then offers **نصب و اجرای دوباره**. If nobody presses it, the update is
+   installed the next time the app opens, before its window shows. Either way the wizard runs
+   with `/SILENT` — a progress bar, no questions, the last server address kept — and starts
+   the app again. A copy installed for all users is updated for all users (Windows asks for
+   permission); if that is refused, the app opens as usual and offers the update again rather
+   than retrying on every start.
+
+Only downloads from this repository's releases over HTTPS are installed. The app reads the
+releases without signing in, so **the repository must be public**. A development build
+(`flutter run`, or `flutter build` without `--dart-define=TIHE_APP_VERSION=…`) never updates
+itself. Before tagging a release by hand, raise the minor version in `example/pubspec.yaml`,
+so the tag is newer than the builds of `main` already out.
 
 The installer is **not code-signed yet**, so Windows SmartScreen warns on first run ("Windows
 protected your PC" → **More info** → **Run anyway**). Signing needs a code-signing

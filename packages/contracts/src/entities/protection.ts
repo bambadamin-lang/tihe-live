@@ -24,7 +24,7 @@ export const watermarkSchema = z.object({
    * of the edges cannot remove it either (the live classroom).
    */
   movement: z.enum(['static', 'drift', 'corners', 'corners-and-center']),
-  /** Seconds for one full movement cycle. */
+  /** Average seconds between movements; each stay lasts 0.5–1.5 times this. */
   periodSeconds: z.number().int().positive(),
   /** Per-session seed for the drift path. */
   seed: z.number().int(),

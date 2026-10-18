@@ -54,8 +54,16 @@ void main() {
       expect(find.byType(SpeakerPod), findsOneWidget);
       expect(find.byType(ChatPod), findsOneWidget);
       expect(find.byType(WatermarkOverlay), findsOneWidget);
-      // Outline and fill are two layers of the same text: the host's name over their number.
-      expect(find.text('دکتر رضایی\n09121230001'), findsNWidgets(2));
+      // The name with every digit of the number beneath it, and nothing else. Outline and
+      // fill are two layers of the same text.
+      Finder inMark(Finder f) =>
+          find.descendant(of: find.byType(WatermarkOverlay), matching: f);
+      expect(inMark(find.text('دکتر رضایی')), findsNWidgets(2));
+      expect(inMark(find.text('09121230001')), findsNWidgets(2));
+      expect(inMark(find.byType(Text)), findsNWidgets(4));
+      final name = tester.getRect(inMark(find.text('دکتر رضایی')).first);
+      final phone = tester.getRect(inMark(find.text('09121230001')).first);
+      expect(phone.top, greaterThanOrEqualTo(name.bottom));
     },
   );
 

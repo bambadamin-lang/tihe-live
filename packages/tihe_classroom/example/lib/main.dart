@@ -9,6 +9,8 @@ import 'package:tihe_classroom/demo.dart';
 import 'package:tihe_classroom/tihe_classroom.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'updater.dart';
+
 /// The classroom on its own, for development and for the device checklist in
 /// docs/11-live-classroom.md §12:
 ///
@@ -20,6 +22,19 @@ import 'package:window_manager/window_manager.dart';
 /// joins that session straight away.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // The installed Windows app updates itself from GitHub releases (updater.dart). An update
+  // downloaded on an earlier run is installed before the window ever shows: the wizard draws
+  // its own progress bar and starts the app again when it is done.
+  final updates = Platform.isWindows && appVersion.isNotEmpty
+      ? AppUpdates(
+          Updater(
+            currentVersion: appVersion,
+            directory: defaultUpdateDirectory(),
+          ),
+        )
+      : null;
+  if (updates != null && await updates.installPendingOnStart()) exit(0);
+  updates?.start();
   // Many Android phones run apps at 60 Hz unless they ask for more; ask for the display's
   // fastest mode so the class animates at 90/120 Hz where the screen can. Desktop and iOS
   // already follow the display (iOS via CADisableMinimumFrameDurationOnPhone).
@@ -37,15 +52,22 @@ Future<void> main() async {
   }
   // Modam before the first frame, so no text is ever drawn in a fallback font first.
   await ClassroomFonts.ensureLoaded();
-  runApp(const ClassroomExampleApp());
+  runApp(ClassroomExampleApp(updates: updates));
 }
 
 /// Follows the system's light or dark mode until the user picks one, here or in class.
 class ClassroomExampleApp extends StatefulWidget {
-  const ClassroomExampleApp({super.key, this.ping = LiveApi.reachable});
+  const ClassroomExampleApp({
+    super.key,
+    this.ping = LiveApi.reachable,
+    this.updates,
+  });
 
   /// Checks the class server for the status lamp; replaced in tests.
   final Future<bool> Function(String baseUrl) ping;
+
+  /// Self-update on an installed Windows build; null elsewhere.
+  final AppUpdates? updates;
 
   @override
   State<ClassroomExampleApp> createState() => _ClassroomExampleAppState();
@@ -74,7 +96,11 @@ class _ClassroomExampleAppState extends State<ClassroomExampleApp> {
           ? _WindowFrame(child: child!)
           : child ?? const SizedBox.shrink(),
     ),
-    home: Launcher(onBrightnessChanged: _setBrightness, ping: widget.ping),
+    home: Launcher(
+      onBrightnessChanged: _setBrightness,
+      ping: widget.ping,
+      updates: widget.updates,
+    ),
   );
 }
 
@@ -136,10 +162,12 @@ class Launcher extends StatefulWidget {
     super.key,
     required this.onBrightnessChanged,
     this.ping = LiveApi.reachable,
+    this.updates,
   });
 
   final ValueChanged<Brightness> onBrightnessChanged;
   final Future<bool> Function(String baseUrl) ping;
+  final AppUpdates? updates;
 
   @override
   State<Launcher> createState() => _LauncherState();
@@ -323,6 +351,26 @@ class _LauncherState extends State<Launcher> {
                               ),
                             ),
                             SizedBox(height: narrow ? 18 : 24),
+                            if (widget.updates case final updates?)
+                              ListenableBuilder(
+                                listenable: updates,
+                                builder: (context, _) =>
+                                    switch (updates.ready) {
+                                      final ready? => Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 18,
+                                        ),
+                                        child: Appear(
+                                          offset: const Offset(0, 16),
+                                          child: _UpdateNote(
+                                            version: ready.version,
+                                            onInstall: updates.installNow,
+                                          ),
+                                        ),
+                                      ),
+                                      null => const SizedBox.shrink(),
+                                    },
+                              ),
                             Appear(
                               offset: const Offset(0, 16),
                               child: _Card(
@@ -709,6 +757,58 @@ class _LayoutField extends StatelessWidget {
             Icon(ClassroomIcons.chevronDown, size: 20, color: t.textSecondary),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A new version is downloaded and checked. Installing now closes the app for a few seconds;
+/// otherwise it is installed the next time the app opens.
+class _UpdateNote extends StatelessWidget {
+  const _UpdateNote({required this.version, required this.onInstall});
+
+  final String version;
+  final VoidCallback onInstall;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = ClassroomTheme.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: t.accentSubtle,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: t.accent.withValues(alpha: 0.45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(ClassroomIcons.update, size: 18, color: t.accentText),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'نسخهٔ تازهٔ برنامه (${toPersianDigits(version)}) آماده است. اگر الان نصب '
+                  'نکنید، دفعهٔ بعد که برنامه را باز کنید خودش نصب می‌شود.',
+                  style: TextStyle(
+                    color: t.text,
+                    height: 1.6,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          GlowButton(
+            label: 'نصب و اجرای دوباره',
+            icon: ClassroomIcons.update,
+            height: 42,
+            onPressed: onInstall,
+          ),
+        ],
       ),
     );
   }

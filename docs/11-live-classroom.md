@@ -266,23 +266,31 @@ be tuned without an app release.
 
 ## 9. Watermark
 
-- **Text**: two lines, as the institute asked — the viewer's first and last name, and under it
-  their **whole** phone number in its local form:
+- **Text**: two rows, as the institute asked — the viewer's first and last name, and beneath
+  it their **whole** phone number in its local form — and nothing else, no short id and no
+  clock:
 
   ```
-  مریم احمدی
-  09123456789
+  علی کریمی
+  09121234503
   ```
 
-  No short id and no clock. The number uses ASCII digits so OCR on a leaked copy is reliable,
-  and it identifies the account by itself. `liveWatermarkText` in contracts builds the text;
-  without a name it is the number alone. The directory sends the whole number (`phone` in
-  `directoryProfileSchema`) for this and nothing else.
-- **Placement**: five spots on the **stage** (not the window, since a camera aimed at the slides
-  would crop the window corners): its four corners and its centre. It **jumps** — no slide, so
-  every frame carries the whole mark — to a different spot at seeded random intervals
-  (`watermarkSchema` with `movement: 'corners-and-center'`), so cropping the edges, or the
-  middle, never removes it.
+  Every digit is legible, so a leaked copy names its source without a lookup. The number uses
+  ASCII digits, is the larger row and is letter-spaced, so OCR on a blurry camera copy reads
+  it; the name reads right to left and the number left to right, each on its own row, so no
+  digit reorders. `liveWatermarkText` in contracts builds the text; without a name it is the
+  number alone. The directory sends the whole number (`phone` in `directoryProfileSchema`)
+  for this and nothing else. Opacity 0.4, so the digits read on the white board too.
+- **Placement**: one mark, over the **stage** (not the window, since a camera aimed at the
+  slides would crop the window edges), in exactly one of five spots: the four corners of the
+  stage or its centre, with both rows hugging the corner they are in. It jumps to a different
+  spot at seeded random intervals — 0.5–1.5 × a per-join period of 20–35 s
+  (`movement: 'corners-and-center'`, `WatermarkHopper` in the classroom; a server that still
+  sends `corners` gets the four corners). The centre is there because a camera zoomed in past
+  the corners cropped a corners-only mark out. It does not glide: it leaves one spot at once
+  and drops into the next with a small bounce, so it is never seen crossing the stage; under
+  the system's reduce-motion setting it simply appears there. The jumps are timed on a
+  monotonic stopwatch, so winding the device's clock back cannot freeze the mark in one spot.
 - **Rendering**: a Flutter overlay above the stage. In the classroom the video is a Flutter
   texture, so a Dart overlay sits above it exactly as a native layer would (ADR-0011).
 - **Privacy**: the whole number goes only to its owner, in their own join response, and is
@@ -390,6 +398,8 @@ a refactor.
     counts in pod headers roll to their new values; menus drop from their control; reactions
     rise and fade.
   - Dialogs rise and sharpen into place; opening a class fades it in from slightly larger.
+  - The watermark jumps rather than glides: gone from its spot at once, it drops into the next
+    with a small bounce (§9).
   - The censor screen is the exception: it replaces the class instantly, since any frame of a
     fade would show the class to the recorder.
   - The operating system's reduce-motion setting turns all of this off (`Motion` in
@@ -442,7 +452,7 @@ These cannot run in CI. Run them before each release on real hardware.
 | 10 | iOS 17+ | Control Centre recording; AirPlay mirror | censor screen + host alert |
 | 11 | iOS | Presenter broadcast extension | no self-alert while sharing |
 | 12 | all | Revoke mic from a speaking student | track muted within 1 s; re-publish refused |
-| 13 | all | Watermark | jumps between the four corners and the centre; name over the whole number, no id or clock |
+| 13 | all | Watermark | one mark, jumping between the four corners and the centre; the full name with the whole number beneath it, nothing else |
 | 14 | all | Kill network for 10 s, restore | gateway resumes and the board, hands and chat are intact |
 
 ## 13. What it looks like
