@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 
 import 'cursor.dart';
 
-/// The classroom's look (docs/11 §11): frosted navy glass floating in a night sky, with two
-/// lit planets at the edges and faint orbits between them — and a daylight variant of the same.
+/// The classroom's look (docs/11 §11): frosted navy glass floating in a night sky — and a
+/// daylight variant of the same.
 ///
 /// Glass because a classroom is layers — pods over the stage, bars and sheets over pods — and
 /// translucency keeps each layer's place in the stack readable without heavy borders or
-/// shadows. The sky behind it is painted once: the planets give the blur something to refract,
-/// and they sit at the edges, where the class never is.
+/// shadows. The sky behind it is a plain gradient, painted once, with nothing drawn on it: the
+/// institute asked for no circles in the background.
 ///
 /// The accent is one electric blue, used as a gradient on the few things that start something
 /// (join, send) and flat everywhere else. Every colour and depth the classroom widgets use
@@ -20,8 +20,6 @@ class ClassroomTheme extends ThemeExtension<ClassroomTheme> {
     required this.canvas,
     required this.canvasTop,
     required this.glows,
-    required this.planet,
-    required this.orbit,
     required this.glass,
     required this.glassStrong,
     required this.glassHover,
@@ -71,14 +69,9 @@ class ClassroomTheme extends ThemeExtension<ClassroomTheme> {
   final Color canvas;
   final Color canvasTop;
 
-  /// Three soft light sources: top centre, bottom start, bottom end.
+  /// Three tints of the sky's light, for the small previews of it in the layout picker. The
+  /// sky itself draws no glows (`SkyPainter`, in glass.dart).
   final List<Color> glows;
-
-  /// A planet from its night side to its lit rim: shade, body, lit face, rim.
-  final List<Color> planet;
-
-  /// The faint orbit lines across the sky.
-  final Color orbit;
 
   /// Pods, bars, chips.
   final Color glass;
@@ -146,13 +139,6 @@ class ClassroomTheme extends ThemeExtension<ClassroomTheme> {
     canvas: Color(0xFF060F22),
     canvasTop: Color(0xFF0B1B3A),
     glows: [Color(0x402F6FFE), Color(0x455B3CF0), Color(0x2E1F7BFF)],
-    planet: [
-      Color(0xFF070D2B),
-      Color(0xFF12246E),
-      Color(0xFF2B4FE0),
-      Color(0xFF7C9CFF),
-    ],
-    orbit: Color(0x474F6FE8),
     glass: Color(0xA8101B34),
     glassStrong: Color(0xF00D1730),
     glassHover: Color(0x178AA8FF),
@@ -194,13 +180,6 @@ class ClassroomTheme extends ThemeExtension<ClassroomTheme> {
     canvas: Color(0xFFEAF0FB),
     canvasTop: Color(0xFFF6F9FF),
     glows: [Color(0x402F6FFE), Color(0x338B6CFF), Color(0x2638BDF8)],
-    planet: [
-      Color(0xFFDCE5FB),
-      Color(0xFFB9CBF8),
-      Color(0xFF7E9CF4),
-      Color(0xFF4F74F0),
-    ],
-    orbit: Color(0x405C7BE0),
     glass: Color(0xB3FFFFFF),
     glassStrong: Color(0xF2FBFCFF),
     glassHover: Color(0x0F1E3A8A),
@@ -287,8 +266,6 @@ class ClassroomTheme extends ThemeExtension<ClassroomTheme> {
     canvas: canvas,
     canvasTop: canvasTop,
     glows: glows,
-    planet: planet,
-    orbit: orbit,
     glass: glass,
     glassStrong: glassStrong,
     glassHover: glassHover,

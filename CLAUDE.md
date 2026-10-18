@@ -54,10 +54,11 @@ infra/                  compose, nginx, scripts
 10. **Anything with crypto, time or permissions in it needs a test.** Those are the things that
     fail silently.
 11. **The design stays.** The navy-glass look of docs/11 §11 is the institute's choice and every
-    version of every app keeps it: the night sky with its planets, glass panes, the blue accent,
-    the Modam font, the glow cursor, the two-wedge mark (also the app icon), the welcome page,
-    and the app's own title bar on Windows. Do not restyle, swap the font or drop any of it
-    unless the user asks. `packages/tihe_classroom/test/design_lock_test.dart` pins it; a change
+    version of every app keeps it: the night sky (a plain navy gradient — the user had its
+    planets, orbits and other circles removed, so do not add them back), glass panes, the blue
+    accent, the Modam font, the glow cursor, the two-wedge mark (also the app icon), the welcome
+    page, and the app's own title bar on Windows. Do not restyle, swap the font or drop any of
+    it unless the user asks. `packages/tihe_classroom/test/design_lock_test.dart` pins it; a change
     the user asked for updates that test in the same PR.
 
 ## Commands

@@ -92,8 +92,9 @@ abstract final class ClassroomIcons {
   static const nextPage = LucideIcons.chevronRightDir;
 }
 
-/// The sky behind everything, painted once: a navy gradient, a few soft glows, two planets lit
-/// along their inner rims at the edges and faint orbits around them.
+/// The sky behind everything, painted once: a plain navy gradient. Nothing round is drawn on
+/// it — no planets, orbits, moon or glows — because the institute asked for a background
+/// without circles (design_lock_test pins this).
 ///
 /// Also establishes the [BackdropGroup] that the stage's panes share, so a stage of seven pods
 /// costs one blur, not seven.

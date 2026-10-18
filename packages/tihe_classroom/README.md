@@ -8,7 +8,7 @@ The TIHE Live classroom as a Flutter package. It covers:
 - capture censoring
 - the identity watermark
 
-The UI is in Persian, right to left, in Modam: navy glass over a night sky with lit planets,
+The UI is in Persian, right to left, in Modam: navy glass over a plain night sky,
 in dark and light. It follows the host app's theme unless given `brightness:`, and a switch in
 the class's top bar flips it (reported through `onBrightnessChanged:`). The pointer is the TIHE
 glow cursor. Design and rules: [docs/11-live-classroom.md](../../docs/11-live-classroom.md) §11.

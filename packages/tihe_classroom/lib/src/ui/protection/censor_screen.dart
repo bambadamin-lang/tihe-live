@@ -28,7 +28,7 @@ class CensorScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = ClassroomTheme.of(context);
     // The backdrop paints the whole canvas, so this stays opaque: the glass card blurs only the
-    // canvas's own glows, never the class.
+    // sky, never the class.
     return Semantics(
       liveRegion: true,
       label: 'ضبط صفحه در کلاس مجاز نیست',

@@ -267,9 +267,10 @@ never the side effect of a merge or a refactor.
 - **Navy glass, in dark and light.** The classroom is layers — pods over the stage, the dock and
   sheets over pods — and frosted glass keeps each layer's place readable without heavy borders
   or shadows:
-  - Sky: a deep navy gradient with a few soft glows, two planets lit along their inner rims at
-    the left and right edges, and faint orbit lines between them. It is painted once; the planets
-    give the blur something to refract, and they sit at the edges, where the class never is.
+  - Sky: a deep navy gradient (pale blue in the light theme), painted once, with nothing drawn
+    on it. It used to carry soft glows, two lit planets with orbit lines and a moon; the
+    institute asked for the circles to go, and the design-lock test now pins a sky without
+    them.
   - Panes: every pod, the top bar's chips and the dock are frosted navy glass with a lit
     one-pixel rim. The stage's panes share one `BackdropGroup`, so seven pods cost one blur;
     overlays (toasts, sheets, menus) blur on their own.
