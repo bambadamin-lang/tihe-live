@@ -255,6 +255,14 @@ void main() {
       ]);
     });
 
+    test('the number masks as everyone but its owner may see it', () {
+      expect(maskWatermarkPhone('09121234503'), '0912•••4503');
+      expect(maskWatermarkPhone('+989121234503'), '0912•••4503');
+      expect(maskWatermarkPhone('09121234503'), isNot(contains('123')));
+      expect(isWatermarkPhone('09121234503'), isTrue);
+      expect(isWatermarkPhone('علی کریمی'), isFalse);
+    });
+
     test('blank rows are dropped', () {
       expect(watermarkRows('\nعلی کریمی\n\n09121234503\n'), [
         'علی کریمی',

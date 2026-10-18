@@ -165,6 +165,11 @@ class _Classroom extends ConsumerWidget {
     final watermark = ref.watch(
       classroomViewProvider.select((v) => v.watermark),
     );
+    // While they share their own screen, the class may be watching their window: see
+    // WatermarkOverlay.ownShare.
+    final ownShare = ref.watch(
+      classroomViewProvider.select((v) => v.media.local?.screenOn ?? false),
+    );
     return Material(
       type: MaterialType.transparency,
       child: GlassBackdrop(
@@ -188,7 +193,10 @@ class _Classroom extends ConsumerWidget {
                                 // Over every pod and panel, under nothing: see docs/11 §9.
                                 // The name and full phone come in the spec, from the server.
                                 Positioned.fill(
-                                  child: WatermarkOverlay(spec: watermark),
+                                  child: WatermarkOverlay(
+                                    spec: watermark,
+                                    ownShare: ownShare,
+                                  ),
                                 ),
                               ],
                             )

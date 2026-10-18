@@ -5,6 +5,17 @@ import 'dart:math';
 List<String> watermarkRows(String text) =>
     text.split('\n').map((r) => r.trim()).where((r) => r.isNotEmpty).toList();
 
+/// Whether a watermark row is the phone number (as against the name).
+bool isWatermarkPhone(String row) => RegExp(r'^\+?\d{10,13}$').hasMatch(row);
+
+/// The number as everyone but its owner may see it, `0912•••4503` — the same rule as
+/// `maskPhone` in the contracts.
+String maskWatermarkPhone(String row) {
+  final local = row.replaceFirst(RegExp(r'^\+98'), '0');
+  if (local.length < 11) return '•' * local.length;
+  return '${local.substring(0, 4)}•••${local.substring(local.length - 4)}';
+}
+
 /// Where on the stage the watermark can sit, in reading terms so RTL is handled by the layout:
 /// the four corners and the centre.
 enum WatermarkSpot {

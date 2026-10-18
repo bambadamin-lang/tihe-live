@@ -13,9 +13,20 @@ import '../theme/motion.dart';
 /// intervals, never gliding across the stage in between. It sits above every pod and ignores the
 /// pointer. The digits stay ASCII so OCR on a leaked copy reads them reliably.
 class WatermarkOverlay extends StatefulWidget {
-  const WatermarkOverlay({super.key, required this.spec, this.elapsed});
+  const WatermarkOverlay({
+    super.key,
+    required this.spec,
+    this.ownShare = false,
+    this.elapsed,
+  });
 
   final WatermarkSpec spec;
+
+  /// True while this viewer shares their own screen. Their classroom window can end up in that
+  /// share (macOS 15+, a course that allows capture, iOS without the secure layer), which goes
+  /// to the whole class and into the recording, so the number is masked until they stop: the
+  /// whole number is for its owner's eyes only.
+  final bool ownShare;
 
   /// For tests: the time since the overlay opened. Left out, a monotonic stopwatch keeps it, so
   /// winding the device's clock back cannot freeze the mark in one spot to be cropped out.
@@ -96,7 +107,12 @@ class _WatermarkOverlayState extends State<WatermarkOverlay>
         CrossAxisAlignment.end,
       ),
     };
-    final rows = watermarkRows(widget.spec.text);
+    final rows = [
+      for (final row in watermarkRows(widget.spec.text))
+        widget.ownShare && isWatermarkPhone(row)
+            ? maskWatermarkPhone(row)
+            : row,
+    ];
     final size = widget.spec.fontSize.toDouble();
     // Its own layer, so the stage underneath is not repainted when it moves.
     return RepaintBoundary(
@@ -139,7 +155,7 @@ class _WatermarkOverlayState extends State<WatermarkOverlay>
   /// The phone is the larger row and spaced out, so no digit merges with its neighbour on a
   /// blurry camera copy.
   TextStyle _rowStyle(String row, double size) {
-    if (_isPhone(row)) {
+    if (isWatermarkPhone(row) || row.contains('•')) {
       return TextStyle(
         fontSize: size + 4,
         fontWeight: FontWeight.w700,
@@ -149,8 +165,6 @@ class _WatermarkOverlayState extends State<WatermarkOverlay>
     return TextStyle(fontSize: size + 2, fontWeight: FontWeight.w700);
   }
 }
-
-bool _isPhone(String row) => RegExp(r'^\+?\d{10,13}$').hasMatch(row);
 
 /// Arabic-script letters (Persian included).
 final _rtl = RegExp(

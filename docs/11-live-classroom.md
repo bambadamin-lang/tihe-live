@@ -297,6 +297,11 @@ be tuned without an app release.
   drawn only on their own screen. It is never placed in LiveKit metadata or attributes, the
   gateway or a gateway ticket, which other participants can read, and never logged (logs mask
   it, CLAUDE.md rule 2). The e2e test checks that one student's number reaches no one else.
+  - **While they share their own screen** the number on their mark is masked
+    (`0912•••4503`), the name staying: their classroom window can end up in that share — on
+    macOS 15+, where `sharingType` is ignored; in a course with `allowCapture`, where nothing
+    is blocked; on iOS without the secure layer — and the share goes to the whole class and
+    into the recording. It comes back in full when they stop (`WatermarkOverlay.ownShare`).
 - **Recordings** carry an institute mark instead. Viewer identity is added by the player when
   a recording is watched.
 

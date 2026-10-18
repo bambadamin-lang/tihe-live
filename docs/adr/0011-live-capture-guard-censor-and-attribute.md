@@ -71,7 +71,8 @@ jump between the stage's four corners and its centre. The short id and the clock
 - A whole number identifies a leaked copy at a glance, without the leak-lookup tool. The cost
   is that the number is on the student's own screen in full, so the rule that it reaches no
   one else matters more: only its owner's join response carries it, never LiveKit, the
-  gateway or a log (docs/11 §9).
+  gateway or a log (docs/11 §9). Pixels count too: while someone shares their own screen,
+  which may include their classroom window, their mark shows the number masked.
 - The centre spot means a crop of the edges no longer removes the mark. It sits over the class
   at the same low opacity as before.
 - It jumps rather than slides, so no frame shows it half-way or smeared.

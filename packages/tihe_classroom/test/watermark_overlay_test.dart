@@ -227,6 +227,25 @@ void main() {
     expect(mark(tester), after);
   });
 
+  // The class may be watching this viewer's window while they share their own screen.
+  testWidgets('masks the number while the viewer shares their own screen', (
+    tester,
+  ) async {
+    Widget overlay({required bool sharing}) => Directionality(
+      textDirection: TextDirection.rtl,
+      child: WatermarkOverlay(spec: spec, ownShare: sharing),
+    );
+    await tester.pumpWidget(overlay(sharing: true));
+    expect(inMark(find.text(name)), findsNWidgets(2));
+    expect(inMark(find.text('0912•••4503')), findsNWidgets(2));
+    expect(inMark(find.textContaining('1234503')), findsNothing);
+
+    await tester.pumpWidget(overlay(sharing: false));
+    expect(inMark(find.text(phone)), findsNWidgets(2));
+    expect(inMark(find.textContaining('•')), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('keeps its own time when no test clock is given', (tester) async {
     await tester.pumpWidget(
       const Directionality(

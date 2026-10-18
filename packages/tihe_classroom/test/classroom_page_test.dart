@@ -67,6 +67,26 @@ void main() {
     },
   );
 
+  testWidgets(
+    'the host\'s own screen share masks the number on their watermark',
+    (tester) async {
+      final c = await pumpClassroom(tester);
+      Finder inMark(Finder f) =>
+          find.descendant(of: find.byType(WatermarkOverlay), matching: f);
+      expect(inMark(find.text('09121230001')), findsNWidgets(2));
+
+      await c.session.startScreenShare();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(inMark(find.textContaining('1230001')), findsNothing);
+      expect(inMark(find.text('0912•••0001')), findsNWidgets(2));
+      expect(inMark(find.text('دکتر رضایی')), findsNWidgets(2));
+
+      await c.session.stopScreenShare();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(inMark(find.text('09121230001')), findsNWidgets(2));
+    },
+  );
+
   testWidgets('every stage follows a layout change', (tester) async {
     final c = await pumpClassroom(tester, as: DemoClassroom.ali);
     c.server.emit(
